@@ -39,17 +39,17 @@ STATUS_TEXT = {
 COLOR_OK = [40, 160, 80]
 COLOR_SWAP = [230, 150, 30]
 
-# Expected-region masks for swap detection: (lat_min, lat_max, lon_min, lon_max).
-# Portugal + PALOP (Portuguese-speaking African countries).
-REGION_BBOXES = {
-    "Portugal mainland": (36.8, 42.2, -9.6, -6.1),
-    "Azores": (36.9, 39.8, -31.3, -24.9),
-    "Madeira": (32.3, 33.2, -17.3, -16.2),
-    "Angola": (-18.1, -4.3, 11.6, 24.2),
-    "Cabo Verde": (14.7, 17.3, -25.5, -22.6),
-    "Guiné-Bissau": (10.8, 12.8, -16.9, -13.5),
-    "Moçambique": (-27.0, -10.4, 30.1, 41.0),
-    "São Tomé e Príncipe": (-0.1, 1.8, 6.4, 7.6),
+# Expected-region masks for swap detection. Each entry is a list of bounding
+# boxes (lat_min, lat_max, lon_min, lon_max). Portugal mainland is the default.
+REGION_MASKS = {
+    "Portugal mainland": [(36.8, 42.2, -9.6, -6.1)],
+    "Azores": [(36.9, 39.8, -31.3, -24.9)],
+    "Madeira": [(32.3, 33.2, -17.3, -16.2)],
+    "Angola": [(-18.1, -4.3, 11.6, 24.2)],
+    "Cabo Verde": [(14.7, 17.3, -25.5, -22.6)],
+    "Guiné-Bissau": [(10.8, 12.8, -16.9, -13.5)],
+    "Moçambique": [(-27.0, -10.4, 30.1, 41.0)],
+    "São Tomé e Príncipe": [(-0.1, 1.8, 6.4, 7.6)],
 }
 
 
@@ -249,22 +249,20 @@ def render_downloads(result, name_key):
 def swap_detection_controls():
     """Region selector. Returns (mask, reference, region_radius, is_auto)."""
     st.markdown("**Swap detection**")
-    st.caption("Anchor detection to where your data should be. 'Auto' guesses the "
-               "largest cluster and can pick the wrong side when about half the data is swapped.")
-    options = (["Auto (largest cluster)", "Portugal + PALOP (all)"]
-               + list(REGION_BBOXES) + ["Custom centre"])
-    region = st.selectbox("Expected data region", options)
-    if region == "Auto (largest cluster)":
-        return None, None, 10.0, True
-    if region == "Portugal + PALOP (all)":
-        return list(REGION_BBOXES.values()), None, 10.0, False
+    st.caption("Pick the region your data belongs to. 'Auto' guesses the largest "
+               "cluster and can pick the wrong side when about half the data is swapped.")
+    # Countries first (Portugal default), then the advanced options.
+    options = list(REGION_MASKS) + ["Custom centre", "Auto (largest cluster)"]
+    region = st.selectbox("Expected data region", options, index=0)
+    if region in REGION_MASKS:
+        return REGION_MASKS[region], None, 10.0, False
     if region == "Custom centre":
         cc1, cc2 = st.columns(2)
         rlat = cc1.number_input("Reference latitude", -90.0, 90.0, 39.5)
         rlon = cc2.number_input("Reference longitude", -180.0, 180.0, -8.0)
         radius = st.slider("Region radius (degrees)", 1.0, 45.0, 10.0)
         return None, (rlat, rlon), radius, False
-    return [REGION_BBOXES[region]], None, 10.0, False
+    return None, None, 10.0, True
 
 
 # ---------------------------------------------------------------------------

@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Detection of likely swapped latitude/longitude (range-based and cluster-based)
   with a review-and-confirm step and an invert option for ambiguous cases.
-- Expected-region mask for swap detection (Portugal + PALOP, a single country,
+- Region mask for swap detection (Portugal mainland by default, plus Azores,
+  Madeira, Angola, Cabo Verde, Guiné-Bissau, Moçambique, São Tomé e Príncipe,
   or a custom centre), which disambiguates the swapped side regardless of how
   the data clusters.
 - DD -> DMS formatting, available as optional output columns and exposed via

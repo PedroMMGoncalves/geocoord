@@ -127,9 +127,9 @@ a negative sign in the source data, otherwise their sign cannot be inferred.
 A common error is having latitude and longitude swapped in some rows. GeoCoord
 flags these and lets you anchor detection to where the data should be:
 
-- **Region mask (recommended):** choose an expected region — Portugal + PALOP
-  (Portugal mainland, Azores, Madeira, Angola, Cabo Verde, Guiné-Bissau,
-  Moçambique, São Tomé e Príncipe), a single country, or a custom centre. A row
+- **Region mask (recommended):** pick the region your data belongs to —
+  Portugal mainland (the default), Azores, Madeira, Angola, Cabo Verde,
+  Guiné-Bissau, Moçambique, São Tomé e Príncipe — or a custom centre. A row
   that falls outside the region but lands inside it when its coordinates are
   swapped is flagged. This is reliable regardless of how the data clusters.
 - **Range:** a value that cannot be a latitude (|lat| > 90) but becomes valid
