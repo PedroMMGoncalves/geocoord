@@ -1,4 +1,5 @@
 import io
+import os
 
 import pandas as pd
 import streamlit as st
@@ -8,6 +9,13 @@ from geoexport import to_geojson, to_kml, to_shapefile_zip
 
 APP_NAME = "GeoCoord"
 ACCENT = "#1f7a4d"  # accent colour — replace with an official LNEG colour if desired
+
+# Okabe-Ito colour-blind-safe pair for the map.
+COLOR_OK = [0, 114, 178]      # blue
+COLOR_SWAP = [213, 94, 0]     # vermillion
+
+ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+LOGO = os.path.join(ASSETS, "logo.png")
 
 st.set_page_config(
     page_title=f"{APP_NAME} — DMS to Decimal Degrees",
@@ -22,13 +30,13 @@ _CSS = """
 [data-testid="stDecoration"] {display: none;}
 .stButton>button[kind="primary"] {background-color: __ACCENT__; border-color: __ACCENT__;}
 .gc-title {border-left: 5px solid __ACCENT__; padding-left: 0.7rem; margin-bottom: 0.1rem;}
+.gc-step {color: __ACCENT__; font-weight: 700; font-size: 1.05rem; margin: 0.6rem 0 0.2rem;}
 </style>
 """.replace("__ACCENT__", ACCENT)
 st.markdown(_CSS, unsafe_allow_html=True)
 st.markdown(f"<h1 class='gc-title'>{APP_NAME}</h1>", unsafe_allow_html=True)
 st.caption("DMS to Decimal Degrees coordinate converter — WGS84 / EPSG:4326")
 
-# Status labels (from converter.detect_swaps) -> human text and map colour.
 STATUS_TEXT = {
     "ok": "OK",
     "swap_range": "Possible swap (out of range as-is)",
@@ -36,8 +44,6 @@ STATUS_TEXT = {
     "out_of_range": "Out of valid range",
     "missing": "Failed: could not parse",
 }
-COLOR_OK = [40, 160, 80]
-COLOR_SWAP = [230, 150, 30]
 
 # Expected-region masks for swap detection. Each entry is a list of bounding
 # boxes (lat_min, lat_max, lon_min, lon_max). Portugal mainland is the default.
@@ -51,6 +57,10 @@ REGION_MASKS = {
     "Moçambique": [(-27.0, -10.4, 30.1, 41.0)],
     "São Tomé e Príncipe": [(-0.1, 1.8, 6.4, 7.6)],
 }
+
+
+def _step(label):
+    st.markdown(f"<div class='gc-step'>{label}</div>", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
@@ -140,6 +150,36 @@ def features_in_range(result):
     return features, field_names
 
 
+# Cached exports: keyed by dataframe content, so toggling format checkboxes does
+# not rebuild the others, and only a real data/region change recomputes them.
+@st.cache_data(show_spinner=False)
+def export_csv(df):
+    return df.to_csv(index=False).encode("utf-8-sig")
+
+
+@st.cache_data(show_spinner=False)
+def export_excel(df):
+    return to_excel_bytes(df)
+
+
+@st.cache_data(show_spinner=False)
+def export_geojson(df):
+    features, _ = features_in_range(df)
+    return to_geojson(features)
+
+
+@st.cache_data(show_spinner=False)
+def export_kml(df, name_key):
+    features, _ = features_in_range(df)
+    return to_kml(features, name_key=name_key)
+
+
+@st.cache_data(show_spinner=False)
+def export_shapefile(df):
+    features, fields = features_in_range(df)
+    return to_shapefile_zip(features, fields)
+
+
 def guess_column(cols, candidates, fallback_index):
     lower_map = {c.lower(): c for c in cols}
     for c in candidates:
@@ -175,10 +215,16 @@ def render_map(result, labels):
             "row": i,
         })
     if not rows:
+        st.info("No valid points to map.")
         return
     map_df = pd.DataFrame(rows)
-    st.subheader("Map")
-    st.caption("Green = OK, orange = possible swap. Basemap needs internet; points show offline.")
+    st.markdown(
+        f"<span style='color:rgb({COLOR_OK[0]},{COLOR_OK[1]},{COLOR_OK[2]})'>&#9679;</span> OK "
+        f"&nbsp;&nbsp; <span style='color:rgb({COLOR_SWAP[0]},{COLOR_SWAP[1]},{COLOR_SWAP[2]})'>"
+        f"&#9679;</span> Possible swap",
+        unsafe_allow_html=True,
+    )
+    st.caption("Basemap needs an internet connection; points are shown offline.")
     try:
         import pydeck as pdk
         view = pdk.data_utils.compute_view(map_df[["plon", "plat"]].values)
@@ -194,25 +240,34 @@ def render_map(result, labels):
         st.map(map_df.rename(columns={"plat": "lat", "plon": "lon"})[["lat", "lon"]])
 
 
-def render_summary(result):
+def render_summary(result, labels, lat_col, lon_col):
     lat = pd.to_numeric(result["Latitude_DD"], errors="coerce")
     lon = pd.to_numeric(result["Longitude_DD"], errors="coerce")
     ok = lat.between(-90, 90) & lon.between(-180, 180)
-    if ok.sum() == 0:
-        return
-    la, lo = lat[ok], lon[ok]
-    st.subheader("Summary (valid points)")
-    s1, s2 = st.columns(2)
-    s1.write(
-        f"**Bounding box**\n\n"
-        f"- lat: {la.min():.6f} to {la.max():.6f}\n"
-        f"- lon: {lo.min():.6f} to {lo.max():.6f}"
-    )
-    s2.write(f"**Centroid**\n\n- lat: {la.mean():.6f}\n- lon: {lo.mean():.6f}")
+    if ok.sum():
+        la, lo = lat[ok], lon[ok]
+        s1, s2 = st.columns(2)
+        s1.write(
+            f"**Bounding box**\n\n"
+            f"- lat: {la.min():.6f} to {la.max():.6f}\n"
+            f"- lon: {lo.min():.6f} to {lo.max():.6f}"
+        )
+        s2.write(f"**Centroid**\n\n- lat: {la.mean():.6f}\n- lon: {lo.mean():.6f}")
+    else:
+        st.info("No valid points.")
+
+    bad_idx = [i for i, s in enumerate(labels) if s in ("out_of_range", "missing")]
+    if bad_idx:
+        st.markdown(f"**{len(bad_idx)} invalid row(s)**")
+        bad = result.iloc[bad_idx]
+        st.dataframe(
+            bad[[c for c in (lat_col, lon_col, "Latitude_DD", "Longitude_DD", "status")
+                 if c in bad.columns]],
+            use_container_width=True)
 
 
 def render_downloads(result, name_key):
-    st.subheader("Download")
+    _step("5. Download")
     st.caption("Tabular formats include all rows; spatial formats include valid points only.")
     c = st.columns(5)
     want = {
@@ -222,36 +277,33 @@ def render_downloads(result, name_key):
         "KML": c[3].checkbox("KML", value=False),
         "Shapefile": c[4].checkbox("Shapefile", value=False),
     }
-    features, field_names = features_in_range(result)
+    has_points = bool(features_in_range(result)[0])
     d = st.columns(5)
     if want["CSV"]:
-        d[0].download_button("Download CSV", result.to_csv(index=False).encode("utf-8-sig"),
+        d[0].download_button("Download CSV", export_csv(result),
                              "converted.csv", "text/csv", use_container_width=True)
     if want["Excel"]:
-        d[1].download_button("Download Excel", to_excel_bytes(result),
-                             "converted.xlsx",
+        d[1].download_button("Download Excel", export_excel(result), "converted.xlsx",
                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              use_container_width=True)
     if want["GeoJSON"]:
-        d[2].download_button("Download GeoJSON", to_geojson(features),
+        d[2].download_button("Download GeoJSON", export_geojson(result),
                              "converted.geojson", "application/geo+json",
-                             disabled=not features, use_container_width=True)
+                             disabled=not has_points, use_container_width=True)
     if want["KML"]:
-        d[3].download_button("Download KML", to_kml(features, name_key=name_key),
+        d[3].download_button("Download KML", export_kml(result, name_key),
                              "converted.kml", "application/vnd.google-earth.kml+xml",
-                             disabled=not features, use_container_width=True)
+                             disabled=not has_points, use_container_width=True)
     if want["Shapefile"]:
-        d[4].download_button("Download Shapefile (.zip)", to_shapefile_zip(features, field_names),
+        d[4].download_button("Download Shapefile (.zip)", export_shapefile(result),
                              "converted_shapefile.zip", "application/zip",
-                             disabled=not features, use_container_width=True)
+                             disabled=not has_points, use_container_width=True)
 
 
 def swap_detection_controls():
     """Region selector. Returns (mask, reference, region_radius, is_auto)."""
-    st.markdown("**Swap detection**")
     st.caption("Pick the region your data belongs to. 'Auto' guesses the largest "
                "cluster and can pick the wrong side when about half the data is swapped.")
-    # Countries first (Portugal default), then the advanced options.
     options = list(REGION_MASKS) + ["Custom centre", "Auto (largest cluster)"]
     region = st.selectbox("Expected data region", options, index=0)
     if region in REGION_MASKS:
@@ -269,6 +321,8 @@ def swap_detection_controls():
 # Sidebar
 # ---------------------------------------------------------------------------
 with st.sidebar:
+    if os.path.exists(LOGO):
+        st.image(LOGO, use_container_width=True)
     st.markdown(f"### {APP_NAME}")
     st.caption("DMS to decimal degrees coordinate converter (WGS84 / EPSG:4326).")
     decimals = st.slider("Decimal places in the result", 2, 10, 6)
@@ -287,12 +341,14 @@ with st.sidebar:
 tab_file, tab_quick = st.tabs(["File conversion", "Quick conversion"])
 
 with tab_file:
+    _step("1. Load a file")
     uploaded = st.file_uploader("Choose a file", type=["xlsx", "xls", "csv"],
-                                help="Supports Excel (.xlsx/.xls) and CSV")
+                                help="Supports Excel (.xlsx/.xls) and CSV",
+                                label_visibility="collapsed")
 
     if uploaded is None:
         st.session_state.pop("result", None)
-        st.info("Load a file to begin.")
+        st.info("Load a CSV or Excel file to begin.")
     else:
         if st.session_state.get("file_name") != uploaded.name:
             st.session_state.file_name = uploaded.name
@@ -328,6 +384,7 @@ with tab_file:
         with st.expander("File preview", expanded=False):
             st.dataframe(df.head(20), use_container_width=True)
 
+        _step("2. Choose the coordinate columns")
         cols = list(df.columns)
         c1, c2 = st.columns(2)
         lat_col = c1.selectbox("Latitude column (DMS)", cols,
@@ -341,6 +398,7 @@ with tab_file:
         preview["-> Longitude_DD"] = [parse_coordinate(v) for v in preview[lon_col]]
         st.dataframe(preview, use_container_width=True)
 
+        _step("3. Convert")
         if st.button("Convert coordinates", type="primary"):
             with st.spinner("Converting..."):
                 st.session_state.result = build_result(df, lat_col, lon_col, decimals, add_dms)
@@ -349,7 +407,7 @@ with tab_file:
         if st.session_state.get("result") is not None:
             result = st.session_state.result
 
-            # Swap detection runs here so it reacts to the chosen region.
+            _step("4. Review and fix swapped coordinates")
             mask, reference, region_radius, is_auto = swap_detection_controls()
             lat_list = result["Latitude_DD"].tolist()
             lon_list = result["Longitude_DD"].tolist()
@@ -376,7 +434,7 @@ with tab_file:
                         st.caption(f"Expected location ≈ lat {center[0]:.3f}, lon {center[1]:.3f}. "
                                    "Outliers that fall back near it when X/Y are swapped are flagged.")
                     elif cluster_idx and mask is not None:
-                        st.caption("Points outside the expected region(s) whose swapped "
+                        st.caption("Points outside the expected region whose swapped "
                                    "coordinates fall inside are flagged.")
                     susp = result.iloc[range_idx + cluster_idx]
                     st.dataframe(
@@ -393,21 +451,16 @@ with tab_file:
                         st.session_state.result = apply_swaps(result, target, add_dms)
                         st.rerun()
 
-            st.subheader("Result")
-            st.dataframe(result.head(50), use_container_width=True)
-
-            if n_bad:
-                with st.expander(f"{n_bad} invalid row(s)"):
-                    bad = result.iloc[[i for i, s in enumerate(labels)
-                                       if s in ("out_of_range", "missing")]]
-                    st.dataframe(
-                        bad[[c for c in (lat_col, lon_col, "Latitude_DD", "Longitude_DD", "status")
-                             if c in bad.columns]],
-                        use_container_width=True)
-
-            render_map(result, labels)
-            render_summary(result)
-            render_downloads(result, st.session_state.get("name_key"))
+            t_table, t_map, t_summary, t_download = st.tabs(
+                ["Table", "Map", "Summary", "Download"])
+            with t_table:
+                st.dataframe(result, use_container_width=True, height=460)
+            with t_map:
+                render_map(result, labels)
+            with t_summary:
+                render_summary(result, labels, lat_col, lon_col)
+            with t_download:
+                render_downloads(result, st.session_state.get("name_key"))
 
 
 with tab_quick:
@@ -437,4 +490,5 @@ with tab_quick:
         if (lat_dd is not None and lon_dd is not None
                 and in_range(lat_dd, "lat") and in_range(lon_dd, "lon")):
             st.code(f"POINT ({lon_dd} {lat_dd})", language="text")
+            st.caption(f"DMS: {format_dms(lat_dd, 'lat')}, {format_dms(lon_dd, 'lon')}")
             st.map(pd.DataFrame({"lat": [lat_dd], "lon": [lon_dd]}))

@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Excel sheet selection and configurable CSV separator/decimal on read.
 - `geoexport.py` module with GeoJSON/KML/Shapefile writers and its test suite.
 
+### Changed
+
+- Reworked the interface: a numbered step-by-step flow, results organised into
+  Table / Map / Summary / Download tabs, a full sortable result table, a map
+  legend with a colour-blind-safe palette, cached exports for responsiveness,
+  and an optional sidebar logo (`assets/logo.png`).
+
 ## [0.1.0] - 2026-06-08
 
 Archived on Zenodo: [10.5281/zenodo.20596871](https://doi.org/10.5281/zenodo.20596871)
