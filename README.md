@@ -23,11 +23,13 @@ installation required on the target machine, through
 
 ```mermaid
 flowchart LR
-    A[CSV / XLSX / XLS] --> B[Column detection]
-    B --> C[Parse DMS / DM / decimal]
-    C --> D[Range validation]
-    D --> E[GIS columns: X_DD, Y_DD, WKT]
-    E --> F[Export: CSV / Excel / GeoJSON]
+    A[CSV / XLSX / XLS] --> B[Read: sheet / separator / decimal]
+    B --> C[Column detection]
+    C --> D[Parse DMS / DM / decimal to DD]
+    D --> E[Validate range and detect swapped lat/lon]
+    E --> F[GIS columns: X_DD, Y_DD, WKT]
+    F --> G[Map, summary, review and fix swaps]
+    G --> H[Export: CSV / Excel / GeoJSON / KML / Shapefile]
 ```
 
 ## Features
@@ -81,7 +83,7 @@ the correct sign.
 
 - Python 3.9+
 - Dependencies listed in [`requirements.txt`](requirements.txt): `streamlit`,
-  `pandas`, `openpyxl`, `xlrd`.
+  `pandas`, `openpyxl`, `xlrd`, `pyshp`.
 
 ## Installation
 
@@ -138,6 +140,19 @@ flags these and lets you anchor detection to where the data should be:
   as the expected location. Convenient, but from coordinates alone the correct
   orientation is ambiguous when about half the data is swapped (the densest
   cluster may be the swapped one); an "invert" option handles that case.
+
+```mermaid
+flowchart TD
+    P[Row lat, lon] --> Q{In valid range?}
+    Q -- no --> R{Valid when swapped?}
+    R -- yes --> S[Possible swap]
+    R -- no --> T[Invalid]
+    Q -- yes --> U{Inside expected region?}
+    U -- yes --> V[OK]
+    U -- no --> W{Inside region when swapped?}
+    W -- yes --> S
+    W -- no --> V
+```
 
 Suggestions are always shown for review and never applied automatically.
 
