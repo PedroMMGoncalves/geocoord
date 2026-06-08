@@ -136,7 +136,7 @@ def _valid_pair(lat: float, lon: float) -> bool:
 
 def _dense_center(points: np.ndarray):
     """Find the centre and radius of the densest cluster of (lat, lon) points."""
-    span = max(float(points[:, 0].ptp()), float(points[:, 1].ptp()))
+    span = max(float(np.ptp(points[:, 0])), float(np.ptp(points[:, 1])))
     cell = max(0.5, span / 20.0)
     keys = np.floor(points / cell).astype(int)
     counts = Counter(map(tuple, keys))
