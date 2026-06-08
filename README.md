@@ -4,6 +4,7 @@
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-app-FF4B4B.svg)](https://streamlit.io)
 [![CI](https://github.com/PedroMMGoncalves/geocoord/actions/workflows/ci.yml/badge.svg)](https://github.com/PedroMMGoncalves/geocoord/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20596871.svg)](https://doi.org/10.5281/zenodo.20596871)
 
 *Convert field coordinates from degrees-minutes-seconds to decimal degrees,
 ready for QGIS and ArcGIS.*
@@ -183,7 +184,7 @@ If you use this software, please cite it using the metadata in
 
 > Gonçalves, P. (2026). *GeoCoord - DMS to Decimal Degrees Coordinate
 > Converter* (Version 0.1.0) [Computer software]. LNEG - Laboratório Nacional
-> de Energia e Geologia.
+> de Energia e Geologia. <https://doi.org/10.5281/zenodo.20596871>
 
 ## License
 
