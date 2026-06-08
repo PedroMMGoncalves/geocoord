@@ -42,12 +42,14 @@ flowchart LR
   handling.
 - Range validation and detection of likely swapped latitude/longitude, with a
   review step before any correction is applied.
-- Colour-coded map (valid vs suspect) and a points summary (bounding box,
-  centroid).
+- Colour-blind-safe map (valid vs possible swap, with a legend) and a points
+  summary (bounding box, centroid).
 - GIS-ready columns (`X_DD`, `Y_DD`, `WKT`), optional DMS columns (DD -> DMS),
   and a single-coordinate converter.
 - Export to CSV, Excel, GeoJSON, KML, and Shapefile (zipped), all WGS84 /
   EPSG:4326, selectable with checkboxes.
+- Guided, step-by-step interface with results organised into Table, Map,
+  Summary and Download tabs.
 
 ## Input formats
 
