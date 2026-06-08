@@ -1,0 +1,44 @@
+{
+  "name": "geocoord",
+  "version": "0.1.0",
+  "description": "GeoCoord - DMS to decimal degrees coordinate converter (desktop via stlite/Electron)",
+  "author": "Pedro Gonçalves (LNEG)",
+  "license": "Apache-2.0",
+  "main": "./build/electron/main.js",
+  "scripts": {
+    "dump": "dump-stlite-desktop-artifacts",
+    "serve": "cross-env NODE_ENV=production electron .",
+    "app:dir": "electron-builder --dir",
+    "app:dist": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "pt.lneg.geocoord",
+    "productName": "GeoCoord",
+    "files": ["build/**/*"],
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "@stlite/desktop": "^0.79.5",
+    "cross-env": "^7.0.3",
+    "electron": "34.3.0",
+    "electron-builder": "^25.1.8"
+  },
+  "stlite": {
+    "desktop": {
+      "files": ["app.py", "converter.py", ".streamlit/config.toml"],
+      "entrypoint": "app.py",
+      "dependencies": ["numpy", "pandas", "openpyxl", "xlrd"]
+    }
+  }
+}

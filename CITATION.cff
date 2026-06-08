@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "GeoCoord - DMS to Decimal Degrees Coordinate Converter"
+type: software
+authors:
+  - family-names: "Gonçalves"
+    given-names: "Pedro"
+    affiliation: "LNEG - Laboratório Nacional de Energia e Geologia"
+repository-code: "https://github.com/PedroMMGoncalves/GeoCoord"
+license: Apache-2.0
+version: "0.1.0"
+date-released: "2026-06-08"
+keywords:
+  - coordinates
+  - DMS
+  - decimal degrees
+  - WGS84
+  - EPSG:4326
+  - GIS
+  - QGIS
+  - ArcGIS

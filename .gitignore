@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Node / Electron / stlite
+node_modules/
+build/
+dist/
+
+# Sistema
+.DS_Store
+Thumbs.db
