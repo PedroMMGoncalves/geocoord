@@ -6,7 +6,7 @@ authors:
   - family-names: "Gonçalves"
     given-names: "Pedro"
     affiliation: "LNEG - Laboratório Nacional de Energia e Geologia"
-repository-code: "https://github.com/PedroMMGoncalves/GeoCoord"
+repository-code: "https://github.com/PedroMMGoncalves/geocoord"
 license: Apache-2.0
 version: "0.1.0"
 date-released: "2026-06-08"

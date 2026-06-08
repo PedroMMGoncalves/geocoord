@@ -2,7 +2,11 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org)
-[![CI](https://github.com/PedroMMGoncalves/GeoCoord/actions/workflows/ci.yml/badge.svg)](https://github.com/PedroMMGoncalves/GeoCoord/actions/workflows/ci.yml)
+[![Streamlit](https://img.shields.io/badge/Streamlit-app-FF4B4B.svg)](https://streamlit.io)
+[![CI](https://github.com/PedroMMGoncalves/geocoord/actions/workflows/ci.yml/badge.svg)](https://github.com/PedroMMGoncalves/geocoord/actions/workflows/ci.yml)
+
+*Convert field coordinates from degrees-minutes-seconds to decimal degrees,
+ready for QGIS and ArcGIS.*
 
 GeoCoord converts geographic coordinates from degrees-minutes-seconds (DMS) to
 decimal degrees (DD). It reads tabular data (CSV/Excel), validates and converts
@@ -50,6 +54,25 @@ flowchart LR
 Hemispheres: `N`/`E`/`L` are positive; `S`/`W`/`O` are negative (`O` = Oeste,
 `L` = Leste). A leading `-` is honoured when no hemisphere letter is present.
 
+## Example
+
+Input file (`sites.csv`):
+
+| name | lat | lon |
+| --- | --- | --- |
+| Lisboa | 38° 42' 30" N | 9° 8' 12" W |
+| Porto | 41° 9' 44" N | 8° 36' 39" W |
+
+After conversion, GeoCoord appends:
+
+| name | Latitude_DD | Longitude_DD | X_DD | Y_DD | WKT | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| Lisboa | 38.708333 | -9.136667 | -9.136667 | 38.708333 | POINT (-9.136667 38.708333) | OK |
+| Porto | 41.162222 | -8.610833 | -8.610833 | 41.162222 | POINT (-8.610833 41.162222) | OK |
+
+Note the negative longitudes: western (`W`/`O`) coordinates are converted with
+the correct sign.
+
 ## Requirements
 
 - Python 3.9+
@@ -71,7 +94,10 @@ python -m streamlit run app.py
 ```
 
 On Windows, `run_app.bat` installs the dependencies and starts the application.
-The interface opens at `http://localhost:8501`.
+The interface opens at `http://localhost:8501`. The application can also be
+deployed for free on
+[Streamlit Community Cloud](https://streamlit.io/cloud) directly from this
+repository.
 
 ### Single coordinate
 
@@ -82,10 +108,10 @@ loading a file.
 
 For geographic coordinates in WGS84 / EPSG:4326:
 
-| GIS axis | Generated column | Meaning   |
-|----------|------------------|-----------|
-| X        | `X_DD`           | Longitude |
-| Y        | `Y_DD`           | Latitude  |
+| GIS axis | Generated column | Meaning |
+| --- | --- | --- |
+| X | `X_DD` | Longitude |
+| Y | `Y_DD` | Latitude |
 
 A `WKT` column (`POINT (longitude latitude)`) and a per-row `status` column are
 also produced. For continental Portugal, latitude is roughly 37-42
@@ -135,6 +161,20 @@ package.json           stlite/Electron configuration
 assets/                Installer resources (icon)
 .github/workflows/     Continuous integration
 ```
+
+## Troubleshooting
+
+- **Western longitudes have the wrong sign.** The source values must include a
+  hemisphere letter (`W`/`O`) or a leading `-`. Without it, the sign cannot be
+  inferred and the value is treated as positive (East).
+- **Some rows are not converted.** Open the "rows with issues" panel; the
+  `status` column reports whether a value could not be parsed or fell outside
+  the valid range.
+- **The map is blank.** The basemap tiles need an internet connection; the
+  points themselves are still plotted offline.
+- **`.xls` files fail in the desktop build.** The stlite/Pyodide runtime only
+  bundles pure-Python wheels; convert legacy `.xls` to `.xlsx` or CSV, or use
+  the web application for `.xls`.
 
 ## Citation
 
