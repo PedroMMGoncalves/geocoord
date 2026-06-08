@@ -32,17 +32,20 @@ flowchart LR
 
 ## Features
 
-- Reads CSV, XLSX, and XLS, with automatic detection of the latitude and
-  longitude columns.
+- Reads CSV, XLSX, and XLS, with automatic column detection, Excel sheet
+  selection, and configurable CSV separator/decimal.
 - Live preview of the conversion before it is applied to the whole table.
-- Conversion of multiple input formats (see below).
-- Hemisphere detection in Portuguese and English, as prefix or suffix, and
-  explicit negative-sign handling.
-- Range validation (latitude -90..90, longitude -180..180) with a per-row
-  status and a report of problematic rows.
-- GIS-ready output columns: `X_DD` (longitude), `Y_DD` (latitude), and `WKT`.
-- Export to Excel, CSV, and GeoJSON (EPSG:4326).
-- Map preview and a single-coordinate converter.
+- Conversion of multiple input formats (see below), with hemisphere detection
+  in Portuguese and English (prefix or suffix) and explicit negative-sign
+  handling.
+- Range validation and detection of likely swapped latitude/longitude, with a
+  review step before any correction is applied.
+- Colour-coded map (valid vs suspect) and a points summary (bounding box,
+  centroid).
+- GIS-ready columns (`X_DD`, `Y_DD`, `WKT`), optional DMS columns (DD -> DMS),
+  and a single-coordinate converter.
+- Export to CSV, Excel, GeoJSON, KML, and Shapefile (zipped), all WGS84 /
+  EPSG:4326, selectable with checkboxes.
 
 ## Input formats
 
@@ -119,6 +122,23 @@ also produced. For continental Portugal, latitude is roughly 37-42
 and longitude roughly -9 to -6 (West). Western longitudes must carry `O`/`W` or
 a negative sign in the source data, otherwise their sign cannot be inferred.
 
+## Detecting swapped coordinates
+
+A common error is having latitude and longitude swapped in some rows. GeoCoord
+flags these in two ways:
+
+- **Range:** a value that cannot be a latitude (|lat| > 90) but becomes valid
+  when swapped is reported as a likely swap.
+- **Cluster:** among in-range rows, the main cluster of points is identified; a
+  row that is a clear outlier and falls back into that cluster when its
+  coordinates are swapped is flagged as a suggestion.
+
+Suggestions are shown for review and are never applied automatically. From
+coordinates alone the correct orientation is fundamentally ambiguous when about
+half the data is swapped, and a genuine point at the mirror of the cluster
+cannot be distinguished from a swapped one; an "invert" option handles the rare
+case where the wrong group is suggested.
+
 ## Desktop application (stlite + Electron)
 
 Builds a Windows installer that runs without a Python installation (Python runs
@@ -152,7 +172,8 @@ Python 3.11, 3.12, and 3.13.
 
 ```text
 app.py                 Streamlit interface
-converter.py           Conversion engine (pure logic, testable)
+converter.py           Conversion + swap-detection engine (pure logic, testable)
+geoexport.py           GeoJSON / KML / Shapefile writers (pure Python)
 tests/                 Test suite (pytest)
 requirements.txt       Python dependencies
 .streamlit/            Application theme

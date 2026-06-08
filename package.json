@@ -38,7 +38,7 @@
     "desktop": {
       "files": ["app.py", "converter.py", ".streamlit/config.toml"],
       "entrypoint": "app.py",
-      "dependencies": ["numpy", "pandas", "openpyxl", "xlrd"]
+      "dependencies": ["numpy", "pandas", "openpyxl", "xlrd", "pyshp"]
     }
   }
 }

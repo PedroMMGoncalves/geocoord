@@ -1,11 +1,10 @@
 import io
-import json
-import math
 
 import pandas as pd
 import streamlit as st
 
-from converter import in_range, parse_coordinate
+from converter import detect_swaps, format_dms, in_range, parse_coordinate
+from geoexport import to_geojson, to_kml, to_shapefile_zip
 
 APP_NAME = "GeoCoord"
 ACCENT = "#1f7a4d"  # accent colour — replace with an official LNEG colour if desired
@@ -16,56 +15,52 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------------------------
-# Appearance (works under both `streamlit run` and the stlite packaging)
-# ---------------------------------------------------------------------------
 _CSS = """
 <style>
 #MainMenu, footer {visibility: hidden;}
 [data-testid="stToolbar"] {display: none;}
 [data-testid="stDecoration"] {display: none;}
-.stButton>button[kind="primary"] {
-    background-color: __ACCENT__;
-    border-color: __ACCENT__;
-}
-.gc-title {
-    border-left: 5px solid __ACCENT__;
-    padding-left: 0.7rem;
-    margin-bottom: 0.1rem;
-}
+.stButton>button[kind="primary"] {background-color: __ACCENT__; border-color: __ACCENT__;}
+.gc-title {border-left: 5px solid __ACCENT__; padding-left: 0.7rem; margin-bottom: 0.1rem;}
 </style>
 """.replace("__ACCENT__", ACCENT)
 st.markdown(_CSS, unsafe_allow_html=True)
-
 st.markdown(f"<h1 class='gc-title'>{APP_NAME}</h1>", unsafe_allow_html=True)
 st.caption("DMS to Decimal Degrees coordinate converter — WGS84 / EPSG:4326")
 
+# Status labels (from converter.detect_swaps) -> human text and map colour.
+STATUS_TEXT = {
+    "ok": "OK",
+    "swap_range": "Possible swap (out of range as-is)",
+    "swap_cluster": "Possible swap (outlier)",
+    "out_of_range": "Out of valid range",
+    "missing": "Failed: could not parse",
+}
+COLOR_OK = [40, 160, 80]
+COLOR_SWAP = [230, 150, 30]
+
 
 # ---------------------------------------------------------------------------
-# Helper logic
+# Reading
 # ---------------------------------------------------------------------------
-def load_file(uploaded_file) -> pd.DataFrame:
-    name = uploaded_file.name.lower()
+def read_csv(uploaded, sep, decimal):
+    kwargs = {"decimal": decimal}
+    if sep is None:
+        kwargs.update(sep=None, engine="python")
+    else:
+        kwargs.update(sep=sep)
+    for enc in ("utf-8", "latin1"):
+        try:
+            uploaded.seek(0)
+            return pd.read_csv(uploaded, encoding=enc, **kwargs)
+        except UnicodeDecodeError:
+            continue
+    uploaded.seek(0)
+    return pd.read_csv(uploaded, encoding="latin1", **kwargs)
 
-    if name.endswith(".csv"):
-        for enc in ("utf-8", "latin1"):
-            try:
-                uploaded_file.seek(0)
-                return pd.read_csv(uploaded_file, encoding=enc)
-            except UnicodeDecodeError:
-                continue
-        uploaded_file.seek(0)
-        return pd.read_csv(uploaded_file, encoding="latin1")
 
-    if name.endswith(".xlsx"):
-        uploaded_file.seek(0)
-        return pd.read_excel(uploaded_file, engine="openpyxl")
-
-    if name.endswith(".xls"):
-        uploaded_file.seek(0)
-        return pd.read_excel(uploaded_file, engine="xlrd")
-
-    raise ValueError("Unsupported format. Use CSV, XLSX or XLS.")
+def excel_engine(name):
+    return "openpyxl" if name.endswith(".xlsx") else "xlrd"
 
 
 def _round(value, decimals):
@@ -74,48 +69,51 @@ def _round(value, decimals):
     return round(value, decimals)
 
 
-def convert_dataframe(df, lat_col, lon_col, decimals) -> pd.DataFrame:
-    """Add DD, X/Y, WKT columns and a per-row validation status."""
-    result = df.copy()
+# ---------------------------------------------------------------------------
+# Conversion pipeline
+# ---------------------------------------------------------------------------
+DERIVED = ["X_DD", "Y_DD", "status", "WKT", "Latitude_GMS", "Longitude_GMS"]
 
-    result["Latitude_DD"] = [
-        _round(parse_coordinate(v), decimals) for v in result[lat_col]
-    ]
-    result["Longitude_DD"] = [
-        _round(parse_coordinate(v), decimals) for v in result[lon_col]
-    ]
 
-    # GIS-ready columns.
+def finalize(result, add_dms):
+    """Recompute derived columns, run swap detection. Returns (result, labels, center)."""
+    result = result.drop(columns=[c for c in DERIVED if c in result.columns])
+    lat = result["Latitude_DD"].tolist()
+    lon = result["Longitude_DD"].tolist()
+
     result["X_DD"] = result["Longitude_DD"]
     result["Y_DD"] = result["Latitude_DD"]
 
-    lat_ok = result["Latitude_DD"].apply(lambda v: in_range(v, "lat"))
-    lon_ok = result["Longitude_DD"].apply(lambda v: in_range(v, "lon"))
-    ok = lat_ok & lon_ok
-
-    def status(o, lat_v, lon_v, lat_valid, lon_valid):
-        if o:
-            return "OK"
-        if pd.isna(lat_v) and pd.isna(lon_v):
-            return "Failed: could not parse"
-        if not lat_valid or not lon_valid:
-            return "Out of valid range"
-        return "Partial failure"
-
-    result["status"] = [
-        status(o, lv, nv, lvalid, nvalid)
-        for o, lv, nv, lvalid, nvalid in zip(
-            ok, result["Latitude_DD"], result["Longitude_DD"], lat_ok, lon_ok
-        )
-    ]
+    labels, center = detect_swaps(lat, lon)
+    result["status"] = [STATUS_TEXT[s] for s in labels]
     result["WKT"] = [
-        f"POINT ({x} {y})" if o else None
-        for o, x, y in zip(ok, result["X_DD"], result["Y_DD"])
+        f"POINT ({x} {y})" if (in_range(y, "lat") and in_range(x, "lon")) else None
+        for x, y in zip(result["X_DD"], result["Y_DD"])
     ]
-    return result
+    if add_dms:
+        result["Latitude_GMS"] = [format_dms(v, "lat") for v in lat]
+        result["Longitude_GMS"] = [format_dms(v, "lon") for v in lon]
+    return result, labels, center
 
 
-def to_excel_bytes(df) -> bytes:
+def build_result(df, lat_col, lon_col, decimals, add_dms):
+    result = df.copy().reset_index(drop=True)
+    result["Latitude_DD"] = [_round(parse_coordinate(v), decimals) for v in result[lat_col]]
+    result["Longitude_DD"] = [_round(parse_coordinate(v), decimals) for v in result[lon_col]]
+    return finalize(result, add_dms)
+
+
+def apply_swaps(result, idxs, add_dms):
+    r = result.copy()
+    la_pos = r.columns.get_loc("Latitude_DD")
+    lo_pos = r.columns.get_loc("Longitude_DD")
+    for i in idxs:
+        la, lo = r.iat[i, la_pos], r.iat[i, lo_pos]
+        r.iat[i, la_pos], r.iat[i, lo_pos] = lo, la
+    return finalize(r, add_dms)
+
+
+def to_excel_bytes(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="converted")
@@ -123,39 +121,15 @@ def to_excel_bytes(df) -> bytes:
     return output.getvalue()
 
 
-def _json_safe(v):
-    if v is None:
-        return None
-    try:
-        if pd.isna(v):
-            return None
-    except (TypeError, ValueError):
-        pass
-    if isinstance(v, (str, bool, int)):
-        return v
-    if isinstance(v, float):
-        return v if math.isfinite(v) else None
-    item = getattr(v, "item", None)
-    return item() if callable(item) else str(v)
-
-
-def to_geojson_bytes(df, ok_mask) -> bytes:
-    """GeoJSON (WGS84 / EPSG:4326) of valid pairs only, with no external deps."""
+def features_in_range(result):
+    """Build (lon, lat, props) tuples and field names for valid rows only."""
+    field_names = [c for c in result.columns if c not in ("X_DD", "Y_DD", "WKT")]
     features = []
-    skip = {"X_DD", "Y_DD", "WKT"}
-    for _, row in df.loc[ok_mask].iterrows():
-        features.append({
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [float(row["X_DD"]), float(row["Y_DD"])],
-            },
-            "properties": {
-                str(k): _json_safe(v) for k, v in row.items() if k not in skip
-            },
-        })
-    fc = {"type": "FeatureCollection", "features": features}
-    return json.dumps(fc, ensure_ascii=False, allow_nan=False).encode("utf-8")
+    for _, row in result.iterrows():
+        lat, lon = row["Latitude_DD"], row["Longitude_DD"]
+        if in_range(lat, "lat") and in_range(lon, "lon"):
+            features.append((lon, lat, {c: row[c] for c in field_names}))
+    return features, field_names
 
 
 def guess_column(cols, candidates, fallback_index):
@@ -166,76 +140,104 @@ def guess_column(cols, candidates, fallback_index):
     return min(fallback_index, len(cols) - 1)
 
 
-LAT_CANDIDATES = [
-    "latitude", "lat", "coordenadas x", "latitude x", "coord_lat", "lat_dms", "lat_gms"
-]
-LON_CANDIDATES = [
-    "longitude", "lon", "long", "coordenadas y", "longitude y", "coord_lon",
-    "lon_dms", "lon_gms"
-]
+LAT_CANDIDATES = ["latitude", "lat", "coordenadas x", "latitude x", "coord_lat", "lat_dms", "lat_gms"]
+LON_CANDIDATES = ["longitude", "lon", "long", "coordenadas y", "longitude y", "coord_lon", "lon_dms", "lon_gms"]
 
 
-def render_results(result, lat_col, lon_col):
-    ok_mask = result["status"] == "OK"
-    n_ok = int(ok_mask.sum())
+# ---------------------------------------------------------------------------
+# Rendering helpers
+# ---------------------------------------------------------------------------
+def render_map(result, labels):
+    rows = []
+    for i, lab in enumerate(labels):
+        lat = result.iat[i, result.columns.get_loc("Latitude_DD")]
+        lon = result.iat[i, result.columns.get_loc("Longitude_DD")]
+        if in_range(lat, "lat") and in_range(lon, "lon"):
+            plat, plon = lat, lon
+        elif in_range(lon, "lat") and in_range(lat, "lon"):
+            plat, plon = lon, lat  # swap_range: show the swapped (likely) position
+        else:
+            continue
+        rows.append({
+            "plat": float(plat), "plon": float(plon),
+            "status": STATUS_TEXT[lab],
+            "color": COLOR_OK if lab == "ok" else COLOR_SWAP,
+            "row": i,
+        })
+    if not rows:
+        return
+    map_df = pd.DataFrame(rows)
+    st.subheader("Map")
+    st.caption("Green = OK, orange = possible swap. Basemap needs internet; points show offline.")
+    try:
+        import pydeck as pdk
+        view = pdk.data_utils.compute_view(map_df[["plon", "plat"]].values)
+        view.min_zoom = 1
+        layer = pdk.Layer(
+            "ScatterplotLayer", data=map_df, get_position="[plon, plat]",
+            get_fill_color="color", get_radius=30000,
+            radius_min_pixels=4, radius_max_pixels=12, pickable=True,
+        )
+        tooltip = {"text": "row {row}\n{status}\nlat {plat}, lon {plon}"}
+        st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view, tooltip=tooltip))
+    except Exception:
+        st.map(map_df.rename(columns={"plat": "lat", "plon": "lon"})[["lat", "lon"]])
 
-    if n_ok:
-        st.success(f"Conversion complete: {n_ok} of {len(result)} valid pairs.")
-    else:
-        st.warning("Conversion complete, but no valid pairs were obtained.")
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total rows", len(result))
-    m2.metric("Latitudes parsed", int(result["Latitude_DD"].notna().sum()))
-    m3.metric("Longitudes parsed", int(result["Longitude_DD"].notna().sum()))
-    m4.metric("Valid pairs", n_ok)
-
-    st.subheader("Result")
-    st.dataframe(result.head(50), use_container_width=True)
-
-    issues = result[~ok_mask]
-    if not issues.empty:
-        with st.expander(f"{len(issues)} row(s) with issues — review at source"):
-            st.dataframe(
-                issues[[lat_col, lon_col, "Latitude_DD", "Longitude_DD", "status"]],
-                use_container_width=True,
-            )
-
-    points = (
-        result.loc[ok_mask, ["Y_DD", "X_DD"]]
-        .rename(columns={"Y_DD": "lat", "X_DD": "lon"})
-        .dropna()
+def render_summary(result):
+    lat = pd.to_numeric(result["Latitude_DD"], errors="coerce")
+    lon = pd.to_numeric(result["Longitude_DD"], errors="coerce")
+    ok = lat.between(-90, 90) & lon.between(-180, 180)
+    if ok.sum() == 0:
+        return
+    la, lo = lat[ok], lon[ok]
+    st.subheader("Summary (valid points)")
+    s1, s2 = st.columns(2)
+    s1.write(
+        f"**Bounding box**\n\n"
+        f"- lat: {la.min():.6f} to {la.max():.6f}\n"
+        f"- lon: {lo.min():.6f} to {lo.max():.6f}"
     )
-    if not points.empty:
-        st.subheader("Map (valid pairs)")
-        st.caption("The basemap needs an internet connection; points are shown even offline.")
-        st.map(points, use_container_width=True)
+    s2.write(
+        f"**Centroid**\n\n"
+        f"- lat: {la.mean():.6f}\n"
+        f"- lon: {lo.mean():.6f}"
+    )
 
+
+def render_downloads(result, name_key):
     st.subheader("Download")
-    d1, d2, d3 = st.columns(3)
-    d1.download_button(
-        "Excel (.xlsx)",
-        data=to_excel_bytes(result),
-        file_name="converted_coordinates.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-    )
-    d2.download_button(
-        "CSV",
-        data=result.to_csv(index=False).encode("utf-8-sig"),
-        file_name="converted_coordinates.csv",
-        mime="text/csv",
-        use_container_width=True,
-    )
-    d3.download_button(
-        "GeoJSON",
-        data=to_geojson_bytes(result, ok_mask),
-        file_name="converted_coordinates.geojson",
-        mime="application/geo+json",
-        use_container_width=True,
-        disabled=(n_ok == 0),
-        help="Import directly in QGIS/ArcGIS (EPSG:4326).",
-    )
+    st.caption("Tabular formats include all rows; spatial formats include valid points only.")
+    c = st.columns(5)
+    want = {
+        "CSV": c[0].checkbox("CSV", value=True),
+        "Excel": c[1].checkbox("Excel", value=True),
+        "GeoJSON": c[2].checkbox("GeoJSON", value=True),
+        "KML": c[3].checkbox("KML", value=False),
+        "Shapefile": c[4].checkbox("Shapefile", value=False),
+    }
+    features, field_names = features_in_range(result)
+    d = st.columns(5)
+    if want["CSV"]:
+        d[0].download_button("Download CSV", result.to_csv(index=False).encode("utf-8-sig"),
+                             "converted.csv", "text/csv", use_container_width=True)
+    if want["Excel"]:
+        d[1].download_button("Download Excel", to_excel_bytes(result),
+                             "converted.xlsx",
+                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                             use_container_width=True)
+    if want["GeoJSON"]:
+        d[2].download_button("Download GeoJSON", to_geojson(features),
+                             "converted.geojson", "application/geo+json",
+                             disabled=not features, use_container_width=True)
+    if want["KML"]:
+        d[3].download_button("Download KML", to_kml(features, name_key=name_key),
+                             "converted.kml", "application/vnd.google-earth.kml+xml",
+                             disabled=not features, use_container_width=True)
+    if want["Shapefile"]:
+        d[4].download_button("Download Shapefile (.zip)", to_shapefile_zip(features, field_names),
+                             "converted_shapefile.zip", "application/zip",
+                             disabled=not features, use_container_width=True)
 
 
 # ---------------------------------------------------------------------------
@@ -245,12 +247,12 @@ with st.sidebar:
     st.markdown(f"### {APP_NAME}")
     st.caption("DMS to decimal degrees coordinate converter (WGS84 / EPSG:4326).")
     decimals = st.slider("Decimal places in the result", 2, 10, 6)
+    add_dms = st.checkbox("Add DMS columns (DD -> DMS)", value=False)
     st.divider()
     st.markdown("**Using the output in GIS**")
     st.caption(
-        "X = Longitude (X_DD), Y = Latitude (Y_DD). "
-        "Continental Portugal: latitude ~37-42, longitude ~-9 to -6 (West). "
-        "Western longitudes must carry 'O'/'W' or a negative sign."
+        "X = Longitude (X_DD), Y = Latitude (Y_DD). Reproject to your national "
+        "system inside QGIS/ArcGIS for full control over the datum transform."
     )
 
 
@@ -260,23 +262,37 @@ with st.sidebar:
 tab_file, tab_quick = st.tabs(["File conversion", "Quick conversion"])
 
 with tab_file:
-    uploaded_file = st.file_uploader(
-        "Choose a file",
-        type=["xlsx", "xls", "csv"],
-        help="Supports Excel (.xlsx/.xls) and CSV",
-    )
+    uploaded = st.file_uploader("Choose a file", type=["xlsx", "xls", "csv"],
+                                help="Supports Excel (.xlsx/.xls) and CSV")
 
-    if uploaded_file is None:
-        st.session_state.pop("result", None)
+    if uploaded is None:
+        for k in ("result", "labels", "center"):
+            st.session_state.pop(k, None)
         st.info("Load a file to begin.")
     else:
-        # New file -> clear stale results.
-        if st.session_state.get("file_name") != uploaded_file.name:
-            st.session_state.file_name = uploaded_file.name
-            st.session_state.pop("result", None)
+        if st.session_state.get("file_name") != uploaded.name:
+            st.session_state.file_name = uploaded.name
+            for k in ("result", "labels", "center"):
+                st.session_state.pop(k, None)
 
+        name = uploaded.name.lower()
         try:
-            df = load_file(uploaded_file)
+            if name.endswith(".csv"):
+                with st.expander("Read options (CSV)"):
+                    sep_label = st.selectbox(
+                        "Separator", ["auto", ", (comma)", "; (semicolon)", "tab", "| (pipe)"])
+                    dec_label = st.selectbox("Decimal", [". (dot)", ", (comma)"])
+                sep = {"auto": None, ", (comma)": ",", "; (semicolon)": ";",
+                       "tab": "\t", "| (pipe)": "|"}[sep_label]
+                decimal = "." if dec_label.startswith(".") else ","
+                df = read_csv(uploaded, sep, decimal)
+            else:
+                uploaded.seek(0)
+                xls = pd.ExcelFile(uploaded, engine=excel_engine(name))
+                sheet = xls.sheet_names[0]
+                if len(xls.sheet_names) > 1:
+                    sheet = st.selectbox("Sheet", xls.sheet_names)
+                df = xls.parse(sheet)
         except Exception as e:
             st.error(f"Could not read the file: {e}")
             st.stop()
@@ -285,18 +301,17 @@ with tab_file:
             st.warning("The file contains no rows to process.")
             st.stop()
 
+        df = df.reset_index(drop=True)
         with st.expander("File preview", expanded=False):
             st.dataframe(df.head(20), use_container_width=True)
 
         cols = list(df.columns)
-        default_lat = guess_column(cols, LAT_CANDIDATES, 0)
-        default_lon = guess_column(cols, LON_CANDIDATES, 1 if len(cols) > 1 else 0)
-
         c1, c2 = st.columns(2)
-        lat_col = c1.selectbox("Latitude column (DMS)", cols, index=default_lat)
-        lon_col = c2.selectbox("Longitude column (DMS)", cols, index=default_lon)
+        lat_col = c1.selectbox("Latitude column (DMS)", cols,
+                               index=guess_column(cols, LAT_CANDIDATES, 0))
+        lon_col = c2.selectbox("Longitude column (DMS)", cols,
+                               index=guess_column(cols, LON_CANDIDATES, 1 if len(cols) > 1 else 0))
 
-        # Live conversion preview — catches the wrong column choice immediately.
         st.caption("Conversion preview (first rows):")
         preview = df[[lat_col, lon_col]].head(5).copy()
         preview["-> Latitude_DD"] = [parse_coordinate(v) for v in preview[lat_col]]
@@ -305,20 +320,73 @@ with tab_file:
 
         if st.button("Convert coordinates", type="primary"):
             with st.spinner("Converting..."):
-                st.session_state.result = convert_dataframe(
-                    df, lat_col, lon_col, decimals
-                )
-                st.session_state.res_cols = (lat_col, lon_col)
+                result, labels, center = build_result(df, lat_col, lon_col, decimals, add_dms)
+            st.session_state.result = result
+            st.session_state.labels = labels
+            st.session_state.center = center
+            st.session_state.name_key = cols[0] if cols else None
 
-        # Render from state -> results and downloads do not disappear.
         if st.session_state.get("result") is not None:
-            r_lat, r_lon = st.session_state.get("res_cols", (lat_col, lon_col))
-            render_results(st.session_state.result, r_lat, r_lon)
+            result = st.session_state.result
+            labels = st.session_state.labels
+            center = st.session_state.center
+
+            n_ok = sum(1 for s in labels if s == "ok")
+            n_swap = sum(1 for s in labels if s in ("swap_range", "swap_cluster"))
+            n_bad = sum(1 for s in labels if s in ("out_of_range", "missing"))
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total rows", len(result))
+            m2.metric("OK", n_ok)
+            m3.metric("Possible swaps", n_swap)
+            m4.metric("Invalid", n_bad)
+
+            # Swap review and correction.
+            if n_swap:
+                cluster_idx = [i for i, s in enumerate(labels) if s == "swap_cluster"]
+                range_idx = [i for i, s in enumerate(labels) if s == "swap_range"]
+                ok_idx = [i for i, s in enumerate(labels) if s == "ok"]
+                with st.expander(f"Review {n_swap} possible swapped coordinate(s)", expanded=True):
+                    if center is not None and cluster_idx:
+                        st.caption(f"Main cluster detected near lat {center[0]:.3f}, lon {center[1]:.3f}. "
+                                   "Outliers that fall back into it when X/Y are swapped are flagged.")
+                    susp = result.iloc[range_idx + cluster_idx]
+                    st.dataframe(
+                        susp[[c for c in (lat_col, lon_col, "Latitude_DD", "Longitude_DD", "status")
+                              if c in susp.columns]],
+                        use_container_width=True)
+                    invert = False
+                    if cluster_idx and ok_idx:
+                        invert = st.checkbox(
+                            "Invert cluster suggestion (the main cluster is the swapped side)",
+                            value=False)
+                    target = range_idx + (ok_idx if invert else cluster_idx)
+                    if st.button(f"Apply swap to {len(target)} row(s)"):
+                        result, labels, center = apply_swaps(result, target, add_dms)
+                        st.session_state.result = result
+                        st.session_state.labels = labels
+                        st.session_state.center = center
+                        st.rerun()
+
+            st.subheader("Result")
+            st.dataframe(result.head(50), use_container_width=True)
+
+            if n_bad:
+                with st.expander(f"{n_bad} invalid row(s)"):
+                    bad = result.iloc[[i for i, s in enumerate(labels)
+                                       if s in ("out_of_range", "missing")]]
+                    st.dataframe(
+                        bad[[c for c in (lat_col, lon_col, "Latitude_DD", "Longitude_DD", "status")
+                             if c in bad.columns]],
+                        use_container_width=True)
+
+            render_map(result, labels)
+            render_summary(result)
+            render_downloads(result, st.session_state.get("name_key"))
 
 
 with tab_quick:
     st.write("Convert a single coordinate, without loading a file.")
-
     q1, q2 = st.columns(2)
     lat_in = q1.text_input("Latitude (DMS or decimal)", placeholder='e.g. 38° 42\' 30" N')
     lon_in = q2.text_input("Longitude (DMS or decimal)", placeholder='e.g. 9° 8\' 12" W')
@@ -326,7 +394,6 @@ with tab_quick:
     if st.button("Convert", type="primary", key="btn_quick"):
         lat_dd = parse_coordinate(lat_in)
         lon_dd = parse_coordinate(lon_in)
-
         r1, r2 = st.columns(2)
         with r1:
             if lat_dd is None:
@@ -342,13 +409,7 @@ with tab_quick:
                 st.metric("Longitude (DD) = X_DD", f"{lon_dd:.{decimals}f}")
                 if not in_range(lon_dd, "lon"):
                     st.warning("Longitude out of the -180 to 180 range.")
-
-        if (
-            lat_dd is not None and lon_dd is not None
-            and in_range(lat_dd, "lat") and in_range(lon_dd, "lon")
-        ):
+        if (lat_dd is not None and lon_dd is not None
+                and in_range(lat_dd, "lat") and in_range(lon_dd, "lon")):
             st.code(f"POINT ({lon_dd} {lat_dd})", language="text")
-            st.map(
-                pd.DataFrame({"lat": [lat_dd], "lon": [lon_dd]}),
-                use_container_width=True,
-            )
+            st.map(pd.DataFrame({"lat": [lat_dd], "lon": [lon_dd]}))

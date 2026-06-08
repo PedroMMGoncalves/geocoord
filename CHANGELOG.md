@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Detection of likely swapped latitude/longitude (range-based and cluster-based)
+  with a review-and-confirm step and an invert option for ambiguous cases.
+- DD -> DMS formatting, available as optional output columns and exposed via
+  `converter.format_dms`.
+- KML and Shapefile (zipped, pure-Python via pyshp) exports, plus checkboxes to
+  choose which formats to download.
+- Colour-coded map (valid vs suspect points) and a points summary (bounding box
+  and centroid).
+- Excel sheet selection and configurable CSV separator/decimal on read.
+- `geoexport.py` module with GeoJSON/KML/Shapefile writers and its test suite.
+
 ## [0.1.0] - 2026-06-08
 
 Archived on Zenodo: [10.5281/zenodo.20596871](https://doi.org/10.5281/zenodo.20596871)

@@ -7,7 +7,7 @@ import math
 import numpy as np
 import pytest
 
-from converter import in_range, parse_coordinate
+from converter import detect_swaps, format_dms, in_range, parse_coordinate
 
 
 def approx(value, expected):
@@ -106,3 +106,71 @@ def test_in_range_lat():
 def test_in_range_lon():
     assert in_range(-9.1, "lon")
     assert not in_range(200.0, "lon")
+
+
+# --- DD -> DMS formatting (round-trip) --------------------------------------
+
+@pytest.mark.parametrize("value,axis", [
+    (38.708333, "lat"),
+    (-9.136667, "lon"),
+    (0.0, "lat"),
+    (-0.5, "lon"),
+    (89.999, "lat"),
+])
+def test_format_dms_round_trip(value, axis):
+    text = format_dms(value, axis)
+    assert text is not None
+    assert text[-1] in "NSEW"
+    back = parse_coordinate(text)
+    assert math.isclose(back, value, abs_tol=1e-4)
+
+
+def test_format_dms_hemisphere():
+    assert format_dms(1.0, "lat").endswith("N")
+    assert format_dms(-1.0, "lat").endswith("S")
+    assert format_dms(1.0, "lon").endswith("E")
+    assert format_dms(-1.0, "lon").endswith("W")
+
+
+def test_format_dms_none():
+    assert format_dms(None, "lat") is None
+    assert format_dms(float("nan"), "lon") is None
+
+
+# --- Swapped lat/lon detection ----------------------------------------------
+
+def test_detect_swaps_single_cluster_all_ok():
+    lats = [39.0, 39.1, 38.9, 39.2, 38.8, 39.05]
+    lons = [-8.0, -8.1, -7.9, -8.2, -7.8, -8.05]
+    labels, center = detect_swaps(lats, lons)
+    assert all(s == "ok" for s in labels)
+
+
+def test_detect_swaps_range():
+    labels, center = detect_swaps([150.0], [20.0])
+    assert labels == ["swap_range"]
+
+
+def test_detect_swaps_out_of_range_and_missing():
+    labels, _ = detect_swaps([200.0, None, float("nan")], [400.0, 1.0, 2.0])
+    assert labels[0] == "out_of_range"
+    assert labels[1] == "missing"
+    assert labels[2] == "missing"
+
+
+def test_detect_swaps_cluster_majority():
+    # 7 correct points near Portugal + 1 with X/Y swapped (lands in Africa).
+    lats = [39.0, 39.1, 38.9, 39.2, 38.8, 39.05, 39.15, -8.0]
+    lons = [-8.0, -8.1, -7.9, -8.2, -7.8, -8.05, -8.15, 39.0]
+    labels, center = detect_swaps(lats, lons)
+    assert labels[7] == "swap_cluster"
+    assert all(labels[i] == "ok" for i in range(7))
+    assert center is not None
+
+
+def test_detect_swaps_two_legit_clusters_no_false_positive():
+    # Portugal (6) + a genuine, non-mirror cluster in Mozambique (3).
+    lats = [39.0, 39.1, 38.9, 39.2, 38.8, 39.05, -25.0, -25.1, -24.9]
+    lons = [-8.0, -8.1, -7.9, -8.2, -7.8, -8.05, 32.0, 32.1, 31.9]
+    labels, center = detect_swaps(lats, lons)
+    assert "swap_cluster" not in labels
