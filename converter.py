@@ -134,6 +134,14 @@ def _valid_pair(lat: float, lon: float) -> bool:
     return (LAT_RANGE[0] <= lat <= LAT_RANGE[1]) and (LON_RANGE[0] <= lon <= LON_RANGE[1])
 
 
+def _in_mask(lat: float, lon: float, mask) -> bool:
+    """True if (lat, lon) falls inside any bbox (lat_min, lat_max, lon_min, lon_max)."""
+    for la0, la1, lo0, lo1 in mask:
+        if la0 <= lat <= la1 and lo0 <= lon <= lo1:
+            return True
+    return False
+
+
 def _dense_center(points: np.ndarray):
     """Find the centre and radius of the densest cluster of (lat, lon) points."""
     span = max(float(np.ptp(points[:, 0])), float(np.ptp(points[:, 1])))
@@ -149,7 +157,8 @@ def _dense_center(points: np.ndarray):
     return center, radius
 
 
-def detect_swaps(lats, lons, min_cluster: int = 6, reference=None):
+def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
+                 region_radius: float = 10.0, mask=None):
     """Classify each row as ok / missing / out_of_range / swap_range / swap_cluster.
 
     Two layers of detection:
@@ -157,18 +166,29 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None):
     1. Range: if (lat, lon) is out of bounds but the swapped pair is valid, the
        row is ``swap_range`` (a longitude almost certainly ended up in the
        latitude column).
-    2. Cluster: among in-range rows, find the main cluster of the *as-is* points
-       (assumed to be the correct majority, or use ``reference`` if given). A row
-       is ``swap_cluster`` when it is a clear outlier from that cluster *and*
-       swapping its coordinates lands it back inside the cluster.
+    2. Cluster: a row is ``swap_cluster`` when it sits away from the expected
+       location but lands back inside it once its coordinates are swapped.
 
-    Returns ``(labels, center)`` where ``center`` is the (lat, lon) of the main
-    cluster (or ``reference``), or ``None`` when the cluster step was skipped.
+       - If ``mask`` (a list of bounding boxes ``(lat_min, lat_max, lon_min,
+         lon_max)``) is given, the expected location is the union of those
+         boxes. A row outside all boxes whose swapped pair is inside one is
+         flagged. This is the most reliable mode and handles data spread over
+         several regions (e.g. Portugal + PALOP).
+       - Else if ``reference`` (a (lat, lon) the data should be near) is given,
+         it is the expected location and ``region_radius`` (degrees) the
+         tolerance.
+       - Otherwise the expected location is auto-detected as the densest cluster
+         of the in-range points, assuming the correct data is the majority.
 
-    Note: from coordinates alone the correct orientation is fundamentally
-    ambiguous when exactly half the data is swapped, and a genuine point that is
-    the mirror of the cluster cannot be told apart from a swapped one. Callers
-    should treat ``swap_cluster`` as a suggestion to be reviewed, not a fact.
+    Returns ``(labels, center)`` where ``center`` is the (lat, lon) used as the
+    expected location, or ``None`` for mask mode / when no cluster step ran.
+
+    Note: in auto mode, from coordinates alone the correct orientation is
+    fundamentally ambiguous when about half the data is swapped (the densest
+    cluster may be the swapped one), and a genuine point at the mirror of the
+    cluster cannot be told apart from a swapped one. Treat ``swap_cluster`` as a
+    suggestion to be reviewed; provide ``mask`` or ``reference`` when the region
+    is known.
     """
     n = len(lats)
     labels = ["missing"] * n
@@ -188,21 +208,29 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None):
         else:
             labels[i] = "out_of_range"
 
-    if len(inrange_idx) < min_cluster and reference is None:
+    if mask:
+        for i in inrange_idx:
+            la, lo = float(lats[i]), float(lons[i])
+            if not _in_mask(la, lo, mask) and _in_mask(lo, la, mask):
+                labels[i] = "swap_cluster"
         return labels, None
 
     if reference is not None:
-        center = np.array([float(reference[0]), float(reference[1])], dtype=float)
-        as_is = np.array([[float(lats[i]), float(lons[i])] for i in inrange_idx], dtype=float)
-        if len(as_is):
-            dist = np.hypot(as_is[:, 0] - center[0], as_is[:, 1] - center[1])
-            radius = max(1.0, float(np.percentile(dist, 50)))
-        else:
-            radius = 1.0
-    else:
-        as_is = np.array([[float(lats[i]), float(lons[i])] for i in inrange_idx], dtype=float)
-        center, radius = _dense_center(as_is)
+        center = (float(reference[0]), float(reference[1]))
+        tol = float(region_radius)
+        for i in inrange_idx:
+            la, lo = float(lats[i]), float(lons[i])
+            d_as = math.hypot(la - center[0], lo - center[1])
+            d_sw = math.hypot(lo - center[0], la - center[1])
+            if d_as > tol and d_sw <= tol:
+                labels[i] = "swap_cluster"
+        return labels, center
 
+    if len(inrange_idx) < min_cluster:
+        return labels, None
+
+    as_is = np.array([[float(lats[i]), float(lons[i])] for i in inrange_idx], dtype=float)
+    center, radius = _dense_center(as_is)
     outlier_factor, return_factor = 3.0, 1.5
     for i in inrange_idx:
         la, lo = float(lats[i]), float(lons[i])

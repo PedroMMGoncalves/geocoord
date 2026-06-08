@@ -168,6 +168,39 @@ def test_detect_swaps_cluster_majority():
     assert center is not None
 
 
+def test_detect_swaps_reference_fixes_denser_wrong_cluster():
+    # The swapped group (Africa) is *denser* than the correct group (Portugal),
+    # so auto mode would anchor on the wrong side. A reference fixes it.
+    lats = [39.0, 39.1, 38.9, -7.5, -7.6, -7.4, -7.55, -7.45]
+    lons = [-8.0, -8.1, -7.9, 40.0, 40.1, 39.9, 40.05, 39.95]
+    labels, center = detect_swaps(lats, lons, reference=(39.5, -8.0), region_radius=10.0)
+    assert all(labels[i] == "ok" for i in range(3))
+    assert all(labels[i] == "swap_cluster" for i in range(3, 8))
+    assert center == (39.5, -8.0)
+
+
+def test_detect_swaps_mask_flags_outside_but_swappable():
+    # Portugal bbox. Correct PT points stay OK; points that fall outside but
+    # land inside the mask when swapped are flagged.
+    pt_mainland = (36.8, 42.2, -9.6, -6.1)
+    lats = [39.0, 39.1, -7.485822]   # last: a swapped PT point (as-is in Africa)
+    lons = [-8.0, -8.1, 40.692444]
+    labels, center = detect_swaps(lats, lons, mask=[pt_mainland])
+    assert labels[0] == "ok" and labels[1] == "ok"
+    assert labels[2] == "swap_cluster"
+    assert center is None
+
+
+def test_detect_swaps_mask_multi_region_no_false_positive():
+    # A genuine point inside one masked region (Mozambique) is not flagged.
+    pt = (36.8, 42.2, -9.6, -6.1)
+    mz = (-27.0, -10.4, 30.1, 41.0)
+    lats = [39.0, 38.9, -18.0]   # PT, PT, genuine Mozambique
+    lons = [-8.0, -7.9, 35.0]
+    labels, _ = detect_swaps(lats, lons, mask=[pt, mz])
+    assert "swap_cluster" not in labels
+
+
 def test_detect_swaps_two_legit_clusters_no_false_positive():
     # Portugal (6) + a genuine, non-mirror cluster in Mozambique (3).
     lats = [39.0, 39.1, 38.9, 39.2, 38.8, 39.05, -25.0, -25.1, -24.9]

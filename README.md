@@ -125,19 +125,21 @@ a negative sign in the source data, otherwise their sign cannot be inferred.
 ## Detecting swapped coordinates
 
 A common error is having latitude and longitude swapped in some rows. GeoCoord
-flags these in two ways:
+flags these and lets you anchor detection to where the data should be:
 
+- **Region mask (recommended):** choose an expected region — Portugal + PALOP
+  (Portugal mainland, Azores, Madeira, Angola, Cabo Verde, Guiné-Bissau,
+  Moçambique, São Tomé e Príncipe), a single country, or a custom centre. A row
+  that falls outside the region but lands inside it when its coordinates are
+  swapped is flagged. This is reliable regardless of how the data clusters.
 - **Range:** a value that cannot be a latitude (|lat| > 90) but becomes valid
   when swapped is reported as a likely swap.
-- **Cluster:** among in-range rows, the main cluster of points is identified; a
-  row that is a clear outlier and falls back into that cluster when its
-  coordinates are swapped is flagged as a suggestion.
+- **Auto cluster:** with no region set, the densest cluster of points is taken
+  as the expected location. Convenient, but from coordinates alone the correct
+  orientation is ambiguous when about half the data is swapped (the densest
+  cluster may be the swapped one); an "invert" option handles that case.
 
-Suggestions are shown for review and are never applied automatically. From
-coordinates alone the correct orientation is fundamentally ambiguous when about
-half the data is swapped, and a genuine point at the mirror of the cluster
-cannot be distinguished from a swapped one; an "invert" option handles the rare
-case where the wrong group is suggested.
+Suggestions are always shown for review and never applied automatically.
 
 ## Desktop application (stlite + Electron)
 

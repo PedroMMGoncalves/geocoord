@@ -39,6 +39,19 @@ STATUS_TEXT = {
 COLOR_OK = [40, 160, 80]
 COLOR_SWAP = [230, 150, 30]
 
+# Expected-region masks for swap detection: (lat_min, lat_max, lon_min, lon_max).
+# Portugal + PALOP (Portuguese-speaking African countries).
+REGION_BBOXES = {
+    "Portugal mainland": (36.8, 42.2, -9.6, -6.1),
+    "Azores": (36.9, 39.8, -31.3, -24.9),
+    "Madeira": (32.3, 33.2, -17.3, -16.2),
+    "Angola": (-18.1, -4.3, 11.6, 24.2),
+    "Cabo Verde": (14.7, 17.3, -25.5, -22.6),
+    "Guiné-Bissau": (10.8, 12.8, -16.9, -13.5),
+    "Moçambique": (-27.0, -10.4, 30.1, 41.0),
+    "São Tomé e Príncipe": (-0.1, 1.8, 6.4, 7.6),
+}
+
 
 # ---------------------------------------------------------------------------
 # Reading
@@ -70,22 +83,18 @@ def _round(value, decimals):
 
 
 # ---------------------------------------------------------------------------
-# Conversion pipeline
+# Conversion pipeline (parsing + derived columns; swap detection runs at render)
 # ---------------------------------------------------------------------------
 DERIVED = ["X_DD", "Y_DD", "status", "WKT", "Latitude_GMS", "Longitude_GMS"]
 
 
-def finalize(result, add_dms):
-    """Recompute derived columns, run swap detection. Returns (result, labels, center)."""
+def add_derived(result, add_dms):
     result = result.drop(columns=[c for c in DERIVED if c in result.columns])
     lat = result["Latitude_DD"].tolist()
     lon = result["Longitude_DD"].tolist()
 
     result["X_DD"] = result["Longitude_DD"]
     result["Y_DD"] = result["Latitude_DD"]
-
-    labels, center = detect_swaps(lat, lon)
-    result["status"] = [STATUS_TEXT[s] for s in labels]
     result["WKT"] = [
         f"POINT ({x} {y})" if (in_range(y, "lat") and in_range(x, "lon")) else None
         for x, y in zip(result["X_DD"], result["Y_DD"])
@@ -93,14 +102,14 @@ def finalize(result, add_dms):
     if add_dms:
         result["Latitude_GMS"] = [format_dms(v, "lat") for v in lat]
         result["Longitude_GMS"] = [format_dms(v, "lon") for v in lon]
-    return result, labels, center
+    return result
 
 
 def build_result(df, lat_col, lon_col, decimals, add_dms):
     result = df.copy().reset_index(drop=True)
     result["Latitude_DD"] = [_round(parse_coordinate(v), decimals) for v in result[lat_col]]
     result["Longitude_DD"] = [_round(parse_coordinate(v), decimals) for v in result[lon_col]]
-    return finalize(result, add_dms)
+    return add_derived(result, add_dms)
 
 
 def apply_swaps(result, idxs, add_dms):
@@ -110,7 +119,7 @@ def apply_swaps(result, idxs, add_dms):
     for i in idxs:
         la, lo = r.iat[i, la_pos], r.iat[i, lo_pos]
         r.iat[i, la_pos], r.iat[i, lo_pos] = lo, la
-    return finalize(r, add_dms)
+    return add_derived(r, add_dms)
 
 
 def to_excel_bytes(df):
@@ -122,7 +131,6 @@ def to_excel_bytes(df):
 
 
 def features_in_range(result):
-    """Build (lon, lat, props) tuples and field names for valid rows only."""
     field_names = [c for c in result.columns if c not in ("X_DD", "Y_DD", "WKT")]
     features = []
     for _, row in result.iterrows():
@@ -149,9 +157,11 @@ LON_CANDIDATES = ["longitude", "lon", "long", "coordenadas y", "longitude y", "c
 # ---------------------------------------------------------------------------
 def render_map(result, labels):
     rows = []
+    la_pos = result.columns.get_loc("Latitude_DD")
+    lo_pos = result.columns.get_loc("Longitude_DD")
     for i, lab in enumerate(labels):
-        lat = result.iat[i, result.columns.get_loc("Latitude_DD")]
-        lon = result.iat[i, result.columns.get_loc("Longitude_DD")]
+        lat = result.iat[i, la_pos]
+        lon = result.iat[i, lo_pos]
         if in_range(lat, "lat") and in_range(lon, "lon"):
             plat, plon = lat, lon
         elif in_range(lon, "lat") and in_range(lat, "lon"):
@@ -198,11 +208,7 @@ def render_summary(result):
         f"- lat: {la.min():.6f} to {la.max():.6f}\n"
         f"- lon: {lo.min():.6f} to {lo.max():.6f}"
     )
-    s2.write(
-        f"**Centroid**\n\n"
-        f"- lat: {la.mean():.6f}\n"
-        f"- lon: {lo.mean():.6f}"
-    )
+    s2.write(f"**Centroid**\n\n- lat: {la.mean():.6f}\n- lon: {lo.mean():.6f}")
 
 
 def render_downloads(result, name_key):
@@ -240,6 +246,27 @@ def render_downloads(result, name_key):
                              disabled=not features, use_container_width=True)
 
 
+def swap_detection_controls():
+    """Region selector. Returns (mask, reference, region_radius, is_auto)."""
+    st.markdown("**Swap detection**")
+    st.caption("Anchor detection to where your data should be. 'Auto' guesses the "
+               "largest cluster and can pick the wrong side when about half the data is swapped.")
+    options = (["Auto (largest cluster)", "Portugal + PALOP (all)"]
+               + list(REGION_BBOXES) + ["Custom centre"])
+    region = st.selectbox("Expected data region", options)
+    if region == "Auto (largest cluster)":
+        return None, None, 10.0, True
+    if region == "Portugal + PALOP (all)":
+        return list(REGION_BBOXES.values()), None, 10.0, False
+    if region == "Custom centre":
+        cc1, cc2 = st.columns(2)
+        rlat = cc1.number_input("Reference latitude", -90.0, 90.0, 39.5)
+        rlon = cc2.number_input("Reference longitude", -180.0, 180.0, -8.0)
+        radius = st.slider("Region radius (degrees)", 1.0, 45.0, 10.0)
+        return None, (rlat, rlon), radius, False
+    return [REGION_BBOXES[region]], None, 10.0, False
+
+
 # ---------------------------------------------------------------------------
 # Sidebar
 # ---------------------------------------------------------------------------
@@ -266,14 +293,12 @@ with tab_file:
                                 help="Supports Excel (.xlsx/.xls) and CSV")
 
     if uploaded is None:
-        for k in ("result", "labels", "center"):
-            st.session_state.pop(k, None)
+        st.session_state.pop("result", None)
         st.info("Load a file to begin.")
     else:
         if st.session_state.get("file_name") != uploaded.name:
             st.session_state.file_name = uploaded.name
-            for k in ("result", "labels", "center"):
-                st.session_state.pop(k, None)
+            st.session_state.pop("result", None)
 
         name = uploaded.name.lower()
         try:
@@ -320,16 +345,19 @@ with tab_file:
 
         if st.button("Convert coordinates", type="primary"):
             with st.spinner("Converting..."):
-                result, labels, center = build_result(df, lat_col, lon_col, decimals, add_dms)
-            st.session_state.result = result
-            st.session_state.labels = labels
-            st.session_state.center = center
-            st.session_state.name_key = cols[0] if cols else None
+                st.session_state.result = build_result(df, lat_col, lon_col, decimals, add_dms)
+                st.session_state.name_key = cols[0] if cols else None
 
         if st.session_state.get("result") is not None:
             result = st.session_state.result
-            labels = st.session_state.labels
-            center = st.session_state.center
+
+            # Swap detection runs here so it reacts to the chosen region.
+            mask, reference, region_radius, is_auto = swap_detection_controls()
+            lat_list = result["Latitude_DD"].tolist()
+            lon_list = result["Longitude_DD"].tolist()
+            labels, center = detect_swaps(lat_list, lon_list, reference=reference,
+                                          region_radius=region_radius, mask=mask)
+            result["status"] = [STATUS_TEXT[s] for s in labels]
 
             n_ok = sum(1 for s in labels if s == "ok")
             n_swap = sum(1 for s in labels if s in ("swap_range", "swap_cluster"))
@@ -341,31 +369,30 @@ with tab_file:
             m3.metric("Possible swaps", n_swap)
             m4.metric("Invalid", n_bad)
 
-            # Swap review and correction.
             if n_swap:
                 cluster_idx = [i for i, s in enumerate(labels) if s == "swap_cluster"]
                 range_idx = [i for i, s in enumerate(labels) if s == "swap_range"]
                 ok_idx = [i for i, s in enumerate(labels) if s == "ok"]
                 with st.expander(f"Review {n_swap} possible swapped coordinate(s)", expanded=True):
-                    if center is not None and cluster_idx:
-                        st.caption(f"Main cluster detected near lat {center[0]:.3f}, lon {center[1]:.3f}. "
-                                   "Outliers that fall back into it when X/Y are swapped are flagged.")
+                    if cluster_idx and center is not None:
+                        st.caption(f"Expected location ≈ lat {center[0]:.3f}, lon {center[1]:.3f}. "
+                                   "Outliers that fall back near it when X/Y are swapped are flagged.")
+                    elif cluster_idx and mask is not None:
+                        st.caption("Points outside the expected region(s) whose swapped "
+                                   "coordinates fall inside are flagged.")
                     susp = result.iloc[range_idx + cluster_idx]
                     st.dataframe(
                         susp[[c for c in (lat_col, lon_col, "Latitude_DD", "Longitude_DD", "status")
                               if c in susp.columns]],
                         use_container_width=True)
                     invert = False
-                    if cluster_idx and ok_idx:
+                    if is_auto and cluster_idx and ok_idx:
                         invert = st.checkbox(
                             "Invert cluster suggestion (the main cluster is the swapped side)",
                             value=False)
                     target = range_idx + (ok_idx if invert else cluster_idx)
                     if st.button(f"Apply swap to {len(target)} row(s)"):
-                        result, labels, center = apply_swaps(result, target, add_dms)
-                        st.session_state.result = result
-                        st.session_state.labels = labels
-                        st.session_state.center = center
+                        st.session_state.result = apply_swaps(result, target, add_dms)
                         st.rerun()
 
             st.subheader("Result")

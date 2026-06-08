@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Detection of likely swapped latitude/longitude (range-based and cluster-based)
   with a review-and-confirm step and an invert option for ambiguous cases.
+- Expected-region mask for swap detection (Portugal + PALOP, a single country,
+  or a custom centre), which disambiguates the swapped side regardless of how
+  the data clusters.
 - DD -> DMS formatting, available as optional output columns and exposed via
   `converter.format_dms`.
 - KML and Shapefile (zipped, pure-Python via pyshp) exports, plus checkboxes to
