@@ -1,6 +1,7 @@
 @echo off
 setlocal
-cd /d %~dp0
+rem Run from the repository root (this script lives in scripts\).
+cd /d "%~dp0.."
 
 echo ==========================================
 echo GeoCoord - Build desktop (stlite + Electron)

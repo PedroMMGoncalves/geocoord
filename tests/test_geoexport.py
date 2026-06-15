@@ -5,7 +5,7 @@ import zipfile
 
 import shapefile
 
-from geoexport import to_geojson, to_kml, to_shapefile_zip
+from geocoord.geoexport import to_geojson, to_kml, to_shapefile_zip
 
 FEATURES = [
     (-8.0, 39.0, {"name": "Lisboa", "value": 1}),

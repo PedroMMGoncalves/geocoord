@@ -7,7 +7,7 @@ import math
 import numpy as np
 import pytest
 
-from converter import detect_swaps, format_dms, in_range, parse_coordinate
+from geocoord.converter import detect_swaps, format_dms, in_range, parse_coordinate
 
 
 def approx(value, expected):

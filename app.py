@@ -4,8 +4,8 @@ import os
 import pandas as pd
 import streamlit as st
 
-from converter import detect_swaps, format_dms, in_range, parse_coordinate
-from geoexport import to_geojson, to_kml, to_shapefile_zip
+from geocoord.converter import detect_swaps, format_dms, in_range, parse_coordinate
+from geocoord.geoexport import to_geojson, to_kml, to_shapefile_zip
 
 APP_NAME = "GeoCoord"
 ACCENT = "#1f7a4d"  # accent colour — replace with an official LNEG colour if desired

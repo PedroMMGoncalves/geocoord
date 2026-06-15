@@ -101,7 +101,7 @@ python -m pip install -r requirements.txt
 python -m streamlit run app.py
 ```
 
-On Windows, `run_app.bat` installs the dependencies and starts the application.
+On Windows, `scripts\run_app.bat` installs the dependencies and starts the application.
 The interface opens at `http://localhost:8501`. The application can also be
 deployed for free on
 [Streamlit Community Cloud](https://streamlit.io/cloud) directly from this
@@ -172,8 +172,8 @@ npm run serve      # optional: preview in an Electron window
 npm run app:dist   # build the installer into dist/
 ```
 
-On Windows, `build_exe.bat` runs these steps. Place `assets/icon.ico` for a
-custom icon. Only pure-Python packages are supported in this mode; `.xls`
+On Windows, `scripts\build_exe.bat` runs these steps. Place `assets/icon.ico`
+for a custom icon. Only pure-Python packages are supported in this mode; `.xls`
 support is best-effort. The map basemap requires internet access; points are
 plotted even offline.
 
@@ -183,21 +183,26 @@ plotted even offline.
 python -m pytest
 ```
 
-The conversion engine is isolated in [`converter.py`](converter.py) and covered
-by the suite in [`tests/`](tests/). Continuous integration runs the suite across
+The conversion engine is isolated in
+[`geocoord/converter.py`](geocoord/converter.py) and covered by the suite in
+[`tests/`](tests/). Continuous integration runs the suite across
 Python 3.11, 3.12, and 3.13.
 
 ## Project structure
 
 ```text
 app.py                 Streamlit interface
-converter.py           Conversion + swap-detection engine (pure logic, testable)
-geoexport.py           GeoJSON / KML / Shapefile writers (pure Python)
+geocoord/              Conversion library (importable package)
+  __init__.py          Package initialiser
+  converter.py         Conversion + swap-detection engine (pure logic, testable)
+  geoexport.py         GeoJSON / KML / Shapefile writers (pure Python)
 tests/                 Test suite (pytest)
+scripts/               Windows helper scripts
+  run_app.bat          Run the web application
+  build_exe.bat        Build the desktop installer
 requirements.txt       Python dependencies
+pytest.ini             pytest configuration
 .streamlit/            Application theme
-run_app.bat            Run the web application (Windows)
-build_exe.bat          Build the desktop installer (Windows)
 package.json           stlite/Electron configuration
 assets/                Installer resources (icon)
 .github/workflows/     Continuous integration

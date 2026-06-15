@@ -36,7 +36,7 @@
   },
   "stlite": {
     "desktop": {
-      "files": ["app.py", "converter.py", ".streamlit/config.toml"],
+      "files": ["app.py", "geocoord/__init__.py", "geocoord/converter.py", "geocoord/geoexport.py", ".streamlit/config.toml"],
       "entrypoint": "app.py",
       "dependencies": ["numpy", "pandas", "openpyxl", "xlrd", "pyshp"]
     }
