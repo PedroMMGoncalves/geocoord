@@ -11,7 +11,7 @@ from geocoord.converter import (
     parse_coordinate,
     tidy_table,
 )
-from geocoord.geoexport import to_geojson, to_kml, to_shapefile_zip
+from geocoord.geoexport import sanitize_filename, to_geojson, to_kml, to_shapefile_zip
 
 APP_NAME = "GeoCoord"
 ACCENT = "#1f7a4d"  # accent colour — replace with an official LNEG colour if desired
@@ -230,9 +230,9 @@ def export_kml(df, name_key):
 
 
 @st.cache_data(show_spinner=False)
-def export_shapefile(df):
+def export_shapefile(df, base):
     features, fields = features_in_range(df)
-    return to_shapefile_zip(features, fields)
+    return to_shapefile_zip(features, fields, base_name=base)
 
 
 def guess_column(cols, candidates, fallback_index):
@@ -323,9 +323,10 @@ def render_summary(result, labels, lat_col, lon_col):
             use_container_width=True)
 
 
-def render_downloads(result, name_key):
+def render_downloads(result, name_key, base):
     _step("5. Download")
     st.caption("Tabular formats include all rows; spatial formats include valid points only.")
+    st.caption(f"Files are named after the input file: `{base}.csv`, `{base}.geojson`, …")
     c = st.columns(5)
     want = {
         "CSV": c[0].checkbox("CSV", value=True),
@@ -338,22 +339,22 @@ def render_downloads(result, name_key):
     d = st.columns(5)
     if want["CSV"]:
         d[0].download_button("Download CSV", export_csv(result),
-                             "converted.csv", "text/csv", use_container_width=True)
+                             f"{base}.csv", "text/csv", use_container_width=True)
     if want["Excel"]:
-        d[1].download_button("Download Excel", export_excel(result), "converted.xlsx",
+        d[1].download_button("Download Excel", export_excel(result), f"{base}.xlsx",
                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              use_container_width=True)
     if want["GeoJSON"]:
         d[2].download_button("Download GeoJSON", export_geojson(result),
-                             "converted.geojson", "application/geo+json",
+                             f"{base}.geojson", "application/geo+json",
                              disabled=not has_points, use_container_width=True)
     if want["KML"]:
         d[3].download_button("Download KML", export_kml(result, name_key),
-                             "converted.kml", "application/vnd.google-earth.kml+xml",
+                             f"{base}.kml", "application/vnd.google-earth.kml+xml",
                              disabled=not has_points, use_container_width=True)
     if want["Shapefile"]:
-        d[4].download_button("Download Shapefile (.zip)", export_shapefile(result),
-                             "converted_shapefile.zip", "application/zip",
+        d[4].download_button("Download Shapefile (.zip)", export_shapefile(result, base),
+                             f"{base}.zip", "application/zip",
                              disabled=not has_points, use_container_width=True)
 
 
@@ -518,7 +519,8 @@ with tab_file:
             with t_summary:
                 render_summary(result, labels, lat_col, lon_col)
             with t_download:
-                render_downloads(result, st.session_state.get("name_key"))
+                base = sanitize_filename(st.session_state.get("file_name", "converted"))
+                render_downloads(result, st.session_state.get("name_key"), base)
 
 
 with tab_quick:

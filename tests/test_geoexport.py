@@ -5,7 +5,9 @@ import zipfile
 
 import shapefile
 
-from geocoord.geoexport import to_geojson, to_kml, to_shapefile_zip
+import pytest
+
+from geocoord.geoexport import sanitize_filename, to_geojson, to_kml, to_shapefile_zip
 
 FEATURES = [
     (-8.0, 39.0, {"name": "Lisboa", "value": 1}),
@@ -48,6 +50,41 @@ def test_shapefile_zip_roundtrip():
     assert pts[0][0] == -8.0 and pts[0][1] == 39.0
     recs = reader.records()
     assert recs[0]["name"] == "Lisboa"
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("dados das áreas de ferro.csv", "dados_das_areas_de_ferro"),
+    ("sites.csv", "sites"),
+    ("Coordenadas (Final).xlsx", "Coordenadas_Final"),
+    ("relatório-2024.geojson", "relatorio-2024"),
+    ("C:/tmp/São Tomé.csv", "Sao_Tome"),
+    ("amostras_ção.shp", "amostras_cao"),
+])
+def test_sanitize_filename(raw, expected):
+    assert sanitize_filename(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["", "   ", "***", ".csv", "///"])
+def test_sanitize_filename_falls_back_to_default(raw):
+    assert sanitize_filename(raw) == "converted"
+    assert sanitize_filename(raw, default="layer") == "layer"
+
+
+def test_sanitize_filename_is_idempotent():
+    once = sanitize_filename("dados das áreas (v2).csv")
+    assert sanitize_filename(once) == once
+
+
+def test_sanitize_filename_trims_length():
+    assert len(sanitize_filename("a" * 200)) == 60
+
+
+def test_shapefile_zip_uses_base_name_for_internal_layer():
+    data = to_shapefile_zip(FEATURES, FIELDS, base_name="dados das áreas.csv")
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        names = set(z.namelist())
+    assert {"dados_das_areas.shp", "dados_das_areas.shx",
+            "dados_das_areas.dbf", "dados_das_areas.prj"} <= names
 
 
 def test_shapefile_long_field_names_are_truncated():

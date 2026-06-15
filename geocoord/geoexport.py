@@ -9,6 +9,8 @@ from __future__ import annotations
 import io
 import json
 import math
+import re
+import unicodedata
 import zipfile
 from xml.sax.saxutils import escape
 
@@ -20,6 +22,26 @@ WGS84_ESRI_WKT = (
     'SPHEROID["WGS_1984",6378137.0,298.257223563]],'
     'PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]'
 )
+
+
+def sanitize_filename(name, default: str = "converted", max_length: int = 60) -> str:
+    """Turn an arbitrary name into a safe base name for output files / GIS layers.
+
+    Useful for naming exports after the input file. Drops any directory and a
+    single trailing extension, transliterates accents to ASCII (``á`` -> ``a``,
+    ``ç`` -> ``c``), replaces every character other than ASCII letters, digits,
+    ``-`` and ``_`` with ``_``, collapses repeats and trims to ``max_length``.
+    Falls back to ``default`` when nothing usable remains. Idempotent.
+
+    Example: ``"dados das áreas de ferro.csv"`` -> ``"dados_das_areas_de_ferro"``.
+    """
+    stem = str(name).replace("\\", "/").rsplit("/", 1)[-1]
+    stem = re.sub(r"\.[^.]+$", "", stem)  # drop a single trailing extension
+    stem = unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode("ascii")
+    stem = re.sub(r"[^A-Za-z0-9_-]+", "_", stem)
+    stem = re.sub(r"_+", "_", stem).strip("_-")
+    stem = stem[:max_length].strip("_-")
+    return stem or default
 
 
 def _json_safe(v):
@@ -104,14 +126,19 @@ def _dbf_value(v):
     return "" if v is None else str(v)
 
 
-def to_shapefile_zip(features, field_names) -> bytes:
+def to_shapefile_zip(features, field_names, base_name: str = "coordinates") -> bytes:
     """Point shapefile (.shp/.shx/.dbf/.prj) bundled into a single .zip.
+
+    ``base_name`` names the components inside the zip and therefore the layer
+    name shown in GIS; it is sanitised, so passing the input file name yields a
+    clean layer (e.g. ``"dados_das_areas_de_ferro"``).
 
     DBF field names are truncated to 10 characters; all attributes are written
     as text to avoid type/length surprises.
     """
     field_names = list(field_names)
     dbf_names = _safe_field_names(field_names)
+    layer = sanitize_filename(base_name, default="coordinates")
 
     shp, shx, dbf = io.BytesIO(), io.BytesIO(), io.BytesIO()
     writer = shapefile.Writer(shp=shp, shx=shx, dbf=dbf, shapeType=shapefile.POINT)
@@ -124,8 +151,8 @@ def to_shapefile_zip(features, field_names) -> bytes:
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("coordinates.shp", shp.getvalue())
-        z.writestr("coordinates.shx", shx.getvalue())
-        z.writestr("coordinates.dbf", dbf.getvalue())
-        z.writestr("coordinates.prj", WGS84_ESRI_WKT)
+        z.writestr(f"{layer}.shp", shp.getvalue())
+        z.writestr(f"{layer}.shx", shx.getvalue())
+        z.writestr(f"{layer}.dbf", dbf.getvalue())
+        z.writestr(f"{layer}.prj", WGS84_ESRI_WKT)
     return buf.getvalue()
