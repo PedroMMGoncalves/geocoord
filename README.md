@@ -43,13 +43,15 @@ flowchart LR
   in Portuguese and English (prefix or suffix) and explicit negative-sign
   handling.
 - Range validation and detection of likely swapped latitude/longitude, with a
-  review step before any correction is applied.
+  review step before any correction is applied. Valid points that fall outside
+  the declared region are flagged, naming the region they actually fall in.
 - Colour-blind-safe map (valid vs possible swap, with a legend) and a points
   summary (bounding box, centroid).
 - GIS-ready columns (`X_DD`, `Y_DD`, `WKT`), optional DMS columns (DD -> DMS),
   and a single-coordinate converter.
 - Export to CSV, Excel, GeoJSON, KML, and Shapefile (zipped), all WGS84 /
-  EPSG:4326, selectable with checkboxes.
+  EPSG:4326, selectable with checkboxes; output files are named after the input
+  file, sanitised for GIS.
 - Guided, step-by-step interface with results organised into Table, Map,
   Summary and Download tabs.
 
@@ -157,6 +159,12 @@ flowchart TD
     W -- yes --> S
     W -- no --> V
 ```
+
+When you declare a region, valid points that are neither inside it nor
+recoverable by swapping are kept but flagged as **outside the selected
+region**, naming the region they actually fall in, with a one-click switch.
+This surfaces a region chosen by mistake or coordinates that point elsewhere,
+instead of silently reporting them as OK.
 
 Suggestions are always shown for review and never applied automatically.
 

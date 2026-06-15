@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   blank first line mistaken for the header is corrected, a leading empty index
   column and fully empty rows are dropped, and decimal commas inside quoted
   fields are parsed. Coordinate columns named `X`/`Y` are auto-detected.
+- Output files (CSV/Excel/GeoJSON/KML/Shapefile, including the shapefile's
+  internal layer) are named after the input file, sanitised for GIS: accents
+  transliterated, spaces and special characters replaced
+  (`geoexport.sanitize_filename`).
+- A warning when valid coordinates fall outside the declared region, naming the
+  region they actually fall in and offering a one-click switch, so a region
+  mismatch is no longer silently reported as OK (`converter.region_check`).
 
 ### Changed
 
@@ -36,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Table / Map / Summary / Download tabs, a full sortable result table, a map
   legend with a colour-blind-safe palette, cached exports for responsiveness,
   and an optional sidebar logo (`assets/logo.png`).
+- More visible, accessible buttons: solid accent primary actions, download
+  buttons with an accent outline that fills on hover, and visible hover, active
+  and focus states.
 
 ## [0.1.0] - 2026-06-08
 
