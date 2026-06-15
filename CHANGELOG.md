@@ -23,9 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and centroid).
 - Excel sheet selection and configurable CSV separator/decimal on read.
 - `geoexport.py` module with GeoJSON/KML/Shapefile writers and its test suite.
+- Automatic tidying of messy spreadsheet exports via `converter.tidy_table`: a
+  blank first line mistaken for the header is corrected, a leading empty index
+  column and fully empty rows are dropped, and decimal commas inside quoted
+  fields are parsed. Coordinate columns named `X`/`Y` are auto-detected.
 
 ### Changed
 
+- Reorganised the repository into a `geocoord/` package (`converter`,
+  `geoexport`) and a `scripts/` folder for the Windows helper batch files.
 - Reworked the interface: a numbered step-by-step flow, results organised into
   Table / Map / Summary / Download tabs, a full sortable result table, a map
   legend with a colour-blind-safe palette, cached exports for responsiveness,

@@ -2,12 +2,20 @@
 
 Run with:  python -m pytest
 """
+import io
 import math
 
 import numpy as np
+import pandas as pd
 import pytest
 
-from geocoord.converter import detect_swaps, format_dms, in_range, parse_coordinate
+from geocoord.converter import (
+    detect_swaps,
+    format_dms,
+    in_range,
+    parse_coordinate,
+    tidy_table,
+)
 
 
 def approx(value, expected):
@@ -135,6 +143,63 @@ def test_format_dms_hemisphere():
 def test_format_dms_none():
     assert format_dms(None, "lat") is None
     assert format_dms(float("nan"), "lon") is None
+
+
+# --- Tidying messy spreadsheet exports --------------------------------------
+
+# A real-world Excel-exported CSV: a blank first line, a leading empty 'index'
+# column, and decimal commas inside quoted fields.
+MESSY_CSV = (
+    ',,,\n'
+    ',Amostras,Y,X\n'
+    ',1,"33,6603","-15,9469"\n'
+    ',2,"33,6664","-15,9364"\n'
+)
+
+
+def test_tidy_table_messy_export_recovers_header_and_columns():
+    raw = pd.read_csv(io.StringIO(MESSY_CSV), sep=",", engine="python")
+    tidy = tidy_table(raw)
+    # The real header is recovered and the empty index column is gone.
+    assert list(tidy.columns) == ["Amostras", "Y", "X"]
+    assert len(tidy) == 2
+    # Values keep their decimal comma; parse_coordinate understands them.
+    approx(parse_coordinate(tidy["Y"].iloc[0]), 33.6603)
+    approx(parse_coordinate(tidy["X"].iloc[0]), -15.9469)
+
+
+def test_tidy_table_drops_empty_column_and_rows():
+    df = pd.DataFrame({
+        "idx": [None, None, None],
+        "lat": ["39.0", None, "38.9"],
+        "lon": ["-8.0", None, "-7.9"],
+    })
+    tidy = tidy_table(df)
+    assert "idx" not in tidy.columns
+    assert list(tidy.columns) == ["lat", "lon"]
+    assert len(tidy) == 2  # the all-empty middle row is dropped
+
+
+def test_tidy_table_leaves_clean_table_unchanged():
+    df = pd.DataFrame({"lat": [39.0, 38.9], "lon": [-8.0, -7.9]})
+    tidy = tidy_table(df)
+    assert list(tidy.columns) == ["lat", "lon"]
+    assert len(tidy) == 2
+    assert tidy["lat"].tolist() == [39.0, 38.9]
+
+
+def test_tidy_table_does_not_mutate_input():
+    df = pd.DataFrame({"lat": [39.0], "lon": [-8.0]})
+    before = df.copy()
+    tidy_table(df)
+    pd.testing.assert_frame_equal(df, before)
+
+
+def test_tidy_table_promotes_header_only_when_all_placeholder():
+    # A genuine header with one blank column name must NOT trigger promotion.
+    df = pd.DataFrame({"lat": ["39.0"], "Unnamed: 1": ["x"], "lon": ["-8.0"]})
+    tidy = tidy_table(df)
+    assert "lat" in tidy.columns and "lon" in tidy.columns
 
 
 # --- Swapped lat/lon detection ----------------------------------------------

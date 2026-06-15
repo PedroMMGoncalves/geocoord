@@ -31,6 +31,8 @@ _ALL_DIRS = _NEGATIVE_DIRS | _POSITIVE_DIRS
 _DIRECTION_RE = re.compile(r"\b([NSEWOL])\b", re.IGNORECASE)
 # Numbers (integer or decimal, dot or comma), always unsigned.
 _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
+# Auto-generated column name pandas assigns to a header cell it found empty.
+_PLACEHOLDER_COL_RE = re.compile(r"^Unnamed: \d+$")
 
 # Valid geographic bounds.
 LAT_RANGE = (-90.0, 90.0)
@@ -116,6 +118,54 @@ def format_dms(value, axis: str, seconds_decimals: int = 3) -> Optional[str]:
         degrees += 1
 
     return f"{degrees}° {minutes}' {seconds:g}\" {hemisphere}"
+
+
+# ---------------------------------------------------------------------------
+# Tidying messy spreadsheet exports
+# ---------------------------------------------------------------------------
+def _is_placeholder_name(name) -> bool:
+    """True for an empty or pandas auto-generated ('Unnamed: N') column name."""
+    s = str(name).strip()
+    return s == "" or s.lower() == "nan" or bool(_PLACEHOLDER_COL_RE.match(s))
+
+
+def tidy_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Clean a freshly-read table so messy spreadsheet exports load correctly.
+
+    Excel/CSV exports often carry junk that breaks naive reading. This repairs
+    the three most common cases, returning a new dataframe (the original is left
+    untouched):
+
+    - A leading empty 'index' column (every row starting with a separator) and
+      any other fully empty columns are dropped.
+    - Fully empty rows are dropped.
+    - When a blank first line was mistaken for the header (so every column is
+      named ``Unnamed: N``), the first surviving row is promoted to be the
+      header.
+
+    Decimal commas inside the data (``"33,6603"``) are left as-is;
+    :func:`parse_coordinate` already understands them.
+    """
+    df = df.copy()
+
+    # Treat blank / whitespace-only string cells as missing so they count as
+    # empty for the row/column drops below.
+    for c in df.select_dtypes(include="object").columns:
+        stripped = df[c].astype(str).str.strip()
+        df[c] = df[c].where(~stripped.isin(["", "nan", "None"]), np.nan)
+
+    df = df.dropna(axis=1, how="all").dropna(axis=0, how="all")
+    if df.empty:
+        return df.reset_index(drop=True)
+
+    # If no column carries a real name, the header is the first row of data.
+    if all(_is_placeholder_name(c) for c in df.columns):
+        header = df.iloc[0]
+        df = df.iloc[1:].copy()
+        df.columns = [str(h).strip() for h in header]
+        df = df.dropna(axis=1, how="all")  # a header cell may itself be blank
+
+    return df.reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------

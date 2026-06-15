@@ -4,7 +4,13 @@ import os
 import pandas as pd
 import streamlit as st
 
-from geocoord.converter import detect_swaps, format_dms, in_range, parse_coordinate
+from geocoord.converter import (
+    detect_swaps,
+    format_dms,
+    in_range,
+    parse_coordinate,
+    tidy_table,
+)
 from geocoord.geoexport import to_geojson, to_kml, to_shapefile_zip
 
 APP_NAME = "GeoCoord"
@@ -188,8 +194,10 @@ def guess_column(cols, candidates, fallback_index):
     return min(fallback_index, len(cols) - 1)
 
 
-LAT_CANDIDATES = ["latitude", "lat", "coordenadas x", "latitude x", "coord_lat", "lat_dms", "lat_gms"]
-LON_CANDIDATES = ["longitude", "lon", "long", "coordenadas y", "longitude y", "coord_lon", "lon_dms", "lon_gms"]
+LAT_CANDIDATES = ["latitude", "lat", "coordenadas x", "latitude x", "coord_lat",
+                  "lat_dms", "lat_gms", "y", "y_dd", "lat_y"]
+LON_CANDIDATES = ["longitude", "lon", "long", "coordenadas y", "longitude y", "coord_lon",
+                  "lon_dms", "lon_gms", "x", "x_dd", "lon_x"]
 
 
 # ---------------------------------------------------------------------------
@@ -376,6 +384,7 @@ with tab_file:
             st.error(f"Could not read the file: {e}")
             st.stop()
 
+        df = tidy_table(df)
         if df.empty:
             st.warning("The file contains no rows to process.")
             st.stop()

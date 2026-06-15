@@ -210,6 +210,11 @@ assets/                Installer resources (icon)
 
 ## Troubleshooting
 
+- **Messy spreadsheet exports load fine.** A blank first line, a leading empty
+  index column, fully empty rows, and decimal commas inside quoted fields
+  (`"33,6603"`) are handled automatically: the real header is recovered and the
+  values are parsed. Coordinate columns named `X`/`Y` (GIS convention: `Y` =
+  latitude, `X` = longitude) are also auto-detected.
 - **Western longitudes have the wrong sign.** The source values must include a
   hemisphere letter (`W`/`O`) or a leading `-`. Without it, the sign cannot be
   inferred and the value is treated as positive (East).
