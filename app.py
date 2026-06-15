@@ -15,6 +15,8 @@ from geocoord.geoexport import to_geojson, to_kml, to_shapefile_zip
 
 APP_NAME = "GeoCoord"
 ACCENT = "#1f7a4d"  # accent colour — replace with an official LNEG colour if desired
+ACCENT_DARK = "#175e3a"  # deeper shade for button hover/active states
+ACCENT_SOFT = "rgba(31, 122, 77, 0.30)"  # translucent accent for focus rings
 
 # Okabe-Ito colour-blind-safe pair for the map.
 COLOR_OK = [0, 114, 178]      # blue
@@ -34,11 +36,58 @@ _CSS = """
 #MainMenu, footer {visibility: hidden;}
 [data-testid="stToolbar"] {display: none;}
 [data-testid="stDecoration"] {display: none;}
-.stButton>button[kind="primary"] {background-color: __ACCENT__; border-color: __ACCENT__;}
+
+/* Buttons: clearer affordance, stronger hierarchy, visible hover/focus. */
+.stButton > button, .stDownloadButton > button {
+    font-weight: 600;
+    border-radius: 8px;
+    padding: 0.55rem 1.1rem;
+    min-height: 2.7rem;
+    transition: background-color .15s ease, color .15s ease,
+                border-color .15s ease, box-shadow .15s ease, transform .05s ease;
+}
+.stButton > button:active, .stDownloadButton > button:active {transform: translateY(1px);}
+.stButton > button:focus-visible, .stDownloadButton > button:focus-visible {
+    outline: 3px solid __ACCENT_SOFT__;
+    outline-offset: 2px;
+}
+
+/* Primary actions (Convert, Apply swap): solid accent, prominent. */
+.stButton > button[kind="primary"] {
+    background-color: __ACCENT__;
+    border: 1px solid __ACCENT__;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+.stButton > button[kind="primary"]:hover {
+    background-color: __ACCENT_DARK__;
+    border-color: __ACCENT_DARK__;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+}
+
+/* Secondary + download buttons: accent outline that fills on hover. */
+.stButton > button[kind="secondary"], .stDownloadButton > button {
+    background-color: #fff;
+    border: 2px solid __ACCENT__;
+    color: __ACCENT__;
+}
+.stButton > button[kind="secondary"]:hover, .stDownloadButton > button:hover {
+    background-color: __ACCENT__;
+    border-color: __ACCENT__;
+    color: #fff;
+}
+.stDownloadButton > button:disabled,
+.stDownloadButton > button:disabled:hover {
+    background-color: #fff;
+    border-color: #cfcfcf;
+    color: #b3b3b3;
+}
+
 .gc-title {border-left: 5px solid __ACCENT__; padding-left: 0.7rem; margin-bottom: 0.1rem;}
 .gc-step {color: __ACCENT__; font-weight: 700; font-size: 1.05rem; margin: 0.6rem 0 0.2rem;}
 </style>
-""".replace("__ACCENT__", ACCENT)
+""".replace("__ACCENT_DARK__", ACCENT_DARK).replace("__ACCENT_SOFT__", ACCENT_SOFT).replace("__ACCENT__", ACCENT)
 st.markdown(_CSS, unsafe_allow_html=True)
 st.markdown(f"<h1 class='gc-title'>{APP_NAME}</h1>", unsafe_allow_html=True)
 st.caption("DMS to Decimal Degrees coordinate converter — WGS84 / EPSG:4326")
@@ -456,7 +505,7 @@ with tab_file:
                             "Invert cluster suggestion (the main cluster is the swapped side)",
                             value=False)
                     target = range_idx + (ok_idx if invert else cluster_idx)
-                    if st.button(f"Apply swap to {len(target)} row(s)"):
+                    if st.button(f"Apply swap to {len(target)} row(s)", type="primary"):
                         st.session_state.result = apply_swaps(result, target, add_dms)
                         st.rerun()
 

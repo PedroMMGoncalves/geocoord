@@ -34,8 +34,10 @@ flowchart LR
 
 ## Features
 
-- Reads CSV, XLSX, and XLS, with automatic column detection, Excel sheet
-  selection, and configurable CSV separator/decimal.
+- Reads CSV, XLSX, and XLS, tolerant of messy spreadsheet exports (a blank
+  header line, a leading empty column, decimal commas), with automatic column
+  detection (including `X`/`Y`), Excel sheet selection, and a configurable CSV
+  separator/decimal.
 - Live preview of the conversion before it is applied to the whole table.
 - Conversion of multiple input formats (see below), with hemisphere detection
   in Portuguese and English (prefix or suffix) and explicit negative-sign
