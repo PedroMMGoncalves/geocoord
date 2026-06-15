@@ -290,3 +290,57 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
             labels[i] = "swap_cluster"
 
     return labels, (float(center[0]), float(center[1]))
+
+
+# ---------------------------------------------------------------------------
+# Region awareness: did valid points land outside the declared region?
+# ---------------------------------------------------------------------------
+def point_in_mask(lat, lon, mask) -> bool:
+    """True if (lat, lon) falls inside any bbox of ``mask``."""
+    return _in_mask(float(lat), float(lon), mask)
+
+
+def identify_region(lat, lon, regions):
+    """Name of the first region containing (lat, lon), or ``None``.
+
+    ``regions`` is a name -> mask mapping (mask = list of (lat_min, lat_max,
+    lon_min, lon_max) boxes), e.g. the application's known regions.
+    """
+    for name, mask in regions.items():
+        if _in_mask(float(lat), float(lon), mask):
+            return name
+    return None
+
+
+def region_check(lats, lons, labels, regions, mask=None, reference=None,
+                 region_radius=10.0):
+    """Find valid ('ok') points that fall outside the region the user declared.
+
+    Describe the declared region with either ``mask`` (list of bboxes) or
+    ``reference`` (lat, lon) plus ``region_radius`` (degrees); with neither
+    (auto mode) nothing is flagged. ``regions`` is a name -> mask mapping of
+    known regions, used to report where the outside points actually fall.
+
+    Only points already classified ``ok`` are considered — swaps and invalid
+    rows have their own handling. Returns ``(out_idx, detected)``: ``out_idx``
+    are the indices of valid points outside the declared region, and
+    ``detected`` maps each such point's actual region name (or ``None`` when it
+    matches no known region) to a count.
+    """
+    out_idx = []
+    detected = {}
+    if mask is None and reference is None:
+        return out_idx, detected
+    for i, label in enumerate(labels):
+        if label != "ok":
+            continue
+        la, lo = float(lats[i]), float(lons[i])
+        if mask is not None:
+            inside = _in_mask(la, lo, mask)
+        else:
+            inside = math.hypot(la - reference[0], lo - reference[1]) <= region_radius
+        if not inside:
+            out_idx.append(i)
+            name = identify_region(la, lo, regions) if regions else None
+            detected[name] = detected.get(name, 0) + 1
+    return out_idx, detected

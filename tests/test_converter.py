@@ -12,8 +12,11 @@ import pytest
 from geocoord.converter import (
     detect_swaps,
     format_dms,
+    identify_region,
     in_range,
     parse_coordinate,
+    point_in_mask,
+    region_check,
     tidy_table,
 )
 
@@ -272,3 +275,61 @@ def test_detect_swaps_two_legit_clusters_no_false_positive():
     lons = [-8.0, -8.1, -7.9, -8.2, -7.8, -8.05, 32.0, 32.1, 31.9]
     labels, center = detect_swaps(lats, lons)
     assert "swap_cluster" not in labels
+
+
+# --- Region awareness (valid points outside the declared region) ------------
+
+PT_MASK = [(36.8, 42.2, -9.6, -6.1)]
+MZ_MASK = [(-27.0, -10.4, 30.1, 41.0)]
+REGIONS = {"Portugal mainland": PT_MASK, "Moçambique": MZ_MASK}
+
+
+def test_point_in_mask():
+    assert point_in_mask(39.0, -8.0, PT_MASK)
+    assert not point_in_mask(-15.94, 33.66, PT_MASK)
+
+
+def test_identify_region():
+    assert identify_region(39.0, -8.0, REGIONS) == "Portugal mainland"
+    assert identify_region(-15.94, 33.66, REGIONS) == "Moçambique"
+    assert identify_region(33.66, -15.94, REGIONS) is None  # Atlantic ocean
+
+
+def test_region_check_flags_outside_and_names_actual_region():
+    # An iron sample really in Mozambique, plus a Portugal point, mask = Portugal.
+    out_idx, detected = region_check([-15.94, 39.0], [33.66, -8.0],
+                                     ["ok", "ok"], REGIONS, mask=PT_MASK)
+    assert out_idx == [0]
+    assert detected == {"Moçambique": 1}
+
+
+def test_region_check_outside_with_no_known_region():
+    # The wrong (X/Y not swapped) orientation lands in the Atlantic: no region.
+    out_idx, detected = region_check([33.66], [-15.94], ["ok"], REGIONS, mask=PT_MASK)
+    assert out_idx == [0]
+    assert detected == {None: 1}
+
+
+def test_region_check_inside_region_not_flagged():
+    out_idx, detected = region_check([39.0], [-8.0], ["ok"], REGIONS, mask=PT_MASK)
+    assert out_idx == [] and detected == {}
+
+
+def test_region_check_auto_mode_flags_nothing():
+    # No declared region (no mask, no reference) -> no expectation to violate.
+    out_idx, detected = region_check([-15.94], [33.66], ["ok"], REGIONS)
+    assert out_idx == [] and detected == {}
+
+
+def test_region_check_ignores_non_ok_rows():
+    out_idx, detected = region_check([-15.94, 200.0], [33.66, 0.0],
+                                     ["swap_cluster", "out_of_range"],
+                                     REGIONS, mask=PT_MASK)
+    assert out_idx == []
+
+
+def test_region_check_reference_mode():
+    out_idx, detected = region_check([-15.94, 39.5], [33.66, -8.0], ["ok", "ok"],
+                                     REGIONS, reference=(39.5, -8.0), region_radius=5.0)
+    assert out_idx == [0]
+    assert detected == {"Moçambique": 1}

@@ -9,6 +9,7 @@ from geocoord.converter import (
     format_dms,
     in_range,
     parse_coordinate,
+    region_check,
     tidy_table,
 )
 from geocoord.geoexport import sanitize_filename, to_geojson, to_kml, to_shapefile_zip
@@ -358,21 +359,26 @@ def render_downloads(result, name_key, base):
                              disabled=not has_points, use_container_width=True)
 
 
+def _select_region(name):
+    """Button callback: point the region selector at a detected region."""
+    st.session_state.region_choice = name
+
+
 def swap_detection_controls():
-    """Region selector. Returns (mask, reference, region_radius, is_auto)."""
+    """Region selector. Returns (mask, reference, region_radius, is_auto, label)."""
     st.caption("Pick the region your data belongs to. 'Auto' guesses the largest "
                "cluster and can pick the wrong side when about half the data is swapped.")
     options = list(REGION_MASKS) + ["Custom centre", "Auto (largest cluster)"]
-    region = st.selectbox("Expected data region", options, index=0)
+    region = st.selectbox("Expected data region", options, index=0, key="region_choice")
     if region in REGION_MASKS:
-        return REGION_MASKS[region], None, 10.0, False
+        return REGION_MASKS[region], None, 10.0, False, region
     if region == "Custom centre":
         cc1, cc2 = st.columns(2)
         rlat = cc1.number_input("Reference latitude", -90.0, 90.0, 39.5)
         rlon = cc2.number_input("Reference longitude", -180.0, 180.0, -8.0)
         radius = st.slider("Region radius (degrees)", 1.0, 45.0, 10.0)
-        return None, (rlat, rlon), radius, False
-    return None, None, 10.0, True
+        return None, (rlat, rlon), radius, False, "the custom centre"
+    return None, None, 10.0, True, region
 
 
 # ---------------------------------------------------------------------------
@@ -467,7 +473,7 @@ with tab_file:
             result = st.session_state.result
 
             _step("4. Review and fix swapped coordinates")
-            mask, reference, region_radius, is_auto = swap_detection_controls()
+            mask, reference, region_radius, is_auto, region_label = swap_detection_controls()
             lat_list = result["Latitude_DD"].tolist()
             lon_list = result["Longitude_DD"].tolist()
             labels, center = detect_swaps(lat_list, lon_list, reference=reference,
@@ -478,11 +484,45 @@ with tab_file:
             n_swap = sum(1 for s in labels if s in ("swap_range", "swap_cluster"))
             n_bad = sum(1 for s in labels if s in ("out_of_range", "missing"))
 
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Total rows", len(result))
-            m2.metric("OK", n_ok)
-            m3.metric("Possible swaps", n_swap)
-            m4.metric("Invalid", n_bad)
+            # Region awareness: valid points that landed outside the declared region.
+            out_idx, detected = region_check(lat_list, lon_list, labels, REGION_MASKS,
+                                              mask=mask, reference=reference,
+                                              region_radius=region_radius)
+            n_out = len(out_idx)
+            region_declared = mask is not None or reference is not None
+
+            if region_declared:
+                m = st.columns(5)
+                m[0].metric("Total rows", len(result))
+                m[1].metric("In region", n_ok - n_out)
+                m[2].metric("Outside region", n_out)
+                m[3].metric("Possible swaps", n_swap)
+                m[4].metric("Invalid", n_bad)
+            else:
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("Total rows", len(result))
+                m2.metric("OK", n_ok)
+                m3.metric("Possible swaps", n_swap)
+                m4.metric("Invalid", n_bad)
+
+            if region_declared and n_out:
+                known = {k: v for k, v in detected.items() if k is not None}
+                frac = n_out / n_ok if n_ok else 1.0
+                if known:
+                    best = max(known, key=known.get)
+                    msg = (f"**{n_out}** valid point(s) fall **outside {region_label}** — "
+                           f"{known[best]} of them inside **{best}**. If that is expected, "
+                           "switch the region; otherwise check the Latitude/Longitude "
+                           "columns (a possible X/Y swap).")
+                else:
+                    best = None
+                    msg = (f"**{n_out}** valid point(s) fall **outside {region_label}** and "
+                           "match no known region — check the Latitude/Longitude columns "
+                           "(a possible X/Y swap or sign error).")
+                (st.warning if frac >= 0.5 else st.info)(msg)
+                if best is not None:
+                    st.button(f"Switch region to {best}", key="switch_region",
+                              on_click=_select_region, args=(best,))
 
             if n_swap:
                 cluster_idx = [i for i, s in enumerate(labels) if s == "swap_cluster"]
