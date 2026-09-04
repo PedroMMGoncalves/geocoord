@@ -54,6 +54,11 @@ PARSE_INPUTS = [
     ("dm_decimal_minutes", "38° 42.5'"),
     ("dm_negative", "-9° 8.34'"),
     ("no_spaces", '38°42\'30"N'),
+    # The negative counterpart of no_spaces. It exists because no_spaces uses N,
+    # which is positive whichever way a port reads it: a port matching the
+    # hemisphere on whitespace instead of a word boundary passes no_spaces and
+    # still gets this one wrong, returning +38.5.
+    ("no_spaces_negative_hemisphere", '38°30\'0"O'),
     ("space_separated", "38 42 30 N"),
     ("degrees_only", "38°"),
     ("four_numbers_extra_ignored", '38° 42\' 30" 5 N'),

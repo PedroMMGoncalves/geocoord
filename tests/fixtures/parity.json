@@ -82,6 +82,11 @@
       "expected": 38.708333333333336
     },
     {
+      "id": "no_spaces_negative_hemisphere",
+      "input": "38°30'0\"O",
+      "expected": -38.5
+    },
+    {
       "id": "space_separated",
       "input": "38 42 30 N",
       "expected": 38.708333333333336

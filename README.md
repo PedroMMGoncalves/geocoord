@@ -211,7 +211,7 @@ tests/                 Test suite (pytest)
 scripts/               Helper scripts
   run_app.bat          Run the web application
   build_exe.bat        Build the desktop installer
-  gen_parity_fixtures.py  Regenerate the Python/JavaScript parity contract
+  gen_parity_fixtures.py Regenerate the Python/JavaScript parity contract
 requirements.txt       Python dependencies
 pytest.ini             pytest configuration
 .streamlit/            Application theme
