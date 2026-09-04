@@ -75,6 +75,29 @@ def test_dms_negative_sign_without_direction():
     approx(parse_coordinate('-9° 30\' 0"'), -9.5)
 
 
+# --- Regression: hemisphere letter written against the number ----------------
+
+def test_hemisphere_glued_to_digits():
+    # "38.5W" previously returned +38.5: the word boundary failed because a
+    # digit and a letter are both word characters, so the hemisphere was
+    # dropped in silence. Writing the letter against the number is common and
+    # must mean the same as writing it after a space.
+    approx(parse_coordinate("38.5W"), -38.5)
+    approx(parse_coordinate("9.5W"), -9.5)
+    approx(parse_coordinate("15.25S"), -15.25)
+    approx(parse_coordinate("38.5E"), 38.5)
+    approx(parse_coordinate("38.5N"), 38.5)
+
+
+def test_hemisphere_inside_word_is_still_ignored():
+    # The guard exists so a letter inside a word is not read as a hemisphere.
+    # That must survive the fix above, accented words included.
+    approx(parse_coordinate("38 Oeste"), 38.0)
+    approx(parse_coordinate("38 Norte"), 38.0)
+    approx(parse_coordinate("38 Nível"), 38.0)
+    assert parse_coordinate("Norte") is None
+
+
 # --- Degrees with decimal minutes (DM) --------------------------------------
 
 def test_dm_decimal_minutes():
@@ -203,6 +226,37 @@ def test_tidy_table_promotes_header_only_when_all_placeholder():
     df = pd.DataFrame({"lat": ["39.0"], "Unnamed: 1": ["x"], "lon": ["-8.0"]})
     tidy = tidy_table(df)
     assert "lat" in tidy.columns and "lon" in tidy.columns
+
+
+def test_tidy_table_blank_promoted_header_is_not_named_nan():
+    # A blank cell in the promoted header row used to become a column literally
+    # named "nan" (str(NaN)), and two of them collided into duplicate names —
+    # which silently breaks column selection downstream. Blank headers must get
+    # distinct positional names instead, and their data must be kept.
+    df = pd.DataFrame(
+        [[None, "lat", None, "lon"],
+         ["a", "39.0", "x", "-8.0"],
+         ["b", "38.9", "y", "-7.9"]],
+        columns=["Unnamed: 0", "Unnamed: 1", "Unnamed: 2", "Unnamed: 3"],
+    )
+    tidy = tidy_table(df)
+    names = [str(c) for c in tidy.columns]
+    assert "nan" not in names
+    assert len(set(names)) == len(names)  # no duplicates
+    assert ["lat", "lon"] == [c for c in names if c in ("lat", "lon")]
+    assert tidy["lat"].tolist() == ["39.0", "38.9"]
+    assert len(names) == 4  # the two unlabelled columns keep their data
+
+
+def test_tidy_table_blank_promoted_header_over_empty_column_is_dropped():
+    # A blank header over a column with no data carries nothing worth keeping.
+    df = pd.DataFrame(
+        [[None, "lat", "lon"],
+         [None, "39.0", "-8.0"]],
+        columns=["Unnamed: 0", "Unnamed: 1", "Unnamed: 2"],
+    )
+    tidy = tidy_table(df)
+    assert list(tidy.columns) == ["lat", "lon"]
 
 
 # --- Swapped lat/lon detection ----------------------------------------------

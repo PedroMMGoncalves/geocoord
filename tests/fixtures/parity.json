@@ -107,9 +107,14 @@
       "expected": 38.0
     },
     {
+      "id": "hemisphere_inside_accented_word",
+      "input": "38 Nível",
+      "expected": 38.0
+    },
+    {
       "id": "hemisphere_glued_to_digits",
       "input": "38.5W",
-      "expected": 38.5
+      "expected": -38.5
     },
     {
       "id": "hemisphere_after_space",
@@ -1121,6 +1126,59 @@
             "39.0",
             "x",
             "-8.0"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "blank_promoted_header_gets_positional_name",
+      "table": {
+        "columns": [
+          "Unnamed: 0",
+          "Unnamed: 1",
+          "Unnamed: 2",
+          "Unnamed: 3"
+        ],
+        "rows": [
+          [
+            null,
+            "lat",
+            null,
+            "lon"
+          ],
+          [
+            "a",
+            "39.0",
+            "x",
+            "-8.0"
+          ],
+          [
+            "b",
+            "38.9",
+            "y",
+            "-7.9"
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [
+          "Column 1",
+          "lat",
+          "Column 3",
+          "lon"
+        ],
+        "rows": [
+          [
+            "a",
+            "39.0",
+            "x",
+            "-8.0"
+          ],
+          [
+            "b",
+            "38.9",
+            "y",
+            "-7.9"
           ]
         ]
       }

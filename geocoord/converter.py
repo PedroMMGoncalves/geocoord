@@ -27,8 +27,13 @@ _NEGATIVE_DIRS = {"S", "W", "O"}
 _POSITIVE_DIRS = {"N", "E", "L"}
 _ALL_DIRS = _NEGATIVE_DIRS | _POSITIVE_DIRS
 
-# A single, isolated hemisphere letter (avoids matching letters in larger words).
-_DIRECTION_RE = re.compile(r"\b([NSEWOL])\b", re.IGNORECASE)
+# A hemisphere letter standing on its own. It may sit against digits or symbols
+# ("38.5W", '30"O'), but not against another letter, so a word like "Oeste" or
+# "Norte" in a name column is never read as a direction. ``[^\W\d_]`` is a
+# Unicode letter, so accented words are excluded too. A plain ``\b`` would not
+# do: a digit and a letter are both word characters, so "38.5W" had no boundary
+# and silently lost its hemisphere.
+_DIRECTION_RE = re.compile(r"(?<![^\W\d_])([NSEWOL])(?![^\W\d_])", re.IGNORECASE)
 # Numbers (integer or decimal, dot or comma), always unsigned.
 _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
 # Auto-generated column name pandas assigns to a header cell it found empty.
@@ -162,8 +167,15 @@ def tidy_table(df: pd.DataFrame) -> pd.DataFrame:
     if all(_is_placeholder_name(c) for c in df.columns):
         header = df.iloc[0]
         df = df.iloc[1:].copy()
-        df.columns = [str(h).strip() for h in header]
-        df = df.dropna(axis=1, how="all")  # a header cell may itself be blank
+        # A promoted header cell may itself be blank. ``str(NaN)`` would name the
+        # column "nan", and two such cells would collide into duplicate names,
+        # which silently breaks column selection downstream. Give them distinct
+        # positional names and let the drop below remove those carrying no data.
+        df.columns = [
+            str(h).strip() if not _is_placeholder_name(h) else f"Column {i + 1}"
+            for i, h in enumerate(header)
+        ]
+        df = df.dropna(axis=1, how="all")
 
     return df.reset_index(drop=True)
 

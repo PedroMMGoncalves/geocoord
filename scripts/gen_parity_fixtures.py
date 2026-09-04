@@ -56,13 +56,18 @@ PARSE_INPUTS = [
     ("no_spaces", '38°42\'30"N'),
     # The negative counterpart of no_spaces. It exists because no_spaces uses N,
     # which is positive whichever way a port reads it: a port matching the
-    # hemisphere on whitespace instead of a word boundary passes no_spaces and
-    # still gets this one wrong, returning +38.5.
+    # hemisphere on whitespace rather than on adjacent letters passes no_spaces
+    # and still gets this one wrong, returning +38.5.
     ("no_spaces_negative_hemisphere", '38°30\'0"O'),
     ("space_separated", "38 42 30 N"),
     ("degrees_only", "38°"),
     ("four_numbers_extra_ignored", '38° 42\' 30" 5 N'),
+    # These five pin the hemisphere guard, which is the single most likely thing
+    # for a port to get wrong. The letter must be read as a direction when it
+    # stands against digits or symbols, and ignored when it sits inside a word —
+    # an accented word included, so an ASCII-only lookaround does not pass.
     ("hemisphere_inside_word", "38 Oeste"),
+    ("hemisphere_inside_accented_word", "38 Nível"),
     ("hemisphere_glued_to_digits", "38.5W"),
     ("hemisphere_after_space", "38.5 W"),
     ("word_only_no_digits", "Norte"),
@@ -256,6 +261,20 @@ TIDY_INPUTS = [
         "table": {
             "columns": ["lat", "Unnamed: 1", "lon"],
             "rows": [["39.0", "x", "-8.0"]],
+        },
+    },
+    {
+        # A blank cell in the promoted header row must not name the column "nan",
+        # and two of them must not collide; each gets a distinct positional name
+        # and keeps its data.
+        "id": "blank_promoted_header_gets_positional_name",
+        "table": {
+            "columns": ["Unnamed: 0", "Unnamed: 1", "Unnamed: 2", "Unnamed: 3"],
+            "rows": [
+                [None, "lat", None, "lon"],
+                ["a", "39.0", "x", "-8.0"],
+                ["b", "38.9", "y", "-7.9"],
+            ],
         },
     },
     {
