@@ -1,8 +1,16 @@
 """The pytest half of the parity contract.
 
 Reads tests/fixtures/parity.json and checks the Python implementation against
-it. The vitest half (web/tests/converter.test.js) reads the same file. If the
-two implementations ever disagree, both suites fail.
+it. The vitest half (web/tests/converter.test.js) reads the same file, so both
+implementations are held to one frozen set of cases.
+
+What that does and does not buy, stated plainly because the difference matters.
+A JavaScript change that breaks a pinned case fails here. A Python change that
+breaks one fails here too. But a Python change whose effect falls outside the
+pinned cases passes everything, including --check, which only asserts that the
+committed file matches what the *current* Python produces. The contract catches
+drift on the behaviour it pins; widening behaviour safely means adding cases,
+not merely regenerating. Read the regenerated diff.
 """
 import json
 import math

@@ -13,15 +13,26 @@ const NEGATIVE_DIRS = new Set(['S', 'W', 'O'])
 
 // A hemisphere letter standing on its own. It may sit against digits or symbols
 // ("38.5W", '30"O'), but not against another letter, so a word like "Oeste" or
-// "Norte" in a name column is never read as a direction. \p{L} is Unicode-aware,
-// so accented words are excluded too. A plain \b would not do: a digit and a
-// letter are both word characters, so "38.5W" would have no boundary and would
-// silently lose its hemisphere.
-const DIRECTION_RE = /(?<!\p{L})([NSEWOL])(?!\p{L})/iu
-// Numbers (integer or decimal, dot or comma), always unsigned.
+// "Norte" in a name column is never read as a direction. A plain \b would not
+// do: a digit and a letter are both word characters, so "38.5W" would have no
+// boundary and would silently lose its hemisphere.
+//
+// The class is \p{L} plus \p{Nl} and \p{No} to match Python's [^\W\d_], which
+// counts a Roman numeral or a superscript digit as alphanumeric. Without them
+// "1²O" would read as -1 here and +1 there.
+const DIRECTION_RE = /(?<![\p{L}\p{Nl}\p{No}])([NSEWOL])(?![\p{L}\p{Nl}\p{No}])/iu
+// Numbers (integer or decimal, dot or comma), always unsigned. ASCII digits
+// only, matching the Python side's re.ASCII.
 const NUMBER_RE = /\d+(?:[.,]\d+)?/g
 // An explicit minus sign before the first digit.
-const LEADING_MINUS_RE = /^\s*-\s*\d/
+const LEADING_MINUS_RE = /^[ \t\n\r\f\v]*-[ \t\n\r\f\v]*\d/
+// "º" and "ª" sit on a Portuguese keyboard where "°" does not, and read the same
+// on screen. Unicode calls them letters, so left alone they shield an adjacent
+// hemisphere letter from the guard above and "9ºO" comes back as +9.0.
+const ORDINAL_SIGNS_RE = /[ºª]/g
+// Characters whose whitespace status differs between the two languages; see
+// parseCoordinate. Removed on both sides so neither can hide a sign.
+const STRIP_CHARS_RE = /[﻿-]/g
 
 // Valid geographic bounds.
 export const LAT_RANGE = [-90.0, 90.0]
@@ -34,14 +45,26 @@ export const LON_RANGE = [-180.0, 180.0]
  * from the hemisphere (N/S/E/W/O/L) when present, otherwise from an explicit
  * leading minus sign.
  *
- * Mirrors parse_coordinate() in geocoord/converter.py. Numbers are stringified
- * rather than short-circuited, exactly as the Python does, so that both sides
- * agree even on odd inputs such as 1e-7.
+ * Mirrors parse_coordinate() in geocoord/converter.py.
  */
 export function parseCoordinate(value) {
   if (value === null || value === undefined) return null
 
-  const txt = String(value).trim()
+  // A value that is already a number is already decimal degrees. Taking it as
+  // it stands avoids a real trap on the Python side, where str() renders a
+  // magnitude below 1e-4 in exponential form and the digits of the exponent
+  // were then read as minutes, turning a latitude of 1e-05 into 1.0833.
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+
+  // Characters the two languages disagree about. A byte-order mark left on the
+  // first cell of a CSV is whitespace here but not to Python's strip(); NEL and
+  // the ASCII file separators are whitespace there but not here. Either way one
+  // side would leave the character sitting between the start of the string and a
+  // leading minus sign, discarding the sign. Both sides drop them outright.
+  const txt = String(value)
+    .replace(STRIP_CHARS_RE, '')
+    .replace(ORDINAL_SIGNS_RE, '°')
+    .trim()
   if (txt === '' || txt === '-' || txt === '—') return null
 
   // 1) Hemisphere (prefix or suffix), if any.
@@ -84,12 +107,17 @@ export function inRange(value, axis) {
 }
 
 /**
- * Format seconds the way Python's "%g" does: shortest round-tripping form, no
- * trailing ".0". Seconds are rounded to at most `secondsDecimals` first, so the
- * exponential threshold of %g is never reached.
+ * Format seconds the way Python's "%g" does: at most six significant digits,
+ * trailing zeros trimmed, no ".0".
+ *
+ * The six-digit limit is not decoration. With secondsDecimals at 5 or more,
+ * Python truncates 33.38305 to 33.3831 while JavaScript's shortest
+ * round-tripping form would keep every digit, and the two DMS strings would
+ * differ. Seconds are always rounded before they get here, so %g never reaches
+ * its exponential threshold and only the precision limit matters.
  */
 function formatG(value) {
-  return String(Number(value))
+  return String(Number(Number(value).toPrecision(6)))
 }
 
 /**
@@ -109,8 +137,17 @@ export function formatDms(value, axis, secondsDecimals = 3) {
   let degrees = Math.trunc(v)
   const remMinutes = (v - degrees) * 60.0
   let minutes = Math.trunc(remMinutes)
+  // Both implementations have to round identically, or the same file exports
+  // different DMS strings from the Python application and from the browser one.
+  // Python's round() breaks a tie to even while Math.round() goes up, so
+  // neither is used: this scaled form is plain IEEE-754 arithmetic that both
+  // languages execute bit for bit alike, with the tie rule written out.
   const factor = 10 ** secondsDecimals
-  let seconds = Math.round((remMinutes - minutes) * 60.0 * factor) / factor
+  const scaled = (remMinutes - minutes) * 60.0 * factor
+  let whole = Math.floor(scaled)
+  const frac = scaled - whole
+  if (frac > 0.5 || (frac === 0.5 && whole % 2 === 1)) whole += 1
+  let seconds = whole / factor
 
   // Handle rounding roll-over (e.g. 59.9996 -> 60).
   if (seconds >= 60.0) {

@@ -89,6 +89,32 @@ def test_hemisphere_glued_to_digits():
     approx(parse_coordinate("38.5N"), 38.5)
 
 
+def test_masculine_ordinal_is_accepted_as_a_degree_sign():
+    # On a Portuguese keyboard "º" (U+00BA) is far easier to reach than "°"
+    # (U+00B0), and the two are near-indistinguishable on screen. But "º" is a
+    # letter to Unicode, so it used to shield an adjacent hemisphere letter from
+    # the guard and "9ºO" read as +9.0 — the sign silently lost.
+    approx(parse_coordinate("9ºO"), -9.0)
+    approx(parse_coordinate("9º30'O"), -9.5)
+    approx(parse_coordinate("38º42'30\"N"), 38 + 42 / 60 + 30 / 3600)
+    # The feminine ordinal is on the same key and behaves the same way.
+    approx(parse_coordinate("9ªO"), -9.0)
+    # The real degree sign is unaffected.
+    approx(parse_coordinate("9°O"), -9.0)
+
+
+def test_small_float_is_not_read_as_exponent_digits():
+    # A value below 1e-4 stringifies to exponential notation, and the digits of
+    # the exponent used to be parsed as minutes: 1e-05 became 1.0833. Anything
+    # already numeric is decimal degrees and must be taken as it stands.
+    approx(parse_coordinate(1e-5), 1e-5)
+    approx(parse_coordinate(1e-6), 1e-6)
+    approx(parse_coordinate(1e-7), 1e-7)
+    approx(parse_coordinate(1e16), 1e16)
+    approx(parse_coordinate(-9.139), -9.139)
+    approx(parse_coordinate(38), 38.0)
+
+
 def test_hemisphere_inside_word_is_still_ignored():
     # The guard exists so a letter inside a word is not read as a hemisphere.
     # That must survive the fix above, accented words included.

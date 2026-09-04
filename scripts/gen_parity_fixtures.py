@@ -6,7 +6,11 @@ Run deliberately, review the diff by eye, then commit:
 
 The inputs below are chosen by hand; the expected values are computed with the
 Python implementation. Once committed the file is frozen: if Python's behaviour
-changes, tests/test_parity.py fails, which is the point.
+changes on a pinned case, tests/test_parity.py fails, which is the point.
+
+Regenerating is how a deliberate change is accepted, so the diff is the review.
+Behaviour outside the pinned cases is not protected: widening it safely means
+adding inputs here, not only re-running this script.
 
 Only JSON-representable inputs go in here. Language-specific empty values
 (float('nan') on the Python side, NaN/undefined on the JavaScript side) stay in
@@ -43,6 +47,11 @@ PARSE_INPUTS = [
     ("decimal_comma", "38,5"),
     ("native_float", -9.139),
     ("native_int", 38),
+    # Below 1e-4 Python renders a float in exponential form, and the digits of
+    # the exponent were read as minutes: 1e-05 came back as 1.0833. Both sides
+    # now take an already-numeric value as it stands.
+    ("native_float_exponential_small", 1e-5),
+    ("native_float_exponential_large", 1e16),
     ("dms_north", '38° 42\' 30" N'),
     ("dms_west_english", '9° 30\' 0" W'),
     ("dms_west_portuguese", '9° 30\' 0" O'),
@@ -73,6 +82,10 @@ PARSE_INPUTS = [
     ("hemisphere_inside_accented_word", "38 Sítio"),
     ("hemisphere_glued_to_digits", "38.5W"),
     ("hemisphere_after_space", "38.5 W"),
+    # The masculine ordinal is the degree sign a Portuguese keyboard reaches
+    # for. It is a letter to Unicode, so left alone it shields the adjacent O
+    # from the guard and the west hemisphere is lost.
+    ("masculine_ordinal_as_degree_sign", "9ºO"),
     ("word_only_no_digits", "Norte"),
     ("empty", ""),
     ("whitespace", "   "),
@@ -105,6 +118,11 @@ FORMAT_DMS_INPUTS = [
     ("one_east", 1.0, "lon"),
     ("one_west", -1.0, "lon"),
     ("rounding_rollover", 38.99999999, "lat"),
+    # An exact tie at the fourth decimal of the seconds. Python's round() goes
+    # to even and Math.round() goes up, so without a pinned tie the two sides
+    # can print different coordinates with every test green.
+    ("rounding_tie_to_even", 38.70703125, "lat"),
+    ("rounding_tie_small", 1.736111111111111e-05, "lat"),
     ("null", None, "lat"),
 ]
 

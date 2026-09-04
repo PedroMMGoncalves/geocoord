@@ -3,8 +3,21 @@ import { fixtures, cases } from './fixtures.js'
 import { parseCoordinate, inRange, formatDms, pointInMask, identifyRegion, detectSwaps, percentileLinear, median, regionCheck, tidyTable } from '../src/core/converter.js'
 
 describe('parity fixtures', () => {
-  it('loads the shared contract', () => {
-    expect(fixtures.parse_coordinate.length).toBe(31)
+  // A tripwire against a truncated, empty or half-written contract, not a
+  // census. Pinning an exact case count would make every deliberate addition
+  // to the contract fail here first, which trains people to bump the number
+  // without reading the diff.
+  const SECTIONS = [
+    'parse_coordinate', 'in_range', 'format_dms', 'point_in_mask',
+    'identify_region', 'detect_swaps', 'region_check', 'tidy_table',
+  ]
+
+  it.each(SECTIONS)('has a populated %s section', (section) => {
+    expect(Array.isArray(fixtures[section])).toBe(true)
+    expect(fixtures[section].length).toBeGreaterThan(0)
+  })
+
+  it('exposes each case by id', () => {
     expect(cases('parse_coordinate')[0][0]).toBe('decimal_positive')
   })
 })

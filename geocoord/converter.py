@@ -24,8 +24,6 @@ import pandas as pd
 # Hemispheres that make the value negative (South, West/Oeste).
 # Portuguese: O = Oeste (West), L = Leste (East); English: W, E.
 _NEGATIVE_DIRS = {"S", "W", "O"}
-_POSITIVE_DIRS = {"N", "E", "L"}
-_ALL_DIRS = _NEGATIVE_DIRS | _POSITIVE_DIRS
 
 # A hemisphere letter standing on its own. It may sit against digits or symbols
 # ("38.5W", '30"O'), but not against another letter, so a word like "Oeste" or
@@ -35,7 +33,14 @@ _ALL_DIRS = _NEGATIVE_DIRS | _POSITIVE_DIRS
 # and silently lost its hemisphere.
 _DIRECTION_RE = re.compile(r"(?<![^\W\d_])([NSEWOL])(?![^\W\d_])", re.IGNORECASE)
 # Numbers (integer or decimal, dot or comma), always unsigned.
-_NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
+_NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?", re.ASCII)
+# "º" and "ª" sit on a Portuguese keyboard where "°" does not, and read the same
+# on screen. Unicode calls them letters, so left alone they shield an adjacent
+# hemisphere letter from the guard above and "9ºO" comes back as +9.0.
+_ORDINAL_SIGNS = str.maketrans({"º": "°", "ª": "°"})
+# Characters whose whitespace status differs between Python and JavaScript;
+# see parse_coordinate. Removed on both sides so neither can hide a sign.
+_STRIP_CHARS_RE = re.compile("[﻿-]")
 # Auto-generated column name pandas assigns to a header cell it found empty.
 _PLACEHOLDER_COL_RE = re.compile(r"^Unnamed: \d+$")
 
@@ -54,7 +59,21 @@ def parse_coordinate(value) -> Optional[float]:
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None
 
-    txt = str(value).strip()
+    # A value that is already a number is already decimal degrees. Taking it as
+    # it stands avoids a real trap: str() renders a magnitude below 1e-4 in
+    # exponential form, and the digits of the exponent were then read as
+    # minutes, so a latitude of 1e-05 came back as 1.0833.
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        v = float(value)
+        return v if math.isfinite(v) else None
+
+    # Characters the two languages disagree about. A byte-order mark left on the
+    # first cell of a CSV is whitespace to JavaScript but not to Python; NEL and
+    # the ASCII file separators are whitespace to Python but not to JavaScript.
+    # Either way one side would leave the character sitting between the start of
+    # the string and a leading minus sign, discarding the sign. Both sides drop
+    # them outright.
+    txt = _STRIP_CHARS_RE.sub("", str(value)).translate(_ORDINAL_SIGNS).strip()
     if txt in ("", "-", "—"):
         return None
 
@@ -63,7 +82,7 @@ def parse_coordinate(value) -> Optional[float]:
     direction = dir_match.group(1).upper() if dir_match else None
 
     # 2) Explicit minus sign before the first digit.
-    has_minus = re.match(r"\s*-\s*\d", txt) is not None
+    has_minus = re.match(r"\s*-\s*\d", txt, re.ASCII) is not None
 
     # 3) Numeric components (magnitude, always positive).
     nums = [float(n.replace(",", ".")) for n in _NUMBER_RE.findall(txt)]
@@ -112,7 +131,18 @@ def format_dms(value, axis: str, seconds_decimals: int = 3) -> Optional[str]:
     degrees = int(v)
     rem_minutes = (v - degrees) * 60.0
     minutes = int(rem_minutes)
-    seconds = round((rem_minutes - minutes) * 60.0, seconds_decimals)
+    # Both implementations have to round identically, or the same file exports
+    # different DMS strings from the Python application and from the browser one.
+    # Python's round() breaks a tie to even while JavaScript's Math.round() goes
+    # up, so neither is used: this scaled form is plain IEEE-754 arithmetic that
+    # both languages execute bit for bit alike, with the tie rule written out.
+    factor = 10 ** seconds_decimals
+    scaled = (rem_minutes - minutes) * 60.0 * factor
+    whole = math.floor(scaled)
+    frac = scaled - whole
+    if frac > 0.5 or (frac == 0.5 and whole % 2 == 1):
+        whole += 1
+    seconds = whole / factor
 
     # Handle rounding roll-over (e.g. 59.9996 -> 60).
     if seconds >= 60.0:

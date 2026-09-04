@@ -203,8 +203,10 @@ Python 3.11, 3.12, and 3.13.
 A JavaScript port of the conversion engine lives in `web/`, for the browser
 application published on GitHub Pages. It is a deliberate translation of
 `geocoord/converter.py`, not a rewrite: both implementations are checked against
-the same contract in `tests/fixtures/parity.json`, so a divergence fails both
-test suites.
+the same contract in `tests/fixtures/parity.json`, so a divergence on any pinned
+case fails both test suites. Behaviour the contract does not pin is not
+protected, which is why widening it means adding cases rather than only
+regenerating.
 
 ```bash
 cd web

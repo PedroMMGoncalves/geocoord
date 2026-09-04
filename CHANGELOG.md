@@ -38,7 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/gen_parity_fixtures.py` and then frozen, pinning the engine's
   behaviour case by case. It is the reference for the forthcoming JavaScript
   port of the engine: both implementations are asserted against the same file,
-  so a divergence between them fails the test suites on both sides.
+  so a divergence on any pinned case fails the test suites on both sides.
+  `python scripts/gen_parity_fixtures.py --check`, which CI runs, fails if the
+  committed contract and the generator disagree.
 
 ### Changed
 
@@ -64,6 +66,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   duplicate names, which silently breaks column selection. They now get
   distinct positional names (`Column 1`, `Column 3`) and keep their data;
   blank-headed columns carrying no data are dropped as before.
+- `º` and `ª`, the degree signs a Portuguese keyboard actually reaches for, are
+  now understood. Unicode classes them as letters, so `9ºO` was read as +9
+  instead of -9: the hemisphere was shielded from the guard and the sign lost
+  in silence, while `9°O` with the true degree sign worked. The two are nearly
+  indistinguishable on screen.
+- A coordinate that arrives already numeric is taken as it stands. Below 1e-4
+  Python renders a float in exponential form, and the digits of the exponent
+  were parsed as minutes, so a latitude of `1e-05` came back as `1.0833`.
+- Seconds are rounded by an explicit half-to-even rule rather than the host
+  language's own. Python's `round` and JavaScript's `Math.round` disagree at a
+  tie, which made the same file export different DMS strings from the desktop
+  application and from the browser one.
 
 ## [0.1.0] - 2026-06-08
 

@@ -27,6 +27,16 @@
       "expected": 38.0
     },
     {
+      "id": "native_float_exponential_small",
+      "input": 1e-05,
+      "expected": 1e-05
+    },
+    {
+      "id": "native_float_exponential_large",
+      "input": 1e+16,
+      "expected": 1e+16
+    },
+    {
       "id": "dms_north",
       "input": "38° 42' 30\" N",
       "expected": 38.708333333333336
@@ -120,6 +130,11 @@
       "id": "hemisphere_after_space",
       "input": "38.5 W",
       "expected": -38.5
+    },
+    {
+      "id": "masculine_ordinal_as_degree_sign",
+      "input": "9ºO",
+      "expected": -9.0
     },
     {
       "id": "word_only_no_digits",
@@ -273,6 +288,18 @@
       "value": 38.99999999,
       "axis": "lat",
       "expected": "39° 0' 0\" N"
+    },
+    {
+      "id": "rounding_tie_to_even",
+      "value": 38.70703125,
+      "axis": "lat",
+      "expected": "38° 42' 25.312\" N"
+    },
+    {
+      "id": "rounding_tie_small",
+      "value": 1.736111111111111e-05,
+      "axis": "lat",
+      "expected": "0° 0' 0.062\" N"
     },
     {
       "id": "null",
