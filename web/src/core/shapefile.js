@@ -112,6 +112,30 @@ export function writeShx(points) {
 }
 
 /**
+ * UTF-8 bytes for `text`, dropping whole code points from the end until the
+ * encoding fits in `limit` bytes.
+ *
+ * Dropping characters rather than slicing bytes is what pyshp does, for both
+ * field names and values, and it matters: a byte slice can land in the middle
+ * of a multi-byte character and leave a dangling lead byte, which is not valid
+ * UTF-8 and which a reader will render as a replacement character. pyshp 3.0
+ * did slice, and 3.1.6 fixed it - hence the version floor in requirements.txt,
+ * and hence the contract pinning a case with an accented field name.
+ */
+function encodeWithin(text, limit) {
+  let bytes = utf8Encoder.encode(text)
+  if (bytes.length <= limit) return bytes
+
+  const chars = [...text] // by code point, so a surrogate pair is never split
+  while (chars.length > 0) {
+    chars.pop()
+    bytes = utf8Encoder.encode(chars.join(''))
+    if (bytes.length <= limit) return bytes
+  }
+  return new Uint8Array(0)
+}
+
+/**
  * The .dbf attribute table: a header, one field descriptor per field (all
  * `C`, 254 bytes wide - GeoCoord writes every attribute as text), a 0x0D
  * terminator, then one fixed-width record per feature. pyshp writes no
@@ -141,12 +165,7 @@ export function writeDbf(fieldNames, records) {
 
   let offset = DBF_HEADER_SIZE
   for (const name of fieldNames) {
-    // Ten bytes, not eleven: pyshp always leaves the last byte of the name
-    // field as a null terminator. And it is a slice of the UTF-8 bytes, not of
-    // the characters, so a multi-byte name is cut mid-character and keeps a
-    // dangling lead byte - "aãããããã" is written 61 c3a3 c3a3 c3a3 c3a3 c3 00.
-    // Reproduced deliberately; the contract pins it.
-    const nameBytes = utf8Encoder.encode(name).slice(0, DBF_FIELD_NAME_SIZE - 1)
+    const nameBytes = encodeWithin(name, DBF_FIELD_NAME_SIZE - 1)
     bytes.set(nameBytes, offset) // zero-padded on the right: the rest of the buffer is already zero
     bytes[offset + 11] = 0x43 // 'C'
     // bytes 12..16 (field address, unused when reading) stay zero
@@ -162,9 +181,7 @@ export function writeDbf(fieldNames, records) {
     bytes[offset] = DBF_DELETION_FLAG
     offset += 1
     for (const value of record) {
-      // UTF-8 bytes, not characters: a multi-byte character truncated at the
-      // 254-byte boundary must not straddle it.
-      const valueBytes = utf8Encoder.encode(value).slice(0, DBF_FIELD_LENGTH)
+      const valueBytes = encodeWithin(value, DBF_FIELD_LENGTH)
       bytes.set(valueBytes, offset)
       bytes.fill(0x20, offset + valueBytes.length, offset + DBF_FIELD_LENGTH) // left-aligned, space-padded
       offset += DBF_FIELD_LENGTH

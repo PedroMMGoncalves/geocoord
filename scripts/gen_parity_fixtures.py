@@ -391,6 +391,14 @@ EXPORT_FEATURES = [
         None,
     ),
     (
+        # 200 accented characters is 400 bytes of UTF-8 against a 254-byte
+        # field. pyshp drops whole code points, landing on 252 bytes; a byte
+        # slice would land on 254 and split the last character.
+        "long_accented_attribute_truncated",
+        [(-8.0, 39.0, {"note": "ã" * 200})],
+        "note",
+    ),
+    (
         "accented_attribute_value",
         [(6.7273, 0.1864, {"country": "São Tomé e Príncipe"})],
         "country",
@@ -467,12 +475,13 @@ SHAPEFILE_INPUTS = [
         "São Tomé",
     ),
     (
-        # pyshp writes the field name as ten raw UTF-8 bytes plus a null
-        # terminator, so a multi-byte name is cut mid-character and keeps a
-        # dangling lead byte: "aãããããã" becomes 61 c3a3 c3a3 c3a3 c3a3 c3 00.
-        # A port that slices characters, or that fills all eleven bytes, is
-        # wrong in a way only this case reveals.
-        "multibyte_field_name_cut_mid_character",
+        # The field name gets ten bytes and a null terminator, and pyshp drops
+        # whole code points until the UTF-8 fits rather than slicing the bytes:
+        # "aãããããã" is thirteen bytes and is written as "aãããã", nine bytes,
+        # not as ten ending in half a character. pyshp 3.0 did slice, 3.1.6
+        # fixed it, and requirements.txt floors the version because of it. A
+        # port that slices bytes, or that fills all eleven, fails only here.
+        "multibyte_field_name_drops_whole_characters",
         [(-8.0, 39.0, {"aãããããã": "value"})],
         ["aãããããã"],
         "coordinates",

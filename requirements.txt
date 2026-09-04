@@ -2,7 +2,9 @@ streamlit>=1.36.0
 pandas>=2.2.2
 openpyxl>=3.1.2
 xlrd>=2.0.1
-pyshp>=2.3.1
+# 3.1.6 or newer: earlier versions truncate a DBF field name or value
+# by slicing UTF-8 bytes, splitting a multi-byte character in half.
+pyshp>=3.1.6
 
 # Development (tests)
 pytest>=8.0.0
