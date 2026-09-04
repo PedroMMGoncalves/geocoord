@@ -97,7 +97,22 @@
       "expected": 38.708333333333336
     },
     {
-      "id": "word_with_direction_letter",
+      "id": "hemisphere_inside_word",
+      "input": "38 Oeste",
+      "expected": 38.0
+    },
+    {
+      "id": "hemisphere_glued_to_digits",
+      "input": "38.5W",
+      "expected": 38.5
+    },
+    {
+      "id": "hemisphere_after_space",
+      "input": "38.5 W",
+      "expected": -38.5
+    },
+    {
+      "id": "word_only_no_digits",
       "input": "Norte",
       "expected": null
     },
@@ -1141,6 +1156,29 @@
             "-7.9"
           ]
         ]
+      }
+    },
+    {
+      "id": "all_empty_returns_empty_shape",
+      "table": {
+        "columns": [
+          "a",
+          "b"
+        ],
+        "rows": [
+          [
+            null,
+            null
+          ],
+          [
+            "",
+            "   "
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [],
+        "rows": []
       }
     }
   ]

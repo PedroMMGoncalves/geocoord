@@ -207,9 +207,11 @@ geocoord/              Conversion library (importable package)
   converter.py         Conversion + swap-detection engine (pure logic, testable)
   geoexport.py         GeoJSON / KML / Shapefile writers (pure Python)
 tests/                 Test suite (pytest)
-scripts/               Windows helper scripts
+  fixtures/parity.json Shared contract, generated then frozen — do not hand-edit
+scripts/               Helper scripts
   run_app.bat          Run the web application
   build_exe.bat        Build the desktop installer
+  gen_parity_fixtures.py  Regenerate the Python/JavaScript parity contract
 requirements.txt       Python dependencies
 pytest.ini             pytest configuration
 .streamlit/            Application theme

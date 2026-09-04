@@ -16,10 +16,13 @@ import json
 import pathlib
 import sys
 
+import pandas as pd
+
 # Run as a plain script (`python scripts/gen_parity_fixtures.py`), so the repo
 # root — not on sys.path by default — must be added before `geocoord` is
 # importable.
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from geocoord.converter import (
     detect_swaps,
@@ -32,7 +35,7 @@ from geocoord.converter import (
     tidy_table,
 )
 
-OUT = pathlib.Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "parity.json"
+OUT = ROOT / "tests" / "fixtures" / "parity.json"
 
 PARSE_INPUTS = [
     ("decimal_positive", "38.708333"),
@@ -54,7 +57,10 @@ PARSE_INPUTS = [
     ("space_separated", "38 42 30 N"),
     ("degrees_only", "38°"),
     ("four_numbers_extra_ignored", '38° 42\' 30" 5 N'),
-    ("word_with_direction_letter", "Norte"),
+    ("hemisphere_inside_word", "38 Oeste"),
+    ("hemisphere_glued_to_digits", "38.5W"),
+    ("hemisphere_after_space", "38.5 W"),
+    ("word_only_no_digits", "Norte"),
     ("empty", ""),
     ("whitespace", "   "),
     ("lone_minus", "-"),
@@ -254,16 +260,28 @@ TIDY_INPUTS = [
             "rows": [["39.0", "   ", "-8.0"], ["38.9", "", "-7.9"]],
         },
     },
+    {
+        "id": "all_empty_returns_empty_shape",
+        "table": {
+            "columns": ["a", "b"],
+            "rows": [[None, None], ["", "   "]],
+        },
+    },
 ]
 
 
 def table_to_df(table):
-    import pandas as pd
-
     return pd.DataFrame(table["rows"], columns=table["columns"])
 
 
 def df_to_table(df):
+    # astype(object) first: .values would otherwise find a common dtype and
+    # upcast an int column to float, writing 1.0 into the frozen contract where
+    # the value is an integer. The NaN guard is belt-and-braces; .where already
+    # yields None on the pandas versions we support.
+    #
+    # Deliberately not shared with the test: a common normaliser would hide its
+    # own bugs from the contract it is supposed to police.
     return {
         "columns": [str(c) for c in df.columns],
         "rows": [

@@ -88,8 +88,12 @@ def test_detect_swaps(case):
         assert center is None
     else:
         assert center is not None
-        assert math.isclose(center[0], case["expected"]["center"][0], abs_tol=1e-12)
-        assert math.isclose(center[1], case["expected"]["center"][1], abs_tol=1e-12)
+        assert math.isclose(
+            center[0], case["expected"]["center"][0], rel_tol=0, abs_tol=1e-12
+        )
+        assert math.isclose(
+            center[1], case["expected"]["center"][1], rel_tol=0, abs_tol=1e-12
+        )
 
 
 @pytest.mark.parametrize(
@@ -116,6 +120,8 @@ def test_tidy_table(case):
     df = pd.DataFrame(case["table"]["rows"], columns=case["table"]["columns"])
     tidy = tidy_table(df)
     assert [str(c) for c in tidy.columns] == case["expected"]["columns"]
+    # Deliberately not shared with the generator: a common normaliser would
+    # hide its own bugs from the contract it is supposed to police.
     rows = [
         [None if v is None or (isinstance(v, float) and v != v) else v for v in row]
         for row in tidy.astype(object).where(tidy.notna(), None).values.tolist()
