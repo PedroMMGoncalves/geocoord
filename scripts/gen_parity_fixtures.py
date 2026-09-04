@@ -409,6 +409,29 @@ EXPORT_FEATURES = [
         "name",
     ),
     (
+        # Python switches a float to exponential form once its decimal exponent
+        # drops below -4; JavaScript only below -6. In the gap the same number
+        # prints as "1e-05" on one side and "0.00001" on the other, and the KML
+        # comparison is on the exact string.
+        "exponential_coordinates",
+        [
+            (1e-5, -51.468987049, {"note": "gap"}),
+            (-111.9941399921, 1e-5, {"note": "gap"}),
+            (1e-7, -1e-7, {"note": "both exponential"}),
+            (1e-4, -1e-4, {"note": "neither exponential"}),
+        ],
+        "note",
+    ),
+    (
+        # A column named with digits. Python keeps it where the user put it;
+        # JavaScript hoists an integer-like key of a plain object to the front,
+        # and JSON.parse does it before the exporter is even called. The port
+        # takes a Map to carry the order, and this case is what pins it.
+        "integer_like_property_key",
+        [(-8.0, 39.0, {"local": "Beja", "2024": "12", "nota": "x", "0": "zero"})],
+        "local",
+    ),
+    (
         "empty_feature_list",
         [],
         None,
@@ -442,6 +465,17 @@ SHAPEFILE_INPUTS = [
         [(-8.0, 39.0, {"name": "Only"})],
         ["name"],
         "São Tomé",
+    ),
+    (
+        # pyshp writes the field name as ten raw UTF-8 bytes plus a null
+        # terminator, so a multi-byte name is cut mid-character and keeps a
+        # dangling lead byte: "aãããããã" becomes 61 c3a3 c3a3 c3a3 c3a3 c3 00.
+        # A port that slices characters, or that fills all eleven bytes, is
+        # wrong in a way only this case reveals.
+        "multibyte_field_name_cut_mid_character",
+        [(-8.0, 39.0, {"aãããããã": "value"})],
+        ["aãããããã"],
+        "coordinates",
     ),
 ]
 
@@ -541,6 +575,9 @@ def build():
                 "features": feats,
                 "name_key": name_key,
                 "expected": to_kml(feats, name_key=name_key).decode("utf-8"),
+                # The key order, so the JavaScript half can rebuild a Map: a
+                # plain object cannot carry it, see integer_like_property_key.
+                "prop_order": [list(props.keys()) for _, _, props in feats],
             }
             for i, feats, name_key in EXPORT_FEATURES
         ],

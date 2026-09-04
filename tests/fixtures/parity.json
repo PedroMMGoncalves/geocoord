@@ -819,6 +819,132 @@
       }
     },
     {
+      "id": "exponential_coordinates",
+      "features": [
+        [
+          1e-05,
+          -51.468987049,
+          {
+            "note": "gap"
+          }
+        ],
+        [
+          -111.9941399921,
+          1e-05,
+          {
+            "note": "gap"
+          }
+        ],
+        [
+          1e-07,
+          -1e-07,
+          {
+            "note": "both exponential"
+          }
+        ],
+        [
+          0.0001,
+          -0.0001,
+          {
+            "note": "neither exponential"
+          }
+        ]
+      ],
+      "expected": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                1e-05,
+                -51.468987049
+              ]
+            },
+            "properties": {
+              "note": "gap"
+            }
+          },
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -111.9941399921,
+                1e-05
+              ]
+            },
+            "properties": {
+              "note": "gap"
+            }
+          },
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                1e-07,
+                -1e-07
+              ]
+            },
+            "properties": {
+              "note": "both exponential"
+            }
+          },
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                0.0001,
+                -0.0001
+              ]
+            },
+            "properties": {
+              "note": "neither exponential"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "integer_like_property_key",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "local": "Beja",
+            "2024": "12",
+            "nota": "x",
+            "0": "zero"
+          }
+        ]
+      ],
+      "expected": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -8.0,
+                39.0
+              ]
+            },
+            "properties": {
+              "local": "Beja",
+              "2024": "12",
+              "nota": "x",
+              "0": "zero"
+            }
+          }
+        ]
+      }
+    },
+    {
       "id": "empty_feature_list",
       "features": [],
       "expected": {
@@ -849,7 +975,17 @@
         ]
       ],
       "name_key": "name",
-      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name>Porto</name><ExtendedData><Data name=\"name\"><value>Porto</value></Data><Data name=\"count\"><value>3</value></Data></ExtendedData><Point><coordinates>-8.611,41.1496,0</coordinates></Point></Placemark><Placemark><name>Lisboa</name><ExtendedData><Data name=\"name\"><value>Lisboa</value></Data><Data name=\"count\"><value>12</value></Data></ExtendedData><Point><coordinates>-9.1393,38.7223,0</coordinates></Point></Placemark></Document></kml>"
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name>Porto</name><ExtendedData><Data name=\"name\"><value>Porto</value></Data><Data name=\"count\"><value>3</value></Data></ExtendedData><Point><coordinates>-8.611,41.1496,0</coordinates></Point></Placemark><Placemark><name>Lisboa</name><ExtendedData><Data name=\"name\"><value>Lisboa</value></Data><Data name=\"count\"><value>12</value></Data></ExtendedData><Point><coordinates>-9.1393,38.7223,0</coordinates></Point></Placemark></Document></kml>",
+      "prop_order": [
+        [
+          "name",
+          "count"
+        ],
+        [
+          "name",
+          "count"
+        ]
+      ]
     },
     {
       "id": "xml_special_characters",
@@ -863,7 +999,12 @@
         ]
       ],
       "name_key": null,
-      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name></name><ExtendedData><Data name=\"note\"><value>A &amp; B &lt;C&gt; \"quoted\" 'apostrophe'</value></Data></ExtendedData><Point><coordinates>-8.0,39.0,0</coordinates></Point></Placemark></Document></kml>"
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name></name><ExtendedData><Data name=\"note\"><value>A &amp; B &lt;C&gt; \"quoted\" 'apostrophe'</value></Data></ExtendedData><Point><coordinates>-8.0,39.0,0</coordinates></Point></Placemark></Document></kml>",
+      "prop_order": [
+        [
+          "note"
+        ]
+      ]
     },
     {
       "id": "accented_attribute_value",
@@ -877,7 +1018,12 @@
         ]
       ],
       "name_key": "country",
-      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name>São Tomé e Príncipe</name><ExtendedData><Data name=\"country\"><value>São Tomé e Príncipe</value></Data></ExtendedData><Point><coordinates>6.7273,0.1864,0</coordinates></Point></Placemark></Document></kml>"
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name>São Tomé e Príncipe</name><ExtendedData><Data name=\"country\"><value>São Tomé e Príncipe</value></Data></ExtendedData><Point><coordinates>6.7273,0.1864,0</coordinates></Point></Placemark></Document></kml>",
+      "prop_order": [
+        [
+          "country"
+        ]
+      ]
     },
     {
       "id": "none_and_long_attribute",
@@ -898,7 +1044,15 @@
         ]
       ],
       "name_key": null,
-      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name></name><ExtendedData></ExtendedData><Point><coordinates>-8.0,39.0,0</coordinates></Point></Placemark><Placemark><name></name><ExtendedData><Data name=\"note\"><value>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</value></Data></ExtendedData><Point><coordinates>-8.1,39.1,0</coordinates></Point></Placemark></Document></kml>"
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name></name><ExtendedData></ExtendedData><Point><coordinates>-8.0,39.0,0</coordinates></Point></Placemark><Placemark><name></name><ExtendedData><Data name=\"note\"><value>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</value></Data></ExtendedData><Point><coordinates>-8.1,39.1,0</coordinates></Point></Placemark></Document></kml>",
+      "prop_order": [
+        [
+          "note"
+        ],
+        [
+          "note"
+        ]
+      ]
     },
     {
       "id": "single_point",
@@ -912,13 +1066,93 @@
         ]
       ],
       "name_key": "name",
-      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name>Only</name><ExtendedData><Data name=\"name\"><value>Only</value></Data></ExtendedData><Point><coordinates>-8.0,39.0,0</coordinates></Point></Placemark></Document></kml>"
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name>Only</name><ExtendedData><Data name=\"name\"><value>Only</value></Data></ExtendedData><Point><coordinates>-8.0,39.0,0</coordinates></Point></Placemark></Document></kml>",
+      "prop_order": [
+        [
+          "name"
+        ]
+      ]
+    },
+    {
+      "id": "exponential_coordinates",
+      "features": [
+        [
+          1e-05,
+          -51.468987049,
+          {
+            "note": "gap"
+          }
+        ],
+        [
+          -111.9941399921,
+          1e-05,
+          {
+            "note": "gap"
+          }
+        ],
+        [
+          1e-07,
+          -1e-07,
+          {
+            "note": "both exponential"
+          }
+        ],
+        [
+          0.0001,
+          -0.0001,
+          {
+            "note": "neither exponential"
+          }
+        ]
+      ],
+      "name_key": "note",
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name>gap</name><ExtendedData><Data name=\"note\"><value>gap</value></Data></ExtendedData><Point><coordinates>1e-05,-51.468987049,0</coordinates></Point></Placemark><Placemark><name>gap</name><ExtendedData><Data name=\"note\"><value>gap</value></Data></ExtendedData><Point><coordinates>-111.9941399921,1e-05,0</coordinates></Point></Placemark><Placemark><name>both exponential</name><ExtendedData><Data name=\"note\"><value>both exponential</value></Data></ExtendedData><Point><coordinates>1e-07,-1e-07,0</coordinates></Point></Placemark><Placemark><name>neither exponential</name><ExtendedData><Data name=\"note\"><value>neither exponential</value></Data></ExtendedData><Point><coordinates>0.0001,-0.0001,0</coordinates></Point></Placemark></Document></kml>",
+      "prop_order": [
+        [
+          "note"
+        ],
+        [
+          "note"
+        ],
+        [
+          "note"
+        ],
+        [
+          "note"
+        ]
+      ]
+    },
+    {
+      "id": "integer_like_property_key",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "local": "Beja",
+            "2024": "12",
+            "nota": "x",
+            "0": "zero"
+          }
+        ]
+      ],
+      "name_key": "local",
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name>Beja</name><ExtendedData><Data name=\"local\"><value>Beja</value></Data><Data name=\"2024\"><value>12</value></Data><Data name=\"nota\"><value>x</value></Data><Data name=\"0\"><value>zero</value></Data></ExtendedData><Point><coordinates>-8.0,39.0,0</coordinates></Point></Placemark></Document></kml>",
+      "prop_order": [
+        [
+          "local",
+          "2024",
+          "nota",
+          "0"
+        ]
+      ]
     },
     {
       "id": "empty_feature_list",
       "features": [],
       "name_key": null,
-      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document></Document></kml>"
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document></Document></kml>",
+      "prop_order": []
     }
   ],
   "to_shapefile_zip": [
@@ -995,6 +1229,28 @@
         "shp": "0000270a000000000000000000000000000000000000000000000040e80300000100000000000000000020c0000000000080434000000000000020c000000000008043400000000000000000000000000000000000000000000000000000000000000000000000010000000a0100000000000000000020c00000000000804340",
         "shx": "0000270a000000000000000000000000000000000000000000000036e80300000100000000000000000020c0000000000080434000000000000020c000000000008043400000000000000000000000000000000000000000000000000000000000000000000000320000000a",
         "dbf": "03000000010000004100ff0000000000000000000000000000000000000000006e616d65000000000000004300000000fe0000000000000000000000000000000d204f6e6c7920202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020",
+        "prj": "47454f4743535b224743535f5747535f31393834222c444154554d5b22445f5747535f31393834222c53504845524f49445b225747535f31393834222c363337383133372e302c3239382e3235373232333536335d5d2c5052494d454d5b22477265656e77696368222c302e305d2c554e49545b22446567726565222c302e303137343533323932353139393433335d5d"
+      }
+    },
+    {
+      "id": "multibyte_field_name_cut_mid_character",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "aãããããã": "value"
+          }
+        ]
+      ],
+      "field_names": [
+        "aãããããã"
+      ],
+      "base_name": "coordinates",
+      "expected": {
+        "shp": "0000270a000000000000000000000000000000000000000000000040e80300000100000000000000000020c0000000000080434000000000000020c000000000008043400000000000000000000000000000000000000000000000000000000000000000000000010000000a0100000000000000000020c00000000000804340",
+        "shx": "0000270a000000000000000000000000000000000000000000000036e80300000100000000000000000020c0000000000080434000000000000020c000000000008043400000000000000000000000000000000000000000000000000000000000000000000000320000000a",
+        "dbf": "03000000010000004100ff00000000000000000000000000000000000000000061c3a3c3a3c3a3c3a3c3004300000000fe0000000000000000000000000000000d2076616c7565202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020",
         "prj": "47454f4743535b224743535f5747535f31393834222c444154554d5b22445f5747535f31393834222c53504845524f49445b225747535f31393834222c363337383133372e302c3239382e3235373232333536335d5d2c5052494d454d5b22477265656e77696368222c302e305d2c554e49545b22446567726565222c302e303137343533323932353139393433335d5d"
       }
     }

@@ -57,6 +57,25 @@ export function jsonSafe(v) {
 }
 
 /**
+ * A feature's properties in order, accepting either a Map or a plain object.
+ *
+ * Prefer a Map. JavaScript orders integer-like keys of a plain object first and
+ * numerically, whatever the insertion order, while Python's dict preserves
+ * insertion order for every key. A spreadsheet column named "2024" would jump
+ * to the front of the exported KML here and stay put there, and JSON.parse
+ * reorders it before the exporter ever sees it, so a plain object cannot carry
+ * the column order at all.
+ */
+function propEntries(props) {
+  return props instanceof Map ? [...props.entries()] : Object.entries(props)
+}
+
+/** Read one property, from either a Map or a plain object. */
+function propGet(props, key) {
+  return props instanceof Map ? props.get(key) : props[key]
+}
+
+/**
  * GeoJSON FeatureCollection of points, as a string.
  * Mirrors to_geojson() in geocoord/geoexport.py. Coordinates are written as
  * JSON numbers, not through pyFloat: GeoJSON coordinates must be numbers, and
@@ -71,7 +90,7 @@ export function toGeoJSON(features) {
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [Number(lon), Number(lat)] },
       properties: Object.fromEntries(
-        Object.entries(props).map(([k, v]) => [String(k), jsonSafe(v)]),
+        propEntries(props).map(([k, v]) => [String(k), jsonSafe(v)]),
       ),
     })),
   }
@@ -98,10 +117,26 @@ function escapeXml(s) {
  * 1e16, JavaScript only from 1e21 — and no latitude or longitude gets there.
  */
 export function pyFloat(value) {
+  if (!Number.isFinite(value)) return String(value)
+  if (value === 0) return Object.is(value, -0) ? '-0.0' : '0.0'
+
+  // The two languages switch to exponential notation at different magnitudes:
+  // Python once the decimal exponent drops below -4 or reaches 16, JavaScript
+  // only below -6 and at 21. In the gap they print the same number entirely
+  // differently - 1e-5 is "1e-05" there and "0.00001" here - so the threshold
+  // is applied explicitly rather than left to String().
+  const exponential = value.toExponential()
+  const exponent = Number(exponential.slice(exponential.indexOf('e') + 1))
+  if (exponent < -4 || exponent >= 16) {
+    // Python pads the exponent to two digits and always writes its sign.
+    return exponential.replace(
+      /e([+-]?)(\d+)$/,
+      (_match, sign, digits) => `e${sign === '-' ? '-' : '+'}${digits.padStart(2, '0')}`,
+    )
+  }
+
   const s = String(value)
-  if (s.includes('e')) return s.replace(/e([+-])(\d)$/, 'e$10$2')
-  if (s.includes('.') || s.includes('N') || s.includes('I')) return s
-  return `${s}.0`
+  return s.includes('.') ? s : `${s}.0`
 }
 
 /**
@@ -117,10 +152,11 @@ export function toKML(features, nameKey = null) {
   ]
   for (const [lon, lat, props] of features) {
     let name = ''
-    if (nameKey !== null && nameKey !== undefined && props[nameKey] !== null && props[nameKey] !== undefined) {
-      name = escapeXml(String(props[nameKey]))
+    const nameValue = nameKey === null || nameKey === undefined ? null : propGet(props, nameKey)
+    if (nameValue !== null && nameValue !== undefined) {
+      name = escapeXml(String(nameValue))
     }
-    const data = Object.entries(props)
+    const data = propEntries(props)
       .filter(([, v]) => jsonSafe(v) !== null)
       .map(([k, v]) => `<Data name="${escapeXml(String(k))}"><value>${escapeXml(String(jsonSafe(v)))}</value></Data>`)
       .join('')
@@ -206,7 +242,9 @@ export async function toShapefileZip(features, fieldNames, baseName = 'coordinat
   const layer = sanitizeFilename(baseName, 'coordinates')
 
   const points = features.map(([lon, lat]) => [Number(lon), Number(lat)])
-  const records = features.map(([, , props]) => fieldNames.map((name) => dbfValue(props[name])))
+  // propGet, not props[name]: the properties may be a Map, which is how the
+  // application carries the column order (see propEntries).
+  const records = features.map(([, , props]) => fieldNames.map((name) => dbfValue(propGet(props, name))))
 
   const zip = new JSZip()
   zip.file(`${layer}.shp`, writeShp(points))

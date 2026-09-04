@@ -141,7 +141,12 @@ export function writeDbf(fieldNames, records) {
 
   let offset = DBF_HEADER_SIZE
   for (const name of fieldNames) {
-    const nameBytes = utf8Encoder.encode(name).slice(0, DBF_FIELD_NAME_SIZE)
+    // Ten bytes, not eleven: pyshp always leaves the last byte of the name
+    // field as a null terminator. And it is a slice of the UTF-8 bytes, not of
+    // the characters, so a multi-byte name is cut mid-character and keeps a
+    // dangling lead byte - "aãããããã" is written 61 c3a3 c3a3 c3a3 c3a3 c3 00.
+    // Reproduced deliberately; the contract pins it.
+    const nameBytes = utf8Encoder.encode(name).slice(0, DBF_FIELD_NAME_SIZE - 1)
     bytes.set(nameBytes, offset) // zero-padded on the right: the rest of the buffer is already zero
     bytes[offset + 11] = 0x43 // 'C'
     // bytes 12..16 (field address, unused when reading) stay zero
