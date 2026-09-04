@@ -1,0 +1,15 @@
+{
+  "name": "geocoord-web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GeoCoord web application (browser-side coordinate converter)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
+  }
+}
