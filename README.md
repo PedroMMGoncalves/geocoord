@@ -198,6 +198,30 @@ The conversion engine is isolated in
 [`tests/`](tests/). Continuous integration runs the suite across
 Python 3.11, 3.12, and 3.13.
 
+## Web application (browser)
+
+A JavaScript port of the conversion engine lives in `web/`, for the browser
+application published on GitHub Pages. It is a deliberate translation of
+`geocoord/converter.py`, not a rewrite: both implementations are checked against
+the same contract in `tests/fixtures/parity.json`, so a divergence fails both
+test suites.
+
+```bash
+cd web
+npm install
+npm test
+```
+
+Regenerate the contract only when the shared behaviour is meant to change:
+
+```bash
+python scripts/gen_parity_fixtures.py
+```
+
+Review the diff by eye before committing it — the file is the reference both
+sides are held to, and `python scripts/gen_parity_fixtures.py --check`, which
+the CI runs, fails if the committed file and the generator disagree.
+
 ## Project structure
 
 ```text
@@ -208,6 +232,7 @@ geocoord/              Conversion library (importable package)
   geoexport.py         GeoJSON / KML / Shapefile writers (pure Python)
 tests/                 Test suite (pytest)
   fixtures/parity.json Shared contract, generated then frozen — do not hand-edit
+web/                   JavaScript port of the engine (browser app)
 scripts/               Helper scripts
   run_app.bat          Run the web application
   build_exe.bat        Build the desktop installer

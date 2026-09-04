@@ -399,9 +399,21 @@ def build():
 
 
 if __name__ == "__main__":
+    payload = json.dumps(build(), ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+
+    if "--check" in sys.argv:
+        current = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
+        if current != payload:
+            print(
+                f"{OUT} is out of date with the generator. Either it was edited "
+                "by hand, or the inputs changed without regenerating. Run "
+                "`python scripts/gen_parity_fixtures.py` and review the diff.",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        print(f"{OUT} is up to date")
+        raise SystemExit(0)
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(
-        json.dumps(build(), ensure_ascii=False, indent=2, allow_nan=False) + "\n",
-        encoding="utf-8",
-    )
+    OUT.write_text(payload, encoding="utf-8")
     print(f"wrote {OUT}")
