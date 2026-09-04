@@ -16,9 +16,11 @@ Only JSON-representable inputs go in here. Language-specific empty values
 (float('nan') on the Python side, NaN/undefined on the JavaScript side) stay in
 each side's own tests.
 """
+import io
 import json
 import pathlib
 import sys
+import zipfile
 
 import pandas as pd
 
@@ -37,6 +39,13 @@ from geocoord.converter import (
     point_in_mask,
     region_check,
     tidy_table,
+)
+from geocoord.geoexport import (
+    sanitize_filename,
+    to_geojson,
+    to_kml,
+    to_shapefile_zip,
+    _safe_field_names,
 )
 
 OUT = ROOT / "tests" / "fixtures" / "parity.json"
@@ -314,6 +323,128 @@ TIDY_INPUTS = [
     },
 ]
 
+# sanitize_filename: NFKD compatibility decomposition, not a transliteration
+# lookup table, is what makes the last six of these come out right. It turns
+# the "fi" ligature into plain "fi", "½" into "12" (the fraction slash itself
+# has no ASCII form and is simply dropped), and the roman numeral "Ⅻ" into
+# "XII" -- while "ß" and "œ" have no decomposition at all and vanish outright.
+# A port that transliterates accents via a lookup table would pass the plain
+# accents above and fail these.
+SANITIZE_INPUTS = [
+    ("plain_accents", "dados das áreas de ferro.csv", {}),
+    ("simple_name", "sites.csv", {}),
+    ("parentheses_and_spaces", "Coordenadas (Final).xlsx", {}),
+    ("hyphen_kept", "relatório-2024.geojson", {}),
+    ("full_path", "C:/tmp/São Tomé.csv", {}),
+    ("accent_and_cedilla", "amostras_ção.shp", {}),
+    ("ring_above", "Ångström", {}),
+    ("eszett_vanishes", "Straße", {}),
+    ("oe_ligature_vanishes", "œuvre", {}),
+    ("d_with_stroke_vanishes", "Đà Nẵng", {}),
+    ("fi_ligature_decomposes", "ﬁcheiro", {}),
+    ("vulgar_fraction_decomposes", "½ ponto", {}),
+    ("roman_numeral_decomposes", "Ⅻ", {}),
+    ("cjk_has_no_ascii_form", "北京", {}),
+    ("diaeresis_and_accent", "naïve café", {}),
+    ("empty_string", "", {}),
+    ("only_whitespace", "   ", {}),
+    ("only_punctuation", "***", {}),
+    ("extension_only", ".csv", {}),
+    ("only_slashes", "///", {}),
+    ("longer_than_max_length", "a" * 200, {}),
+    ("custom_default", "***", {"default": "layer"}),
+]
+
+# _safe_field_names: uniqueness is checked case-insensitively (so
+# "Latitude_DD" and "latitude_dd" collide), and on a collision the numeric
+# suffix REPLACES the tail of the name rather than lengthening it past the
+# 10-character DBF limit. A port that appends instead of truncating passes
+# the first case below and fails the rest.
+SAFE_FIELD_NAMES_INPUTS = [
+    ("truncated_to_ten", ["a_very_long_attribute_name"]),
+    ("collision_after_truncation", ["Latitude_DD", "Latitude_DD2", "Latitude_DD"]),
+    ("punctuation_and_blank", ["campo com espaços", "campo-com-traços", ""]),
+    ("case_insensitive_collision", ["Latitude_DD", "latitude_dd"]),
+    ("suffix_replaces_tail_not_appends", ["x" * 15, "x" * 15, "x" * 15]),
+]
+
+# Feature sets shared by the to_geojson and to_kml sections below. Attribute
+# values are kept to strings, ints and None throughout this file: Python
+# distinguishes the int 1 from the float 1.0 and JSON preserves that
+# distinction, but JavaScript has a single number type and cannot reproduce
+# it, so a float attribute would be an unresolvable ambiguity between the two
+# ports.
+EXPORT_FEATURES = [
+    (
+        "two_points_text_and_int",
+        [
+            (-8.611, 41.1496, {"name": "Porto", "count": 3}),
+            (-9.1393, 38.7223, {"name": "Lisboa", "count": 12}),
+        ],
+        "name",
+    ),
+    (
+        "xml_special_characters",
+        # escape() handles only &, < and > -- the double quote and apostrophe
+        # must survive untouched.
+        [(-8.0, 39.0, {"note": "A & B <C> \"quoted\" 'apostrophe'"})],
+        None,
+    ),
+    (
+        "accented_attribute_value",
+        [(6.7273, 0.1864, {"country": "São Tomé e Príncipe"})],
+        "country",
+    ),
+    (
+        "none_and_long_attribute",
+        [
+            (-8.0, 39.0, {"note": None}),
+            (-8.1, 39.1, {"note": "x" * 300}),
+        ],
+        None,
+    ),
+    (
+        "single_point",
+        [(-8.0, 39.0, {"name": "Only"})],
+        "name",
+    ),
+    (
+        "empty_feature_list",
+        [],
+        None,
+    ),
+]
+
+# Separate, deliberately small cases for to_shapefile_zip: the DBF pads every
+# field to 254 bytes regardless of content, so each case below is already a
+# few kilobytes of hex once encoded. to_shapefile_zip([], []) (no features AND
+# no fields) raises pyshp's ShapefileException("...must contain at least one
+# field"), so an empty-features case is deliberately not included here --
+# every case below carries at least one field.
+SHAPEFILE_INPUTS = [
+    (
+        "two_points_two_fields",
+        [
+            (-8.611, 41.1496, {"name": "Porto", "count": 3}),
+            (-9.1393, 38.7223, {"name": "Lisboa", "count": 12}),
+        ],
+        ["name", "count"],
+        "coordinates",
+    ),
+    (
+        "field_name_truncated",
+        [(-8.0, 39.0, {"a_very_long_attribute_name": "value"})],
+        ["a_very_long_attribute_name"],
+        "coordinates",
+    ),
+    (
+        "accented_base_name",
+        [(-8.0, 39.0, {"name": "Only"})],
+        ["name"],
+        "São Tomé",
+    ),
+]
+
 
 def table_to_df(table):
     return pd.DataFrame(table["rows"], columns=table["columns"])
@@ -334,6 +465,26 @@ def df_to_table(df):
             for row in df.astype(object).where(df.notna(), None).values.tolist()
         ],
     }
+
+
+def _shapefile_components(features, field_names, base_name):
+    """The four shapefile parts, hex-encoded, with the DBF write date zeroed.
+
+    pyshp stamps bytes 1..3 of the DBF header with today's date and
+    zipfile.writestr stamps every entry with the local time, so neither the
+    .zip nor the raw .dbf is reproducible. The parts are compared instead,
+    with the date masked.
+    """
+    data = to_shapefile_zip(features, field_names, base_name=base_name)
+    out = {}
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        for name in z.namelist():
+            ext = name.rsplit(".", 1)[-1]
+            raw = bytearray(z.read(name))
+            if ext == "dbf":
+                raw[1:4] = b"\x00\x00\x00"
+            out[ext] = bytes(raw).hex()
+    return out
 
 
 def build():
@@ -367,6 +518,41 @@ def build():
             {"id": i, "lat": la, "lon": lo, "regions": REGIONS,
              "expected": identify_region(la, lo, REGIONS)}
             for i, la, lo in IDENTIFY_INPUTS
+        ],
+        "sanitize_filename": [
+            {"id": i, "name": n, "kwargs": kw, "expected": sanitize_filename(n, **kw)}
+            for i, n, kw in SANITIZE_INPUTS
+        ],
+        "safe_field_names": [
+            {"id": i, "names": names, "expected": _safe_field_names(names)}
+            for i, names in SAFE_FIELD_NAMES_INPUTS
+        ],
+        "to_geojson": [
+            {
+                "id": i,
+                "features": feats,
+                "expected": json.loads(to_geojson(feats).decode("utf-8")),
+            }
+            for i, feats, _name_key in EXPORT_FEATURES
+        ],
+        "to_kml": [
+            {
+                "id": i,
+                "features": feats,
+                "name_key": name_key,
+                "expected": to_kml(feats, name_key=name_key).decode("utf-8"),
+            }
+            for i, feats, name_key in EXPORT_FEATURES
+        ],
+        "to_shapefile_zip": [
+            {
+                "id": i,
+                "features": feats,
+                "field_names": field_names,
+                "base_name": base_name,
+                "expected": _shapefile_components(feats, field_names, base_name),
+            }
+            for i, feats, field_names, base_name in SHAPEFILE_INPUTS
         ],
         "detect_swaps": [],
         "region_check": [],

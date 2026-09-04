@@ -12,9 +12,11 @@ committed file matches what the *current* Python produces. The contract catches
 drift on the behaviour it pins; widening behaviour safely means adding cases,
 not merely regenerating. Read the regenerated diff.
 """
+import io
 import json
 import math
 import pathlib
+import zipfile
 
 import pandas as pd
 import pytest
@@ -28,6 +30,13 @@ from geocoord.converter import (
     point_in_mask,
     region_check,
     tidy_table,
+)
+from geocoord.geoexport import (
+    sanitize_filename,
+    to_geojson,
+    to_kml,
+    to_shapefile_zip,
+    _safe_field_names,
 )
 
 FIXTURES = json.loads(
@@ -135,3 +144,62 @@ def test_tidy_table(case):
         for row in tidy.astype(object).where(tidy.notna(), None).values.tolist()
     ]
     assert rows == case["expected"]["rows"]
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["sanitize_filename"], ids=ids(FIXTURES["sanitize_filename"])
+)
+def test_sanitize_filename(case):
+    assert sanitize_filename(case["name"], **case["kwargs"]) == case["expected"]
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["safe_field_names"], ids=ids(FIXTURES["safe_field_names"])
+)
+def test_safe_field_names(case):
+    assert _safe_field_names(case["names"]) == case["expected"]
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["to_geojson"], ids=ids(FIXTURES["to_geojson"])
+)
+def test_to_geojson(case):
+    got = json.loads(to_geojson(case["features"]).decode("utf-8"))
+    assert got == case["expected"]
+
+
+@pytest.mark.parametrize("case", FIXTURES["to_kml"], ids=ids(FIXTURES["to_kml"]))
+def test_to_kml(case):
+    got = to_kml(case["features"], name_key=case["name_key"]).decode("utf-8")
+    assert got == case["expected"]
+
+
+def _shapefile_components(data):
+    """The four shapefile parts, hex-encoded, with the DBF write date zeroed.
+
+    Mirrors the masking in scripts/gen_parity_fixtures.py: pyshp stamps bytes
+    1..3 of the DBF header with today's date and zipfile.writestr stamps every
+    entry with the local time, so neither the .zip nor the raw .dbf is
+    reproducible. The parts are compared instead, with the date masked.
+    Deliberately not shared with the generator: a common normaliser would hide
+    its own bugs from the contract it is supposed to police.
+    """
+    out = {}
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        for name in z.namelist():
+            ext = name.rsplit(".", 1)[-1]
+            raw = bytearray(z.read(name))
+            if ext == "dbf":
+                raw[1:4] = b"\x00\x00\x00"
+            out[ext] = bytes(raw).hex()
+    return out
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["to_shapefile_zip"], ids=ids(FIXTURES["to_shapefile_zip"])
+)
+def test_to_shapefile_zip(case):
+    data = to_shapefile_zip(
+        case["features"], case["field_names"], base_name=case["base_name"]
+    )
+    assert _shapefile_components(data) == case["expected"]
