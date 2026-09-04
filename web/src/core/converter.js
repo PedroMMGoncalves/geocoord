@@ -177,3 +177,153 @@ export function identifyRegion(lat, lon, regions) {
   }
   return null
 }
+
+/**
+ * numpy.percentile with the default linear interpolation.
+ * numpy.percentile([1,2,3,4], 90) is 3.7, not 4.
+ */
+export function percentileLinear(values, q) {
+  const s = [...values].sort((a, b) => a - b)
+  const n = s.length
+  if (n === 1) return s[0]
+  const idx = ((n - 1) * q) / 100
+  const lo = Math.floor(idx)
+  const hi = Math.ceil(idx)
+  if (lo === hi) return s[lo]
+  return s[lo] + (s[hi] - s[lo]) * (idx - lo)
+}
+
+/** numpy.median: the 50th percentile with linear interpolation. */
+export function median(values) {
+  return percentileLinear(values, 50)
+}
+
+/** numpy.ptp: peak to peak, max minus min. */
+function ptp(values) {
+  let min = Infinity
+  let max = -Infinity
+  for (const v of values) {
+    if (v < min) min = v
+    if (v > max) max = v
+  }
+  return max - min
+}
+
+/**
+ * Find the centre and radius of the densest cluster of [lat, lon] points.
+ * Mirrors _dense_center() in geocoord/converter.py.
+ */
+function denseCenter(points) {
+  const span = Math.max(ptp(points.map((p) => p[0])), ptp(points.map((p) => p[1])))
+  const cell = Math.max(0.5, span / 20.0)
+
+  const keys = points.map((p) => [Math.floor(p[0] / cell), Math.floor(p[1] / cell)])
+
+  // Counter.most_common(1): on a tie the first-seen key wins, which a strict
+  // greater-than comparison over an insertion-ordered Map reproduces.
+  const counts = new Map()
+  for (const [kx, ky] of keys) {
+    const key = `${kx},${ky}`
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  let bestKey = null
+  let bestCount = -1
+  for (const [key, count] of counts) {
+    if (count > bestCount) {
+      bestCount = count
+      bestKey = key
+    }
+  }
+  const [bx, by] = bestKey.split(',').map(Number)
+
+  const members = points.filter(
+    (_, i) => Math.abs(keys[i][0] - bx) <= 1 && Math.abs(keys[i][1] - by) <= 1,
+  )
+
+  const center = [
+    median(members.map((m) => m[0])),
+    median(members.map((m) => m[1])),
+  ]
+  const dist = members.map((m) => Math.hypot(m[0] - center[0], m[1] - center[1]))
+  const radius = Math.max(1.0, percentileLinear(dist, 90))
+
+  return { center, radius }
+}
+
+/**
+ * Classify each row as ok / missing / out_of_range / swap_range / swap_cluster.
+ *
+ * Mirrors detect_swaps() in geocoord/converter.py. Options accept both the
+ * snake_case names used by the Python signature (and therefore by
+ * tests/fixtures/parity.json) and their camelCase equivalents.
+ *
+ * Returns { labels, center }, where center is the (lat, lon) used as the
+ * expected location, or null for mask mode and when no cluster step ran.
+ */
+export function detectSwaps(lats, lons, options = {}) {
+  const minCluster = options.min_cluster ?? options.minCluster ?? 6
+  const reference = options.reference ?? null
+  const regionRadius = options.region_radius ?? options.regionRadius ?? 10.0
+  const mask = options.mask ?? null
+
+  const n = lats.length
+  const labels = new Array(n).fill('missing')
+  const inrangeIdx = []
+
+  for (let i = 0; i < n; i += 1) {
+    const la = toNumber(lats[i])
+    const lo = toNumber(lons[i])
+    if (la === null || lo === null) {
+      labels[i] = 'missing'
+    } else if (validPair(la, lo)) {
+      labels[i] = 'ok'
+      inrangeIdx.push(i)
+    } else if (validPair(lo, la)) {
+      labels[i] = 'swap_range'
+    } else {
+      labels[i] = 'out_of_range'
+    }
+  }
+
+  if (mask && mask.length) {
+    for (const i of inrangeIdx) {
+      const la = Number(lats[i])
+      const lo = Number(lons[i])
+      if (!inMask(la, lo, mask) && inMask(lo, la, mask)) {
+        labels[i] = 'swap_cluster'
+      }
+    }
+    return { labels, center: null }
+  }
+
+  if (reference !== null) {
+    const center = [Number(reference[0]), Number(reference[1])]
+    const tol = Number(regionRadius)
+    for (const i of inrangeIdx) {
+      const la = Number(lats[i])
+      const lo = Number(lons[i])
+      const dAs = Math.hypot(la - center[0], lo - center[1])
+      const dSw = Math.hypot(lo - center[0], la - center[1])
+      if (dAs > tol && dSw <= tol) labels[i] = 'swap_cluster'
+    }
+    return { labels, center }
+  }
+
+  if (inrangeIdx.length < minCluster) return { labels, center: null }
+
+  const asIs = inrangeIdx.map((i) => [Number(lats[i]), Number(lons[i])])
+  const { center, radius } = denseCenter(asIs)
+  const outlierFactor = 3.0
+  const returnFactor = 1.5
+  for (const i of inrangeIdx) {
+    const la = Number(lats[i])
+    const lo = Number(lons[i])
+    const dAs = Math.hypot(la - center[0], lo - center[1])
+    const dSw = Math.hypot(lo - center[0], la - center[1])
+    if (dAs > outlierFactor * radius && dSw <= returnFactor * radius) {
+      labels[i] = 'swap_cluster'
+    }
+  }
+
+  return { labels, center: [center[0], center[1]] }
+}

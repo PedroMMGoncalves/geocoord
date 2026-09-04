@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { fixtures, cases } from './fixtures.js'
-import { parseCoordinate, inRange, formatDms, pointInMask, identifyRegion } from '../src/core/converter.js'
+import { parseCoordinate, inRange, formatDms, pointInMask, identifyRegion, detectSwaps, percentileLinear, median } from '../src/core/converter.js'
 
 describe('parity fixtures', () => {
   it('loads the shared contract', () => {
@@ -53,5 +53,31 @@ describe('pointInMask', () => {
 describe('identifyRegion', () => {
   it.each(cases('identify_region'))('%s', (_id, c) => {
     expect(identifyRegion(c.lat, c.lon, c.regions)).toBe(c.expected)
+  })
+})
+
+describe('detectSwaps', () => {
+  it.each(cases('detect_swaps'))('%s', (_id, c) => {
+    const { labels, center } = detectSwaps(c.lats, c.lons, c.kwargs)
+    expect(labels).toEqual(c.expected.labels)
+    if (c.expected.center === null) {
+      expect(center).toBeNull()
+    } else {
+      expect(center[0]).toBeCloseTo(c.expected.center[0], 12)
+      expect(center[1]).toBeCloseTo(c.expected.center[1], 12)
+    }
+  })
+})
+
+describe('numpy-compatible statistics', () => {
+  it('interpolates percentiles the way numpy does', () => {
+    expect(percentileLinear([1, 2, 3, 4], 90)).toBeCloseTo(3.7, 12)
+    expect(percentileLinear([5], 90)).toBe(5)
+  })
+
+  it('averages the two middle values for an even count', () => {
+    expect(median([1, 3])).toBeCloseTo(2, 12)
+    expect(median([2, 4])).toBeCloseTo(3, 12)
+    expect(median([1, 2, 3])).toBe(2)
   })
 })
