@@ -212,6 +212,8 @@ regenerating.
 cd web
 npm install
 npm test
+npm run dev      # dev server with hot reload, at http://localhost:5173
+npm run build    # production bundle, written to web/dist/
 ```
 
 Regenerate the contract only when the shared behaviour is meant to change:
