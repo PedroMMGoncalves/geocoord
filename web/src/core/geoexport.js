@@ -6,9 +6,21 @@
  * `tests/fixtures/parity.json` is the contract both implementations are
  * checked against, and any divergence fails both CIs.
  *
- * Ported so far: sanitizeFilename, jsonSafe, toGeoJSON, toKML. The binary
- * Shapefile writer (to_shapefile_zip and its helpers) is not yet ported.
+ * Ported so far: sanitizeFilename, jsonSafe, toGeoJSON, toKML, safeFieldNames,
+ * dbfValue and toShapefileZip. The last three lean on shapefile.js for the
+ * actual .shp/.shx/.dbf bytes - see that file for why the binary writers
+ * live apart from this one.
  */
+
+import JSZip from 'jszip'
+import { writeShp, writeShx, writeDbf } from './shapefile.js'
+
+// ESRI WKT for WGS84, written to the shapefile .prj sidecar.
+// Mirrors WGS84_ESRI_WKT in geocoord/geoexport.py.
+export const WGS84_ESRI_WKT =
+  'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",'
+  + 'SPHEROID["WGS_1984",6378137.0,298.257223563]],'
+  + 'PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]'
 
 /**
  * Turn an arbitrary name into a safe base name for output files and GIS layers.
@@ -122,4 +134,84 @@ export function toKML(features, nameKey = null) {
   }
   parts.push('</Document></kml>')
   return parts.join('')
+}
+
+// A character kept as-is by _safe_field_names' substitution below. Python's
+// str.isalnum() is Unicode-aware - "ç" and "õ" pass, only punctuation and
+// whitespace turn into "_" - so \p{L}/\p{N} (any-language letter or digit)
+// is the match, not a plain [A-Za-z0-9].
+function isFieldNameChar(ch) {
+  return ch === '_' || /[\p{L}\p{N}]/u.test(ch)
+}
+
+/**
+ * Sanitise attribute names to valid, unique DBF field names (<= 10 chars).
+ * Mirrors _safe_field_names() in geocoord/geoexport.py.
+ *
+ * Substitution happens over the whole name first, and truncation to 10
+ * characters after, so which characters survive depends on where they land
+ * post-substitution, not in the original string. Collisions are resolved
+ * case-insensitively, and a numeric suffix replaces the candidate's tail
+ * rather than extending past it, so every result still fits in 10 chars.
+ */
+export function safeFieldNames(names) {
+  const used = new Set()
+  const out = []
+  for (const name of names) {
+    let base = Array.from(String(name))
+      .map((ch) => (isFieldNameChar(ch) ? ch : '_'))
+      .slice(0, 10)
+      .join('')
+    if (!base) base = 'field'
+    let candidate = base
+    let i = 1
+    while (used.has(candidate.toUpperCase())) {
+      const suffix = String(i)
+      candidate = base.slice(0, 10 - suffix.length) + suffix
+      i += 1
+    }
+    used.add(candidate.toUpperCase())
+    out.push(candidate)
+  }
+  return out
+}
+
+/**
+ * Coerce an attribute value to the text a DBF field holds.
+ * Mirrors _dbf_value() in geocoord/geoexport.py: every attribute is written
+ * as text (see toShapefileZip), so there is no column type to get wrong.
+ */
+export function dbfValue(v) {
+  const safe = jsonSafe(v)
+  return safe === null ? '' : String(safe)
+}
+
+/**
+ * Point shapefile (.shp/.shx/.dbf/.prj) bundled into a single .zip.
+ * Mirrors to_shapefile_zip() in geocoord/geoexport.py. JSZip stands in for
+ * Python's zipfile module; the binary .shp/.shx/.dbf bytes themselves come
+ * from shapefile.js.
+ *
+ * `baseName` names the components inside the zip and therefore the layer
+ * name shown in GIS; it is sanitised, so passing the input file name yields
+ * a clean layer. DBF field names are truncated to 10 characters; all
+ * attributes are written as text to avoid type/length surprises.
+ *
+ * Returns a Promise for the zipped bytes: JSZip's own writer is
+ * asynchronous, unlike Python's zipfile.
+ */
+export async function toShapefileZip(features, fieldNames, baseName = 'coordinates') {
+  fieldNames = Array.from(fieldNames)
+  const dbfNames = safeFieldNames(fieldNames)
+  const layer = sanitizeFilename(baseName, 'coordinates')
+
+  const points = features.map(([lon, lat]) => [Number(lon), Number(lat)])
+  const records = features.map(([, , props]) => fieldNames.map((name) => dbfValue(props[name])))
+
+  const zip = new JSZip()
+  zip.file(`${layer}.shp`, writeShp(points))
+  zip.file(`${layer}.shx`, writeShx(points))
+  zip.file(`${layer}.dbf`, writeDbf(dbfNames, records))
+  zip.file(`${layer}.prj`, WGS84_ESRI_WKT)
+  return zip.generateAsync({ type: 'uint8array' })
 }
