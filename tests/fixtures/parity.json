@@ -108,7 +108,7 @@
     },
     {
       "id": "hemisphere_inside_accented_word",
-      "input": "38 Nível",
+      "input": "38 Sítio",
       "expected": 38.0
     },
     {

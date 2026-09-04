@@ -63,11 +63,14 @@ PARSE_INPUTS = [
     ("degrees_only", "38°"),
     ("four_numbers_extra_ignored", '38° 42\' 30" 5 N'),
     # These five pin the hemisphere guard, which is the single most likely thing
-    # for a port to get wrong. The letter must be read as a direction when it
-    # stands against digits or symbols, and ignored when it sits inside a word —
-    # an accented word included, so an ASCII-only lookaround does not pass.
+    # for a port to get wrong. Each catches a different plausible mistake, and
+    # each uses a NEGATIVE hemisphere letter (S, W, O) on purpose: a wrong guard
+    # that matches a positive letter changes nothing observable, so a case built
+    # on N or E cannot fail and pins nothing. "Sítio" pairs S with an accent, so
+    # an ASCII-only lookaround matches it and flips the sign; a Unicode-aware one
+    # leaves it alone.
     ("hemisphere_inside_word", "38 Oeste"),
-    ("hemisphere_inside_accented_word", "38 Nível"),
+    ("hemisphere_inside_accented_word", "38 Sítio"),
     ("hemisphere_glued_to_digits", "38.5W"),
     ("hemisphere_after_space", "38.5 W"),
     ("word_only_no_digits", "Norte"),
