@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { fixtures, cases } from './fixtures.js'
-import { parseCoordinate, inRange, formatDms, pointInMask, identifyRegion, detectSwaps, percentileLinear, median } from '../src/core/converter.js'
+import { parseCoordinate, inRange, formatDms, pointInMask, identifyRegion, detectSwaps, percentileLinear, median, regionCheck, tidyTable } from '../src/core/converter.js'
 
 describe('parity fixtures', () => {
   it('loads the shared contract', () => {
@@ -66,6 +66,29 @@ describe('detectSwaps', () => {
       expect(center[0]).toBeCloseTo(c.expected.center[0], 12)
       expect(center[1]).toBeCloseTo(c.expected.center[1], 12)
     }
+  })
+})
+
+describe('regionCheck', () => {
+  it.each(cases('region_check'))('%s', (_id, c) => {
+    const { outIdx, detected } = regionCheck(
+      c.lats, c.lons, c.labels, c.regions, c.kwargs,
+    )
+    expect(outIdx).toEqual(c.expected.out_idx)
+    expect([...detected.entries()]).toEqual(c.expected.detected)
+  })
+})
+
+describe('tidyTable', () => {
+  it.each(cases('tidy_table'))('%s', (_id, c) => {
+    expect(tidyTable(c.table)).toEqual(c.expected)
+  })
+
+  it('does not mutate its input', () => {
+    const table = { columns: ['lat', 'lon'], rows: [['39.0', '-8.0']] }
+    const before = JSON.stringify(table)
+    tidyTable(table)
+    expect(JSON.stringify(table)).toBe(before)
   })
 })
 

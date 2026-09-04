@@ -327,3 +327,97 @@ export function detectSwaps(lats, lons, options = {}) {
 
   return { labels, center: [center[0], center[1]] }
 }
+
+/**
+ * Find valid ('ok') points that fall outside the region the user declared.
+ *
+ * Mirrors region_check() in geocoord/converter.py. Returns { outIdx, detected },
+ * where detected is a Map from the actual region name (or null when the point
+ * matches no known region) to a count. A Map is used rather than a plain object
+ * because null is a legitimate key here.
+ */
+export function regionCheck(lats, lons, labels, regions, options = {}) {
+  const mask = options.mask ?? null
+  const reference = options.reference ?? null
+  const regionRadius = options.region_radius ?? options.regionRadius ?? 10.0
+
+  const outIdx = []
+  const detected = new Map()
+  if (mask === null && reference === null) return { outIdx, detected }
+
+  for (let i = 0; i < labels.length; i += 1) {
+    if (labels[i] !== 'ok') continue
+    const la = Number(lats[i])
+    const lo = Number(lons[i])
+    const inside = mask !== null
+      ? inMask(la, lo, mask)
+      : Math.hypot(la - reference[0], lo - reference[1]) <= regionRadius
+    if (!inside) {
+      outIdx.push(i)
+      const name = regions ? identifyRegion(la, lo, regions) : null
+      detected.set(name, (detected.get(name) ?? 0) + 1)
+    }
+  }
+  return { outIdx, detected }
+}
+
+// Auto-generated column name pandas assigns to a header cell it found empty.
+const PLACEHOLDER_COL_RE = /^Unnamed: \d+$/
+
+/** True for an empty or pandas auto-generated ('Unnamed: N') column name. */
+function isPlaceholderName(name) {
+  const s = String(name ?? '').trim()
+  return s === '' || s.toLowerCase() === 'nan' || PLACEHOLDER_COL_RE.test(s)
+}
+
+/** Blank / whitespace-only cells count as missing, as they do in tidy_table(). */
+function isBlank(value) {
+  if (value === null || value === undefined) return true
+  if (typeof value === 'number') return Number.isNaN(value)
+  const s = String(value).trim()
+  return s === '' || s === 'nan' || s === 'None'
+}
+
+/**
+ * Clean a freshly-read table so messy spreadsheet exports load correctly.
+ *
+ * Mirrors tidy_table() in geocoord/converter.py, operating on the neutral shape
+ * { columns, rows } instead of a pandas DataFrame. Returns a new table; the
+ * input is left untouched.
+ *
+ * Decimal commas inside the data ("33,6603") are left as-is; parseCoordinate
+ * already understands them.
+ */
+export function tidyTable(table) {
+  let columns = [...table.columns]
+  let rows = table.rows.map((row) => row.map((v) => (isBlank(v) ? null : v)))
+
+  // Drop columns that are entirely empty.
+  const keep = columns.map((_, c) => rows.some((row) => row[c] !== null))
+  columns = columns.filter((_, c) => keep[c])
+  rows = rows.map((row) => row.filter((_, c) => keep[c]))
+
+  // Drop rows that are entirely empty.
+  rows = rows.filter((row) => row.some((v) => v !== null))
+
+  if (rows.length === 0) return { columns, rows }
+
+  // If no column carries a real name, the header is the first row of data.
+  if (columns.every((c) => isPlaceholderName(c))) {
+    const header = rows[0]
+    rows = rows.slice(1)
+
+    // A promoted header cell may itself be blank. Naming it str(NaN) would give
+    // a column literally called "nan", and two such cells would collide into
+    // duplicate names, which silently breaks column selection downstream. Give
+    // them distinct positional names and let the drop below remove those that
+    // carry no data.
+    columns = header.map((h, i) => (isPlaceholderName(h) ? `Column ${i + 1}` : String(h).trim()))
+
+    const keepAfter = columns.map((_, c) => rows.some((row) => row[c] !== null))
+    columns = columns.filter((_, c) => keepAfter[c])
+    rows = rows.map((row) => row.filter((_, c) => keepAfter[c]))
+  }
+
+  return { columns, rows }
+}
