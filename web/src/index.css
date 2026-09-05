@@ -9,6 +9,20 @@ body,
   margin: 0;
 }
 
+/* The ground and the ink, together. The background was set on <body> and the
+   colour was not, so anything without an explicit text-* class inherited the
+   browser's default near-black onto this near-black ground - 1.18:1, which is
+   invisible. The download buttons and the section tabs were exactly that. */
+body {
+  color: theme('colors.slate.200');
+  background: theme('colors.panel');
+}
+
+/* Somewhere to land when the skip link is used. */
+#main:focus {
+  outline: none;
+}
+
 /* Dark ground so the map does not flash white while tiles load (later unit). */
 .leaflet-container {
   background: #0f172a;

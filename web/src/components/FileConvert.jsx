@@ -33,6 +33,17 @@ const SEPARATOR_LABELS = [
 // The statuses detectSwaps can return, and the colour each gets. Amber for the
 // two swap kinds because they are a question for the user, not a verdict;
 // red only for what could not be used at all.
+// A shape as well as a colour. Amber against green is a common pair to lose,
+// and a table of numbers in two colours says nothing to a screen reader at all.
+const STATUS_MARK = {
+  ok: '',
+  swap_axis: '\u25b2\u00a0',
+  swap_range: '\u25b2\u00a0',
+  swap_cluster: '\u25b2\u00a0',
+  out_of_range: '\u2715\u00a0',
+  missing: '\u2715\u00a0',
+}
+
 const STATUS_STYLE = {
   ok: 'text-accent',
   swap_axis: 'text-amber-400',
@@ -97,14 +108,22 @@ function CrsSelect({ id, label, value, onChange, includeNone = false, t }) {
 }
 
 function Step({ n, title, children }) {
+  const t = useT()
   return (
-    <section className="mt-6 rounded-lg border border-edge bg-surface p-4">
+    <section className="mt-6 rounded-lg border border-edge bg-surface p-4"
+             aria-label={t('file.stepLabel', { n, title })}>
       <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-200">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full
-                         bg-accent/15 text-xs font-semibold text-accent">
+        {/* The badge is decoration: read out, the number ran straight into the
+            title and the heading list said "1Ficheiro". */}
+        <span
+          aria-hidden="true"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full
+                     bg-accent/15 text-xs font-semibold text-accent"
+        >
           {n}
         </span>
-        {title}
+        <span className="sr-only">{t('file.stepLabel', { n, title })}</span>
+        <span aria-hidden="true">{title}</span>
       </h2>
       {children}
     </section>
@@ -456,7 +475,7 @@ export default function FileConvert() {
                       ${dragging ? 'border-accent bg-accent/5' : 'border-edge'}`}
         >
           <p className="text-sm text-slate-300">{t('file.dropHere')}</p>
-          <p className="mt-1 text-xs text-slate-500">{t('file.formats')}</p>
+          <p className="mt-1 text-xs text-slate-400">{t('file.formats')}</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             <button
               type="button"
@@ -481,6 +500,10 @@ export default function FileConvert() {
             ref={inputRef}
             type="file"
             accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xlsb,.xls,.ods"
+            // The visible button above is the control; this input is opened by
+            // it. Left in the tab order it was a stop with no name at all.
+            tabIndex={-1}
+            aria-hidden="true"
             className="sr-only"
             onChange={(e) => {
               const file = e.target.files?.[0]
@@ -608,7 +631,7 @@ export default function FileConvert() {
                   type="checkbox"
                   checked={utmSouth}
                   onChange={(e) => setUtmSouth(e.target.checked)}
-                  className="accent-accent"
+                  className="h-4 w-4 shrink-0 accent-accent"
                 />
                 {t('crs.utmSouth')}
               </label>
@@ -656,7 +679,7 @@ export default function FileConvert() {
                 type="checkbox"
                 checked={addDms}
                 onChange={(e) => setAddDms(e.target.checked)}
-                className="accent-accent"
+                className="h-4 w-4 shrink-0 accent-accent"
               />
               {t('file.addDms')}
             </label>
@@ -721,7 +744,7 @@ export default function FileConvert() {
                   >
                     {t('file.swapNone')}
                   </button>
-                  <span className="self-center text-xs text-slate-500">
+                  <span className="self-center text-xs text-slate-400">
                     {t('file.swapChosen', { n: accepted.size })}
                   </span>
                 </div>
@@ -738,7 +761,7 @@ export default function FileConvert() {
                           else next.delete(i)
                           return next
                         })}
-                        className="accent-accent"
+                        className="h-4 w-4 shrink-0 accent-accent"
                       />
                       <label htmlFor={`swap-${i}`} className="font-mono text-slate-400">
                         {t('file.rowN', { n: i + 1 })}
@@ -747,7 +770,7 @@ export default function FileConvert() {
                         {' → '}
                         <span className="text-accent">{converted.lons[i]}, {converted.lats[i]}</span>
                         {' · '}
-                        <span className="text-slate-600">{t(`file.status.${label}`)}</span>
+                        <span className="text-slate-400">{t(`file.status.${label}`)}</span>
                       </label>
                     </li>
                   ))}
@@ -757,29 +780,53 @@ export default function FileConvert() {
 
             {summary && (
               <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4">
-                <div><dt className="text-slate-500">{t('file.valid')}</dt><dd className="font-mono text-slate-200">{summary.count}</dd></div>
-                <div><dt className="text-slate-500">{t('file.latRange')}</dt><dd className="font-mono text-slate-200">{summary.latMin} … {summary.latMax}</dd></div>
-                <div><dt className="text-slate-500">{t('file.lonRange')}</dt><dd className="font-mono text-slate-200">{summary.lonMin} … {summary.lonMax}</dd></div>
-                <div><dt className="text-slate-500">{t('file.centroid')}</dt><dd className="font-mono text-slate-200">{summary.latMean.toFixed(5)}, {summary.lonMean.toFixed(5)}</dd></div>
+                <div><dt className="text-slate-400">{t('file.valid')}</dt><dd className="font-mono text-slate-200">{summary.count}</dd></div>
+                <div><dt className="text-slate-400">{t('file.latRange')}</dt><dd className="font-mono text-slate-200">{summary.latMin} … {summary.latMax}</dd></div>
+                <div><dt className="text-slate-400">{t('file.lonRange')}</dt><dd className="font-mono text-slate-200">{summary.lonMin} … {summary.lonMax}</dd></div>
+                <div><dt className="text-slate-400">{t('file.centroid')}</dt><dd className="font-mono text-slate-200">{summary.latMean.toFixed(5)}, {summary.lonMean.toFixed(5)}</dd></div>
               </dl>
             )}
 
-            <div className="mt-4 overflow-x-auto rounded border border-edge">
+            <div
+              className="mt-4 overflow-x-auto rounded border border-edge"
+              tabIndex={0}
+              role="region"
+              aria-label={t('file.tableRegion')}
+            >
               <table className="w-full min-w-max text-xs">
+                <caption className="sr-only">
+                  {t('file.tableCaption', { shown: Math.min(PREVIEW_ROWS, final.rows.length), total: final.rows.length })}
+                </caption>
                 <thead>
                   <tr className="border-b border-edge bg-panel text-left">
-                    <th className="px-2 py-1.5 font-medium text-slate-500">#</th>
+                    <th scope="col" className="px-2 py-1.5 font-medium text-slate-400">
+                      {t('file.rowHeader')}
+                    </th>
                     {final.columns.map((c) => (
-                      <th key={c} className="whitespace-nowrap px-2 py-1.5 font-medium text-slate-300">{c}</th>
+                      <th key={c} scope="col" className="whitespace-nowrap px-2 py-1.5 font-medium text-slate-300">{c}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {final.rows.slice(0, PREVIEW_ROWS).map((row, i) => (
                     <tr key={i} className="border-b border-edge/50 last:border-0">
-                      <td className={`px-2 py-1 font-mono ${STATUS_STYLE[displayLabel(i)] ?? 'text-slate-500'}`}>
+                      {/* The status was in the colour and nowhere else, so a
+                          screen reader was told nothing and anyone who cannot
+                          separate amber from green saw nothing either. The mark
+                          carries it visually, the hidden text carries it
+                          aloud. */}
+                      <th
+                        scope="row"
+                        className={`whitespace-nowrap px-2 py-1 text-left font-mono font-normal
+                                    ${STATUS_STYLE[displayLabel(i)] ?? 'text-slate-400'}`}
+                      >
+                        <span aria-hidden="true">{STATUS_MARK[displayLabel(i)] ?? ''}</span>
                         {i + 1}
-                      </td>
+                        <span className="sr-only">
+                          {', '}
+                          {t(`file.rowStatus.${displayLabel(i)}`)}
+                        </span>
+                      </th>
                       {row.map((v, c) => (
                         <td key={c} className="whitespace-nowrap px-2 py-1 font-mono text-slate-300">
                           {v === null || v === undefined ? '' : String(v)}
@@ -791,7 +838,7 @@ export default function FileConvert() {
               </table>
             </div>
             {final.rows.length > PREVIEW_ROWS && (
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-slate-400">
                 {t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })}
               </p>
             )}
@@ -878,7 +925,7 @@ export default function FileConvert() {
                 )}
               />
             </div>
-            <p className="mt-3 text-xs text-slate-500">{t('file.exportNote')}</p>
+            <p className="mt-3 text-xs text-slate-400">{t('file.exportNote')}</p>
           </Step>
         </>
       )}

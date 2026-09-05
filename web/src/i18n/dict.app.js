@@ -9,6 +9,10 @@ export default {
     pt: 'Conversor de coordenadas GMS para graus decimais',
     en: 'DMS to decimal degrees coordinate converter',
   },
+  'app.skipToContent': {
+    pt: 'Saltar para o conteúdo',
+    en: 'Skip to content',
+  },
   'app.sections': {
     pt: 'Secções',
     en: 'Sections',

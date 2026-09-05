@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Accessibility work on the web page, measured before and after rather than
+  guessed at: a skip link to the content, a `main` landmark, a caption and
+  column and row scopes on the results table, a live region that says the
+  conversion is running and how many rows it finished with, and each step
+  announced as "Passo 1: Ficheiro" instead of "1Ficheiro". Every row carries
+  its status as a shape and as text as well as a colour, so the table means
+  something to a screen reader and to anyone who cannot separate amber from
+  green.
 - Coordinate systems, on the web page: a system for the file being read and an
   optional second system for the output. Seventeen named systems - WGS 84,
   ETRS89, PTRA08, Portugal TM06, UTM 29N, Datum 73, Lisboa/Hayford-Gauss
@@ -121,6 +129,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The page never set a text colour. `<body>` carried the background and
+  nothing carried the ink, so every element without an explicit `text-*` class
+  inherited the browser default - near-black on a near-black ground, measured
+  at 1.18:1. The download buttons and the section tabs were exactly that.
+  Contrast failures across the page went from twenty to none.
 - The Excel export no longer writes live formulas. openpyxl writes a cell whose
   text begins with `=` as a formula rather than as text, so a converted file
   carrying `=HYPERLINK(...)` in a name column opened with it live and ran it.

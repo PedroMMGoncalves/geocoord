@@ -67,6 +67,17 @@ function AppInner({ lang, setLang }) {
 
   return (
     <div className="flex min-h-full flex-col">
+      {/* Twenty-four things are focusable before the content starts. Without
+          this, reaching the file input by keyboard means passing all of them
+          on every visit. */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50
+                   focus:rounded focus:bg-accent focus:px-3 focus:py-2 focus:text-sm
+                   focus:font-medium focus:text-panel"
+      >
+        {t('app.skipToContent')}
+      </a>
       <header className="border-b border-edge bg-surface px-4 py-3 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -74,7 +85,7 @@ function AppInner({ lang, setLang }) {
             <div>
               <div className="flex items-baseline gap-2">
                 <span className="text-lg font-semibold text-slate-100">GeoCoord</span>
-                <span className="text-xs text-slate-500">v{import.meta.env.APP_VERSION}</span>
+                <span className="text-xs text-slate-400">v{import.meta.env.APP_VERSION}</span>
               </div>
               <p className="text-sm text-slate-400">{t('app.subtitle')}</p>
             </div>
@@ -120,7 +131,7 @@ function AppInner({ lang, setLang }) {
         </div>
       </nav>
 
-      <main className="flex-1">
+      <main id="main" tabIndex={-1} className="flex-1">
         {tab === 'file' ? <FileConvert /> : <QuickConvert />}
       </main>
     </div>

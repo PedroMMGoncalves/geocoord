@@ -152,6 +152,40 @@ export default {
   'file.latRange': { pt: 'Latitude', en: 'Latitude' },
   'file.lonRange': { pt: 'Longitude', en: 'Longitude' },
   'file.centroid': { pt: 'Centróide', en: 'Centroid' },
+  'file.stepLabel': { pt: 'Passo {n}: {title}', en: 'Step {n}: {title}' },
+
+  // Read out after a row number, so these are singular and adjectival where
+  // file.status.* are the plural nouns the counts line needs.
+  'file.rowStatus.ok': { pt: 'convertida', en: 'converted' },
+  'file.rowStatus.swap_axis': {
+    pt: 'troca certa, a letra do hemisfério contradiz a coluna',
+    en: 'certain swap, the hemisphere letter contradicts the column',
+  },
+  'file.rowStatus.swap_range': {
+    pt: 'possível troca, fora do intervalo como está',
+    en: 'possible swap, out of range as written',
+  },
+  'file.rowStatus.swap_cluster': {
+    pt: 'possível troca, fora do sítio',
+    en: 'possible swap, out of place',
+  },
+  'file.rowStatus.out_of_range': {
+    pt: 'fora do intervalo válido',
+    en: 'out of the valid range',
+  },
+  'file.rowStatus.missing': { pt: 'ilegível', en: 'unreadable' },
+
+  'file.rowHeader': { pt: 'Linha', en: 'Row' },
+  'file.tableRegion': {
+    pt: 'Tabela de resultados, deslocável na horizontal',
+    en: 'Results table, scrolls horizontally',
+  },
+  'file.tableCaption': {
+    pt: 'Resultados da conversão: a mostrar {shown} de {total} linhas. '
+      + 'A primeira coluna de cada linha diz o estado da conversão.',
+    en: 'Conversion results: showing {shown} of {total} rows. The first column '
+      + 'of each row gives the conversion status.',
+  },
   'file.previewNote': {
     pt: 'A mostrar as primeiras {shown} de {total} linhas. O ficheiro descarregado leva todas.',
     en: 'Showing the first {shown} of {total} rows. The downloaded file carries all of them.',
