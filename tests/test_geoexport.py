@@ -7,7 +7,13 @@ import shapefile
 
 import pytest
 
-from geocoord.geoexport import sanitize_filename, to_geojson, to_kml, to_shapefile_zip
+from geocoord.geoexport import (
+    sanitize_filename,
+    to_excel_bytes,
+    to_geojson,
+    to_kml,
+    to_shapefile_zip,
+)
 
 FEATURES = [
     (-8.0, 39.0, {"name": "Lisboa", "value": 1}),
@@ -108,9 +114,7 @@ def _excel_cells(frame):
 
     import openpyxl
 
-    import app
-
-    book = openpyxl.load_workbook(io.BytesIO(app.to_excel_bytes(frame)))
+    book = openpyxl.load_workbook(io.BytesIO(to_excel_bytes(frame)))
     sheet = book.active
     return [(c.value, c.data_type) for row in sheet.iter_rows(min_row=2) for c in row]
 
