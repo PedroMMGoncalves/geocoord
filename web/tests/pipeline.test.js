@@ -255,61 +255,61 @@ describe('readWorkbook', () => {
   const s = (v) => ({ t: 's', v })
   const n = (v, z) => (z ? { t: 'n', v, z } : { t: 'n', v })
 
-  it('keeps a long numeric identifier exact instead of rendering it as science', () => {
+  it('keeps a long numeric identifier exact instead of rendering it as science', async () => {
     // Excel's General format paints 12 digits or more in scientific notation.
     // Reading the painted text would turn a lab number into "1.23457E+15".
     const bytes = workbook([
       [s('id'), s('lat'), s('lon')],
       [n(1234567890123456), n(38.5), n(-9.0)],
     ])
-    expect(readWorkbook(bytes).rows[0][0]).toBe('1234567890123456')
+    expect((await readWorkbook(bytes)).rows[0][0]).toBe('1234567890123456')
   })
 
-  it('keeps a coordinate at full precision even when the cell is formatted short', () => {
+  it('keeps a coordinate at full precision even when the cell is formatted short', async () => {
     // The cell displays "38.71"; the file holds 38.7083335. Reading what is
     // displayed moves the point two and a half kilometres.
     const bytes = workbook([
       [s('lat'), s('lon')],
       [n(38.7083335, '0.00'), n(-9.1396, '0.00')],
     ])
-    expect(readWorkbook(bytes).rows[0][0]).toBe('38.7083335')
+    expect((await readWorkbook(bytes)).rows[0][0]).toBe('38.7083335')
   })
 
-  it('still reads a date as a date, not as a day count', () => {
+  it('still reads a date as a date, not as a day count', async () => {
     const bytes = workbook([
       [s('data'), s('lat')],
       [n(45358, 'yyyy\\-mm\\-dd'), n(38.5)],
     ])
-    expect(readWorkbook(bytes).rows[0][0]).toBe('2024-03-07')
+    expect((await readWorkbook(bytes)).rows[0][0]).toBe('2024-03-07')
   })
 
-  it('keeps a text identifier with its leading zeros', () => {
+  it('keeps a text identifier with its leading zeros', async () => {
     const bytes = workbook([[s('id')], [s('0071')]])
-    expect(readWorkbook(bytes).rows[0][0]).toBe('0071')
+    expect((await readWorkbook(bytes)).rows[0][0]).toBe('0071')
   })
 
-  it('reads a named sheet, and the first one by default', () => {
+  it('reads a named sheet, and the first one by default', async () => {
     const sheetA = { A1: s('a'), A2: s('1'), '!ref': 'A1:A2' }
     const sheetB = { A1: s('b'), A2: s('2'), '!ref': 'A1:A2' }
     const bytes = new Uint8Array(XLSX.write(
       { SheetNames: ['Um', 'Dois'], Sheets: { Um: sheetA, Dois: sheetB } },
       { type: 'array', bookType: 'xlsx' },
     ))
-    expect(readWorkbook(bytes).columns).toEqual(['a'])
-    expect(readWorkbook(bytes, 'Dois').columns).toEqual(['b'])
+    expect((await readWorkbook(bytes)).columns).toEqual(['a'])
+    expect((await readWorkbook(bytes, 'Dois')).columns).toEqual(['b'])
   })
 
-  it('returns an empty table for an empty sheet rather than raising', () => {
+  it('returns an empty table for an empty sheet rather than raising', async () => {
     const bytes = new Uint8Array(XLSX.write(
       { SheetNames: ['Vazia'], Sheets: { Vazia: {} } },
       { type: 'array', bookType: 'xlsx' },
     ))
-    expect(readWorkbook(bytes)).toEqual({ columns: [], rows: [] })
+    expect(await readWorkbook(bytes)).toEqual({ columns: [], rows: [] })
   })
 })
 
 describe('the file flow end to end', () => {
-  it('reads a workbook, converts it, and exports what a GIS can open', () => {
+  it('reads a workbook, converts it, and exports what a GIS can open', async () => {
     const sheet = {
       A1: { t: 's', v: 'amostra' }, B1: { t: 's', v: 'lat' }, C1: { t: 's', v: 'lon' },
       A2: { t: 's', v: '0071' }, B2: { t: 's', v: '38° 42\' 30" N' }, C2: { t: 's', v: '9° 8\' 12" W' },
@@ -321,7 +321,7 @@ describe('the file flow end to end', () => {
       { type: 'array', bookType: 'xlsx' },
     ))
 
-    const table = readWorkbook(bytes)
+    const table = await readWorkbook(bytes)
     const cols = table.columns
     const result = buildResult(
       table,

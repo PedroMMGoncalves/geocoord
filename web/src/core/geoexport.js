@@ -12,7 +12,6 @@
  * live apart from this one.
  */
 
-import JSZip from 'jszip'
 import { writeShp, writeShx, writeDbf } from './shapefile.js'
 
 // ESRI WKT for WGS84, written to the shapefile .prj sidecar.
@@ -237,6 +236,9 @@ export function dbfValue(v) {
  * asynchronous, unlike Python's zipfile.
  */
 export async function toShapefileZip(features, fieldNames, baseName = 'coordinates') {
+  // JSZip is fetched on demand, like SheetJS: it is a hundred kilobytes that
+  // only the Shapefile download needs, and most visitors take the CSV.
+  const { default: JSZip } = await import('jszip')
   fieldNames = Array.from(fieldNames)
   const dbfNames = safeFieldNames(fieldNames)
   const layer = sanitizeFilename(baseName, 'coordinates')

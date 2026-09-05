@@ -132,15 +132,19 @@ export default function FileConvert() {
   const [accepted, setAccepted] = useState(() => new Set())
 
   const inputRef = useRef(null)
+  // The file's name, outside React state: the re-read effect needs it without
+  // taking a dependency on the source it is about to replace.
+  const nameRef = useRef('')
 
-  /** Read a table out of whatever is currently loaded, honouring the options. */
-  const reread = useCallback((data, name, sheetName, separator) => {
+  /** Read a table out of whatever is currently loaded, honouring the options.
+   *  Asynchronous because SheetJS is fetched only when a workbook turns up. */
+  const reread = useCallback(async (data, name, sheetName, separator) => {
     if (SPREADSHEET.test(name)) {
-      const names = workbookSheets(data)
+      const names = await workbookSheets(data)
       setSheets(names)
       const chosen = names.includes(sheetName) ? sheetName : names[0]
       setSheet(chosen ?? '')
-      return tidyTable(readWorkbook(data, chosen))
+      return tidyTable(await readWorkbook(data, chosen))
     }
     setSheets([])
     setSheet('')
@@ -151,11 +155,12 @@ export default function FileConvert() {
     setError(null)
     try {
       const data = new Uint8Array(await file.arrayBuffer())
-      const table = reread(data, file.name, '', sep)
+      const table = await reread(data, file.name, '', sep)
       if (table.columns.length === 0) {
         setError(t('file.errEmpty'))
         return
       }
+      nameRef.current = file.name
       setBytes(data)
       setSource({ name: file.name, table })
       setAccepted(new Set())
@@ -172,6 +177,7 @@ export default function FileConvert() {
         setError(t('file.errEmpty'))
         return
       }
+      nameRef.current = 'colado.csv'
       setBytes(null)
       setSheets([])
       setSource({ name: 'colado.csv', table })
@@ -182,15 +188,23 @@ export default function FileConvert() {
   }, [pasted, t])
 
   // Re-read when the sheet or the separator changes, which only applies to a
-  // file that came from disk.
+  // file that came from disk. The read is asynchronous, so a change made while
+  // an earlier read is still in flight must not have the stale result land on
+  // top of it.
   useEffect(() => {
-    if (!bytes || !source) return
-    try {
-      setSource((s) => ({ ...s, table: reread(bytes, s.name, sheet, sep) }))
-      setAccepted(new Set())
-    } catch (e) {
-      setError(t('file.errRead', { message: e?.message ?? String(e) }))
-    }
+    if (!bytes) return undefined
+    let cancelled = false
+    ;(async () => {
+      try {
+        const table = await reread(bytes, nameRef.current, sheet, sep)
+        if (cancelled) return
+        setSource((s) => (s === null ? s : { ...s, table }))
+        setAccepted(new Set())
+      } catch (e) {
+        if (!cancelled) setError(t('file.errRead', { message: e?.message ?? String(e) }))
+      }
+    })()
+    return () => { cancelled = true }
     // `source` is deliberately absent: including it would re-run on its own
     // update. The sheet and the separator are what should trigger a re-read.
     // eslint-disable-next-line react-hooks/exhaustive-deps

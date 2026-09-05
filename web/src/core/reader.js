@@ -20,7 +20,22 @@
  * rules on the list of things the two implementations have to agree about.
  */
 import Papa from 'papaparse'
-import * as XLSX from 'xlsx'
+
+/**
+ * SheetJS, loaded the first time a workbook actually turns up.
+ *
+ * It is 200 of the bundle's 216 kB gzipped - an order of magnitude more
+ * than everything else on the page put together - and a good share of the
+ * files that arrive here are CSV, which does not need a line of it. Behind a
+ * dynamic import it becomes a second chunk that is fetched on demand, so the
+ * page a CSV user waits for is small. The promise is kept so a second
+ * workbook does not fetch it again.
+ */
+let sheetjs = null
+function loadSheetJs() {
+  if (sheetjs === null) sheetjs = import('xlsx')
+  return sheetjs
+}
 
 // The separators the application offers, and the only ones worth guessing at.
 export const SEPARATORS = [',', ';', '\t', '|']
@@ -125,7 +140,8 @@ export function readCsvBytes(bytes, options = {}) {
  * The sheet names in a workbook, in book order.
  * Accepts the bytes of an .xlsx, .xls or any other format SheetJS reads.
  */
-export function workbookSheets(bytes) {
+export async function workbookSheets(bytes) {
+  const XLSX = await loadSheetJs()
   return XLSX.read(bytes, { type: 'array', bookSheets: true }).SheetNames
 }
 
@@ -165,8 +181,11 @@ function cellText(cell) {
  * The grid is walked cell by cell rather than through `sheet_to_json`, because
  * that helper only offers the all-`v` or all-`w` choice that cellText exists to
  * avoid.
+ *
+ * Asynchronous because SheetJS is fetched on demand; see loadSheetJs.
  */
-export function readWorkbook(bytes, sheetName = null) {
+export async function readWorkbook(bytes, sheetName = null) {
+  const XLSX = await loadSheetJs()
   const book = XLSX.read(bytes, { type: 'array', cellDates: true, cellNF: true })
   const name = sheetName ?? book.SheetNames[0]
   const sheet = book.Sheets[name]

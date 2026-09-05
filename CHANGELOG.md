@@ -65,6 +65,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The browser fetches SheetJS and JSZip only when they are needed - the first
+  spreadsheet, the first Shapefile download - rather than in the page itself.
+  Between them they were 150 of the bundle's 216 kB gzipped, and a visitor
+  converting a CSV needs neither. The page is now 67 kB.
 - File reading moved out of `app.py` into `geocoord/reader.py` as pure
   functions over text and bytes, so the step before `tidy_table` can be tested
   on its own and mirrored in the JavaScript port. Behaviour is unchanged apart
@@ -81,6 +85,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Auto mode no longer reports reversed coordinates as fine. Its tolerance for
+  "the swap brings this row back where the data is" was one and a half times
+  the radius of the dense *core* of the data, and a country is far wider than
+  its core: for a survey around Lisbon with points nationwide that came to 2.8
+  degrees, while mainland Portugal is 5.4 degrees tall. A row reversed anywhere
+  north of Coimbra or along the eastern border fell outside it and was passed as
+  valid - a sweep of true positions over the mainland put it at 38% of genuinely
+  reversed rows missed, with the whole of Trás-os-Montes a blind spot. The
+  tolerance now reaches as far as the good data actually reaches, measured with
+  the outliers left out so a reversed row cannot widen the tolerance meant to
+  catch it, and a row whose swap brings it ten times closer is caught even in a
+  survey too compact to have an extent. Both thresholds were chosen by measuring
+  recall against false accusations across six survey shapes, and four cases are
+  pinned in the parity contract, including the ambiguity that remains: a real
+  point at the mirror of the data cannot be told from a reversed one, which is
+  why the application asks before changing anything.
 - A spreadsheet cell is read by the value it holds rather than by how it is
   displayed. Both halves of the application read Excel through the display
   format, and it cost data twice over. Leading zeros went the way they used to
