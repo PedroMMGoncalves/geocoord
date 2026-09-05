@@ -29,3 +29,33 @@ describe('translate', () => {
     expect(translate(DICT, 'en', 'withVar', { n: 3 })).toBe('3 of 3')
   })
 })
+
+describe('translate: singular forms', () => {
+  const dict = {
+    rows: {
+      pt: '{n} linhas', ptOne: '{n} linha',
+      en: '{n} rows', enOne: '{n} row',
+    },
+    plain: { pt: '{n} coisas', en: '{n} things' },
+  }
+
+  it('uses the singular when the count is exactly one', () => {
+    expect(translate(dict, 'pt', 'rows', { n: 1 })).toBe('1 linha')
+    expect(translate(dict, 'en', 'rows', { n: 1 })).toBe('1 row')
+  })
+
+  it('uses the plural for every other count, zero included', () => {
+    expect(translate(dict, 'pt', 'rows', { n: 0 })).toBe('0 linhas')
+    expect(translate(dict, 'pt', 'rows', { n: 2 })).toBe('2 linhas')
+    expect(translate(dict, 'en', 'rows', { n: 11 })).toBe('11 rows')
+  })
+
+  it('leaves an entry without a singular form alone', () => {
+    expect(translate(dict, 'pt', 'plain', { n: 1 })).toBe('1 coisas')
+  })
+
+  it('is unaffected by a call that carries no count', () => {
+    expect(translate(dict, 'pt', 'rows', { x: 1 })).toBe('{n} linhas')
+    expect(translate(dict, 'pt', 'rows')).toBe('{n} linhas')
+  })
+})

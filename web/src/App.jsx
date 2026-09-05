@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
+import FileConvert from './components/FileConvert.jsx'
 import QuickConvert from './components/QuickConvert.jsx'
 import { LANGS, LangContext, useT } from './i18n.jsx'
 
 const STORAGE_KEY = 'geocoord:lang'
+
+const TABS = [
+  { id: 'file', key: 'file.tabFile' },
+  { id: 'quick', key: 'file.tabQuick' },
+]
 
 /** Coordinate-crosshair mark, echoing the favicon in index.html. */
 function Mark() {
@@ -51,6 +57,13 @@ export default function App() {
 
 function AppInner({ lang, setLang }) {
   const t = useT()
+  // A link carrying ?lat=&lon= is meant for the single-coordinate converter,
+  // which reads them; anything else opens on the file flow, which is what
+  // nearly every visit is for.
+  const [tab, setTab] = useState(() => {
+    const q = new URLSearchParams(window.location.search)
+    return q.has('lat') || q.has('lon') ? 'quick' : 'file'
+  })
 
   return (
     <div className="flex min-h-full flex-col">
@@ -87,8 +100,28 @@ function AppInner({ lang, setLang }) {
         </div>
       </header>
 
+      <nav className="border-b border-edge bg-surface px-4 sm:px-6" aria-label={t('app.sections')}>
+        <div className="flex gap-1">
+          {TABS.map(({ id, key }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              aria-current={tab === id ? 'page' : undefined}
+              className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors
+                          focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent
+                          ${tab === id
+                            ? 'border-accent text-accent'
+                            : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+            >
+              {t(key)}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       <main className="flex-1">
-        <QuickConvert />
+        {tab === 'file' ? <FileConvert /> : <QuickConvert />}
       </main>
     </div>
   )

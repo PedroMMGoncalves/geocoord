@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import appDict from './i18n/dict.app.js'
+import fileDict from './i18n/dict.file.js'
 import quickDict from './i18n/dict.quick.js'
 
 /**
@@ -30,7 +31,19 @@ export function useLang() {
  */
 export function translate(dict, lang, key, vars) {
   const entry = dict[key]
-  let s = entry ? (entry[lang] ?? entry.pt) : key
+  if (!entry) return key
+
+  // Singular forms. An entry may carry a `ptOne`/`enOne` beside its plural,
+  // used when the count is exactly one, because "1 linhas" is the kind of
+  // thing that makes a tool look unfinished. The count is whichever of the
+  // interpolated variables is named `n`; entries without a singular form, and
+  // calls without an `n`, are unaffected.
+  const singular = vars !== undefined && vars !== null && Number(vars.n) === 1
+  let s
+  if (singular && typeof entry[`${lang}One`] === 'string') s = entry[`${lang}One`]
+  else if (singular && typeof entry.ptOne === 'string' && entry[lang] === undefined) s = entry.ptOne
+  else s = entry[lang] ?? entry.pt
+
   if (vars) {
     for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v))
   }
@@ -42,6 +55,6 @@ export function useT() {
   return (key, vars) => translate(DICT, lang, key, vars)
 }
 
-const DICT = { ...appDict, ...quickDict }
+const DICT = { ...appDict, ...fileDict, ...quickDict }
 
 export default DICT

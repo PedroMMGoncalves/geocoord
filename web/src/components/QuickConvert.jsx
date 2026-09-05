@@ -198,7 +198,6 @@ export default function QuickConvert() {
       )}
 
       <p className="mt-8 text-xs text-slate-600">{t('quick.privacy')}</p>
-      <p className="mt-1 text-xs text-slate-600">{t('quick.fileSoon')}</p>
     </section>
   )
 }
