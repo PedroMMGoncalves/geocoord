@@ -121,6 +121,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Excel export no longer writes live formulas. openpyxl writes a cell whose
+  text begins with `=` as a formula rather than as text, so a converted file
+  carrying `=HYPERLINK(...)` in a name column opened with it live and ran it.
+  The CSV export had been guarded by `csv_safe` for a while; this was the same
+  hole in the other one, and it is closed without altering the value: the cell
+  keeps its exact text and is marked as a string.
+- One control character no longer takes the whole Excel download with it.
+  openpyxl refuses a workbook containing a C0 control, and a single stray byte
+  in a notes column meant nothing could be exported at all.
+- The web page says it is converting while it converts, and announces the row
+  count when it finishes, instead of appearing to have frozen.
 - A hemisphere in the wrong column was silently converted and then reinvented.
   `9° 8' 12" W` chosen as a latitude became -9.136667, passed the range check,
   and was written back out as `9° 8' 12" S`, so the exported file asserted a

@@ -1,5 +1,6 @@
 import io
 import os
+import re
 
 import pandas as pd
 import streamlit as st
@@ -185,10 +186,39 @@ def apply_swaps(result, idxs, add_dms):
     return add_derived(r, add_dms)
 
 
+# The characters the XLSX format does not admit in a cell: the C0 controls,
+# less tab, newline and carriage return. openpyxl refuses a workbook containing
+# one, which took the whole download step down with it - a single stray byte in
+# a notes column and nothing could be exported at all.
+_ILLEGAL_IN_XLSX_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
 def to_excel_bytes(df):
+    """The frame as an .xlsx, with two things the format makes necessary.
+
+    A cell whose text begins with ``=`` is written as a *formula* by openpyxl,
+    not as text. A converted file is usually somebody else's data being opened
+    on your machine, so ``=HYPERLINK(...)`` in a name column arrived live and
+    ran. The CSV export has been guarded by ``csv_safe`` for a while; this is
+    the same hole in the other export, and it is closed differently: the cell
+    keeps its exact text and is marked as a string, so nothing is altered and
+    nothing executes. An apostrophe prefix would have been visible in the data.
+
+    And a C0 control character makes openpyxl refuse the whole workbook, so one
+    stray byte in a notes column meant no Excel download at all. They are
+    dropped, which is what the format requires; every other export keeps them.
+    """
+    cleaned = df.map(
+        lambda v: _ILLEGAL_IN_XLSX_RE.sub("", v) if isinstance(v, str) else v
+    )
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="converted")
+        cleaned.to_excel(writer, index=False, sheet_name="converted")
+        sheet = writer.book["converted"]
+        for row in sheet.iter_rows():
+            for cell in row:
+                if cell.data_type == "f":
+                    cell.data_type = "s"
     output.seek(0)
     return output.getvalue()
 

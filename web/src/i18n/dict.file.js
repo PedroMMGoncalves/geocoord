@@ -191,6 +191,12 @@ export default {
     en: 'The coordinates could not be transformed: {message}',
   },
   'crs.converting': { pt: 'A converter…', en: 'Converting…' },
+  'file.done': {
+    pt: 'Conversão terminada: {n} linhas.',
+    ptOne: 'Conversão terminada: uma linha.',
+    en: 'Conversion finished: {n} rows.',
+    enOne: 'Conversion finished: one row.',
+  },
 
   'file.tabFile': { pt: 'Ficheiro', en: 'File' },
   'file.tabQuick': { pt: 'Uma coordenada', en: 'Single coordinate' },

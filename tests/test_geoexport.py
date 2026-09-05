@@ -97,3 +97,60 @@ def test_shapefile_long_field_names_are_truncated():
     reader = shapefile.Reader(shp=shp, shx=shx, dbf=dbf)
     field_names = [f[0] for f in reader.fields if f[0] != "DeletionFlag"]
     assert all(len(name) <= 10 for name in field_names)
+
+
+# ---------------------------------------------------------------------------
+# The Excel export, which the format itself makes hazardous
+# ---------------------------------------------------------------------------
+def _excel_cells(frame):
+    """Write the frame and read back each cell's value and openpyxl type."""
+    import io
+
+    import openpyxl
+
+    import app
+
+    book = openpyxl.load_workbook(io.BytesIO(app.to_excel_bytes(frame)))
+    sheet = book.active
+    return [(c.value, c.data_type) for row in sheet.iter_rows(min_row=2) for c in row]
+
+
+def test_excel_export_does_not_write_live_formulas():
+    """A converted file is usually somebody else's data, opened on your machine.
+
+    openpyxl writes a cell whose text begins with "=" as a formula, so
+    =HYPERLINK(...) in a name column arrived live and ran. The text is kept
+    exactly as it was and marked as a string: nothing is altered, nothing
+    executes. The CSV export has been guarded by csv_safe for a while; this was
+    the same hole in the other one.
+    """
+    pytest.importorskip("openpyxl")
+    pd = pytest.importorskip("pandas")
+    frame = pd.DataFrame({"nome": ['=1+1', '=HYPERLINK("http://x","go")', '@SUM(A1)'],
+                          "lat": ["38.5"] * 3})
+    cells = _excel_cells(frame)
+    assert all(kind != "f" for _, kind in cells), "a cell was written as a formula"
+    # ...and the value is untouched, so the data still says what it said.
+    assert cells[0][0] == "=1+1"
+
+
+def test_excel_export_survives_a_control_character():
+    """One stray byte in a notes column used to mean no Excel download at all.
+
+    openpyxl refuses a workbook containing a C0 control character, and the
+    exception took the whole download step with it.
+    """
+    pytest.importorskip("openpyxl")
+    pd = pytest.importorskip("pandas")
+    for ch in ("\x07", "\x0b", "\x00", "\x1b"):
+        frame = pd.DataFrame({"nota": [f"a{ch}b"], "lat": ["38.5"]})
+        cells = _excel_cells(frame)
+        assert cells[0][0] == "ab", f"the control character {ch!r} was not dropped"
+
+
+def test_excel_export_keeps_tab_and_newline():
+    """Only the characters the format actually refuses are dropped."""
+    pytest.importorskip("openpyxl")
+    pd = pytest.importorskip("pandas")
+    frame = pd.DataFrame({"nota": ["a\tb\nc"], "lat": ["38.5"]})
+    assert _excel_cells(frame)[0][0] == "a\tb\nc"

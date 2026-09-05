@@ -667,6 +667,17 @@ export default function FileConvert() {
       {final && detection && (
         <>
           <Step n={3} title={t('file.step3')}>
+            {/* Converting a large file takes a second or two, and transforming
+                between coordinate systems is per-row work on top. A page that
+                sits still without saying anything is a page people reload. */}
+            <p
+              aria-live="polite"
+              className={`mb-2 text-xs ${converting ? 'text-slate-400' : 'sr-only'}`}
+            >
+              {converting
+                ? t('crs.converting')
+                : t('file.done', { n: final.rows.length })}
+            </p>
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
               {['ok', 'swap_axis', 'swap_range', 'swap_cluster', 'out_of_range', 'missing'].map((s) => (
                 counts.get(s) ? (
