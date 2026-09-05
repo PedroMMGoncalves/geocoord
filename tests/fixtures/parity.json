@@ -367,6 +367,419 @@
       "expected": "180° 0' 0\" W"
     }
   ],
+  "crs_transform": {
+    "tolerance_m": 0.0001,
+    "cases": [
+      {
+        "id": "epsg_4326_point_0",
+        "proj4": "+proj=longlat +datum=WGS84 +no_defs",
+        "lon": -9.1393,
+        "lat": 38.7223,
+        "x": -9.1393,
+        "y": 38.7223
+      },
+      {
+        "id": "epsg_4326_point_1",
+        "proj4": "+proj=longlat +datum=WGS84 +no_defs",
+        "lon": 13.2894,
+        "lat": -8.839,
+        "x": 13.2894,
+        "y": -8.839
+      },
+      {
+        "id": "epsg_4258_point_0",
+        "proj4": "+proj=longlat +ellps=GRS80 +no_defs",
+        "lon": -9.1393,
+        "lat": 38.7223,
+        "x": -9.1393,
+        "y": 38.7223
+      },
+      {
+        "id": "epsg_4258_point_1",
+        "proj4": "+proj=longlat +ellps=GRS80 +no_defs",
+        "lon": -8.611,
+        "lat": 41.1496,
+        "x": -8.611,
+        "y": 41.1496
+      },
+      {
+        "id": "epsg_5013_point_0",
+        "proj4": "+proj=longlat +ellps=GRS80 +no_defs",
+        "lon": -25.6756,
+        "lat": 37.7412,
+        "x": -25.6756,
+        "y": 37.7412
+      },
+      {
+        "id": "epsg_5013_point_1",
+        "proj4": "+proj=longlat +ellps=GRS80 +no_defs",
+        "lon": -16.9241,
+        "lat": 32.6669,
+        "x": -16.9241,
+        "y": 32.6669
+      },
+      {
+        "id": "epsg_3763_point_0",
+        "proj4": "+proj=tmerc +lat_0=39.6682583333333 +lon_0=-8.13310833333333 +k=1 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs",
+        "lon": -9.14,
+        "lat": 38.72,
+        "x": -87567.12290642294,
+        "y": -104793.55537643725
+      },
+      {
+        "id": "epsg_3763_point_1",
+        "proj4": "+proj=tmerc +lat_0=39.6682583333333 +lon_0=-8.13310833333333 +k=1 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs",
+        "lon": -8.61,
+        "lat": 41.15,
+        "x": -40032.330449861554,
+        "y": 164645.9522936204
+      },
+      {
+        "id": "epsg_3763_point_2",
+        "proj4": "+proj=tmerc +lat_0=39.6682583333333 +lon_0=-8.13310833333333 +k=1 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs",
+        "lon": -7.93,
+        "lat": 37.02,
+        "x": 18074.28655098665,
+        "y": -293945.45289732865
+      },
+      {
+        "id": "epsg_3763_point_3",
+        "proj4": "+proj=tmerc +lat_0=39.6682583333333 +lon_0=-8.13310833333333 +k=1 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs",
+        "lon": -6.76,
+        "lat": 41.8,
+        "x": 114119.84502882678,
+        "y": 237638.8846904419
+      },
+      {
+        "id": "epsg_25829_point_0",
+        "proj4": "+proj=utm +zone=29 +ellps=GRS80 +units=m +no_defs",
+        "lon": -9.14,
+        "lat": 38.72,
+        "x": 487829.517495774,
+        "y": 4285714.730115172
+      },
+      {
+        "id": "epsg_25829_point_1",
+        "proj4": "+proj=utm +zone=29 +ellps=GRS80 +units=m +no_defs",
+        "lon": -8.61,
+        "lat": 41.15,
+        "x": 532725.1591875132,
+        "y": 4555481.99217607
+      },
+      {
+        "id": "epsg_25829_point_2",
+        "proj4": "+proj=utm +zone=29 +ellps=GRS80 +units=m +no_defs",
+        "lon": -7.93,
+        "lat": 37.02,
+        "x": 595180.9867434005,
+        "y": 4097626.1877710777
+      },
+      {
+        "id": "epsg_32629_point_0",
+        "proj4": "+proj=utm +zone=29 +datum=WGS84 +units=m +no_defs",
+        "lon": -9.14,
+        "lat": 38.72,
+        "x": 487829.51749585225,
+        "y": 4285714.730227184
+      },
+      {
+        "id": "epsg_32629_point_1",
+        "proj4": "+proj=utm +zone=29 +datum=WGS84 +units=m +no_defs",
+        "lon": -8.61,
+        "lat": 41.15,
+        "x": 532725.1591872805,
+        "y": 4555481.992291499
+      },
+      {
+        "id": "epsg_32629_point_2",
+        "proj4": "+proj=utm +zone=29 +datum=WGS84 +units=m +no_defs",
+        "lon": -7.93,
+        "lat": 37.02,
+        "x": 595180.9867428339,
+        "y": 4097626.187880365
+      },
+      {
+        "id": "epsg_27493_point_0",
+        "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=-8.13190611111111 +k=1 +x_0=180.598 +y_0=-86.99 +ellps=intl +units=m +no_defs +towgs84=-239.749,88.181,30.488,0.263,0.082,1.211,2.229",
+        "lon": -9.14,
+        "lat": 38.72,
+        "x": -87569.47569564193,
+        "y": -104792.43451004024
+      },
+      {
+        "id": "epsg_27493_point_1",
+        "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=-8.13190611111111 +k=1 +x_0=180.598 +y_0=-86.99 +ellps=intl +units=m +no_defs +towgs84=-239.749,88.181,30.488,0.263,0.082,1.211,2.229",
+        "lon": -8.61,
+        "lat": 41.15,
+        "x": -40029.51126428165,
+        "y": 164648.02629904257
+      },
+      {
+        "id": "epsg_27493_point_2",
+        "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=-8.13190611111111 +k=1 +x_0=180.598 +y_0=-86.99 +ellps=intl +units=m +no_defs +towgs84=-239.749,88.181,30.488,0.263,0.082,1.211,2.229",
+        "lon": -7.93,
+        "lat": 37.02,
+        "x": 18069.292156011095,
+        "y": -293947.3222703121
+      },
+      {
+        "id": "epsg_27493_point_3",
+        "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=-8.13190611111111 +k=1 +x_0=180.598 +y_0=-86.99 +ellps=intl +units=m +no_defs +towgs84=-239.749,88.181,30.488,0.263,0.082,1.211,2.229",
+        "lon": -6.76,
+        "lat": 41.8,
+        "x": 114125.07877103044,
+        "y": 237638.56041865773
+      },
+      {
+        "id": "epsg_20790_point_0",
+        "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=1 +k=1 +x_0=200000 +y_0=300000 +ellps=intl +pm=lisbon +units=m +no_defs +towgs84=-288.885,-91.744,126.244,-1.691,0.41,-0.211,-4.598",
+        "lon": -9.14,
+        "lat": 38.72,
+        "x": 112430.66213163399,
+        "y": 195205.6465042163
+      },
+      {
+        "id": "epsg_20790_point_1",
+        "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=1 +k=1 +x_0=200000 +y_0=300000 +ellps=intl +pm=lisbon +units=m +no_defs +towgs84=-288.885,-91.744,126.244,-1.691,0.41,-0.211,-4.598",
+        "lon": -8.61,
+        "lat": 41.15,
+        "x": 159967.73926862393,
+        "y": 464648.5243483547
+      },
+      {
+        "id": "epsg_20790_point_2",
+        "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=1 +k=1 +x_0=200000 +y_0=300000 +ellps=intl +pm=lisbon +units=m +no_defs +towgs84=-288.885,-91.744,126.244,-1.691,0.41,-0.211,-4.598",
+        "lon": -7.93,
+        "lat": 37.02,
+        "x": 218072.3503074002,
+        "y": 6050.8126933958265
+      },
+      {
+        "id": "epsg_20790_point_3",
+        "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=1 +k=1 +x_0=200000 +y_0=300000 +ellps=intl +pm=lisbon +units=m +no_defs +towgs84=-288.885,-91.744,126.244,-1.691,0.41,-0.211,-4.598",
+        "lon": -6.76,
+        "lat": 41.8,
+        "x": 314122.58989027207,
+        "y": 537641.3864903079
+      },
+      {
+        "id": "epsg_5014_point_0",
+        "proj4": "+proj=utm +zone=25 +ellps=GRS80 +units=m +no_defs",
+        "lon": -31.13,
+        "lat": 39.45,
+        "x": 660901.4566693885,
+        "y": 4368384.224200098
+      },
+      {
+        "id": "epsg_5014_point_1",
+        "proj4": "+proj=utm +zone=25 +ellps=GRS80 +units=m +no_defs",
+        "lon": -31.11,
+        "lat": 39.7,
+        "x": 662039.0915126774,
+        "y": 4396168.508846742
+      },
+      {
+        "id": "epsg_5015_point_0",
+        "proj4": "+proj=utm +zone=26 +ellps=GRS80 +units=m +no_defs",
+        "lon": -25.67,
+        "lat": 37.74,
+        "x": 617184.1722654916,
+        "y": 4177800.6867378885
+      },
+      {
+        "id": "epsg_5015_point_1",
+        "proj4": "+proj=utm +zone=26 +ellps=GRS80 +units=m +no_defs",
+        "lon": -27.22,
+        "lat": 38.66,
+        "x": 480858.96925115795,
+        "y": 4279070.475685651
+      },
+      {
+        "id": "epsg_5015_point_2",
+        "proj4": "+proj=utm +zone=26 +ellps=GRS80 +units=m +no_defs",
+        "lon": -28.63,
+        "lat": 38.53,
+        "x": 357922.10170097376,
+        "y": 4265881.388519411
+      },
+      {
+        "id": "epsg_5016_point_0",
+        "proj4": "+proj=utm +zone=28 +ellps=GRS80 +units=m +no_defs",
+        "lon": -16.92,
+        "lat": 32.67,
+        "x": 319962.7197800764,
+        "y": 3616332.785659369
+      },
+      {
+        "id": "epsg_5016_point_1",
+        "proj4": "+proj=utm +zone=28 +ellps=GRS80 +units=m +no_defs",
+        "lon": -16.34,
+        "lat": 33.06,
+        "x": 374902.9240193302,
+        "y": 3658736.6786020515
+      },
+      {
+        "id": "epsg_2188_point_0",
+        "proj4": "+proj=utm +zone=25 +ellps=intl +units=m +no_defs +towgs84=-422.651,-172.995,84.02,0,0,0,0",
+        "lon": -31.13,
+        "lat": 39.45,
+        "x": 661278.2675014129,
+        "y": 4368317.786656384
+      },
+      {
+        "id": "epsg_2188_point_1",
+        "proj4": "+proj=utm +zone=25 +ellps=intl +units=m +no_defs +towgs84=-422.651,-172.995,84.02,0,0,0,0",
+        "lon": -31.11,
+        "lat": 39.7,
+        "x": 662415.9298418114,
+        "y": 4396102.362950821
+      },
+      {
+        "id": "epsg_2189_point_0",
+        "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-104,167,-38,0,0,0,0",
+        "lon": -27.22,
+        "lat": 38.66,
+        "x": 480757.2456814372,
+        "y": 4279155.707693883
+      },
+      {
+        "id": "epsg_2189_point_1",
+        "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-104,167,-38,0,0,0,0",
+        "lon": -28.63,
+        "lat": 38.53,
+        "x": 357819.22043827927,
+        "y": 4265966.499149616
+      },
+      {
+        "id": "epsg_2189_point_2",
+        "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-104,167,-38,0,0,0,0",
+        "lon": -28.03,
+        "lat": 38.4,
+        "x": 409958.6432163812,
+        "y": 4250784.504518226
+      },
+      {
+        "id": "epsg_2190_point_0",
+        "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-203,141,53,0,0,0,0",
+        "lon": -25.67,
+        "lat": 37.74,
+        "x": 617151.7342859734,
+        "y": 4177766.259017238
+      },
+      {
+        "id": "epsg_2190_point_1",
+        "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-203,141,53,0,0,0,0",
+        "lon": -25.09,
+        "lat": 36.97,
+        "x": 669987.8106362747,
+        "y": 4093213.8482295778
+      },
+      {
+        "id": "epsg_2191_point_0",
+        "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs",
+        "lon": -16.92,
+        "lat": 32.67,
+        "x": 319954.8907252115,
+        "y": 3616387.759979043
+      },
+      {
+        "id": "epsg_2191_point_1",
+        "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs",
+        "lon": -17.19,
+        "lat": 32.8,
+        "x": 294929.2936917243,
+        "y": 3631294.2010370158
+      },
+      {
+        "id": "epsg_2942_point_0",
+        "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-499,-249,314,0,0,0,0",
+        "lon": -16.34,
+        "lat": 33.06,
+        "x": 375271.5589980848,
+        "y": 3658385.1690612356
+      },
+      {
+        "id": "epsg_2942_point_1",
+        "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-499,-249,314,0,0,0,0",
+        "lon": -16.3,
+        "lat": 33.1,
+        "x": 379061.01882629655,
+        "y": 3662773.187964895
+      },
+      {
+        "id": "epsg_3061_point_0",
+        "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-210.502,-66.902,-48.476,2.094,-15.067,-5.817,0.485",
+        "lon": -16.34,
+        "lat": 33.06,
+        "x": 375271.33849167277,
+        "y": 3658383.595712122
+      },
+      {
+        "id": "epsg_3061_point_1",
+        "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-210.502,-66.902,-48.476,2.094,-15.067,-5.817,0.485",
+        "lon": -16.3,
+        "lat": 33.1,
+        "x": 379060.8376455692,
+        "y": 3662771.571760363
+      },
+      {
+        "id": "utm_33S_luanda",
+        "proj4": "+proj=utm +zone=33 +south +datum=WGS84 +units=m +no_defs",
+        "lon": 13.2894,
+        "lat": -8.839,
+        "x": 311871.9292101192,
+        "y": 9022515.835702162
+      },
+      {
+        "id": "utm_32S_angola_west",
+        "proj4": "+proj=utm +zone=32 +south +datum=WGS84 +units=m +no_defs",
+        "lon": 11.9,
+        "lat": -15.2,
+        "x": 811595.5264161113,
+        "y": 8317484.113968781
+      },
+      {
+        "id": "utm_36S_maputo",
+        "proj4": "+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs",
+        "lon": 32.5732,
+        "lat": -25.9692,
+        "x": 457275.47412902623,
+        "y": 7127657.377752845
+      },
+      {
+        "id": "utm_26N_praia",
+        "proj4": "+proj=utm +zone=26 +datum=WGS84 +units=m +no_defs",
+        "lon": -23.5133,
+        "lat": 14.933,
+        "x": 875164.9486776078,
+        "y": 1653859.7415054115
+      },
+      {
+        "id": "utm_28N_bissau",
+        "proj4": "+proj=utm +zone=28 +datum=WGS84 +units=m +no_defs",
+        "lon": -15.5977,
+        "lat": 11.8636,
+        "x": 434901.30388003966,
+        "y": 1311540.6713486142
+      },
+      {
+        "id": "utm_32N_sao_tome",
+        "proj4": "+proj=utm +zone=32 +datum=WGS84 +units=m +no_defs",
+        "lon": 6.7273,
+        "lat": 0.3365,
+        "x": 247042.93872131596,
+        "y": 37222.840896461144
+      },
+      {
+        "id": "utm_29N_porto",
+        "proj4": "+proj=utm +zone=29 +datum=WGS84 +units=m +no_defs",
+        "lon": -8.61,
+        "lat": 41.15,
+        "x": 532725.1591872805,
+        "y": 4555481.992291499
+      }
+    ]
+  },
   "hemisphere_axis": [
     {
       "id": "west_is_a_longitude",

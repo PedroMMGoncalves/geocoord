@@ -6,5 +6,10 @@ xlrd>=2.0.1
 # by slicing UTF-8 bytes, splitting a multi-byte character in half.
 pyshp>=3.1.6
 
+# Coordinate system transformations. The registry in geocoord/crs_registry.json
+# is generated from the EPSG database this ships with, and the tests check the
+# hand-assembled proj4 definitions back against it.
+pyproj>=3.6.0
+
 # Development (tests)
 pytest>=8.0.0

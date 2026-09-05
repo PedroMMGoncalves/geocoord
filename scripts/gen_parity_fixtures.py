@@ -42,6 +42,7 @@ from geocoord.converter import (
     region_check,
     tidy_table,
 )
+from geocoord import crs
 from geocoord.reader import read_csv_text
 from geocoord.geoexport import (
     sanitize_filename,
@@ -323,6 +324,43 @@ CSV_SAFE_INPUTS = [
     ("ordinary_text_untouched", "texto"),
     ("empty_untouched", ""),
 ]
+
+# Coordinate systems. Every registry entry, at its own control points, plus the
+# generic UTM hatch. The expected values come from pyproj; the browser runs
+# proj4js over the same proj4 definition and must land within CRS_TOLERANCE_M.
+CRS_TOLERANCE_M = 1e-4
+
+CRS_CASES = []
+for _code, _entry in crs.REGISTRY.items():
+    for _i, (_lon, _lat) in enumerate(_entry["control"]):
+        _x, _y = crs.from_wgs84(_lon, _lat, _entry["proj4"])
+        CRS_CASES.append({
+            "id": f"epsg_{_code}_point_{_i}",
+            "proj4": _entry["proj4"],
+            "lon": _lon,
+            "lat": _lat,
+            "x": _x,
+            "y": _y,
+        })
+for _zone, _south, _lon, _lat, _where in [
+    (33, True, 13.2894, -8.8390, "luanda"),
+    (32, True, 11.9, -15.2, "angola_west"),
+    (36, True, 32.5732, -25.9692, "maputo"),
+    (26, False, -23.5133, 14.9330, "praia"),
+    (28, False, -15.5977, 11.8636, "bissau"),
+    (32, False, 6.7273, 0.3365, "sao_tome"),
+    (29, False, -8.61, 41.15, "porto"),
+]:
+    _def = crs.utm_proj4(_zone, south=_south)
+    _x, _y = crs.from_wgs84(_lon, _lat, _def)
+    CRS_CASES.append({
+        "id": f"utm_{_zone}{'S' if _south else 'N'}_{_where}",
+        "proj4": _def,
+        "lon": _lon,
+        "lat": _lat,
+        "x": _x,
+        "y": _y,
+    })
 
 REGION_CHECK_INPUTS = [
     {
@@ -744,6 +782,10 @@ def build():
             {"id": i, "value": v, "axis": a, "expected": format_dms(v, a)}
             for i, v, a in FORMAT_DMS_INPUTS
         ],
+        "crs_transform": {
+            "tolerance_m": CRS_TOLERANCE_M,
+            "cases": CRS_CASES,
+        },
         "hemisphere_axis": [
             {"id": i, "input": v, "expected": hemisphere_axis(v)}
             for i, v in HEMISPHERE_AXIS_INPUTS

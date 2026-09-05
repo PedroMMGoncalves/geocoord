@@ -1,0 +1,399 @@
+{
+  "4326": {
+    "epsg": 4326,
+    "name": "WGS 84",
+    "pt": "WGS 84",
+    "kind": "geographic",
+    "proj4": "+proj=longlat +datum=WGS84 +no_defs",
+    "esri_wkt": "GEOGCS[\"GCS_WGS_1984\",DATUM[\"D_WGS_1984\",SPHEROID[\"WGS_1984\",6378137.0,298.257223563]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]]",
+    "coverage": "Global",
+    "deprecated": false,
+    "control": [
+      [
+        -9.1393,
+        38.7223
+      ],
+      [
+        13.2894,
+        -8.839
+      ]
+    ],
+    "note": null
+  },
+  "4258": {
+    "epsg": 4258,
+    "name": "ETRS89",
+    "pt": "ETRS89",
+    "kind": "geographic",
+    "proj4": "+proj=longlat +ellps=GRS80 +no_defs",
+    "esri_wkt": "GEOGCS[\"GCS_ETRS_1989\",DATUM[\"D_ETRS_1989\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]]",
+    "coverage": "Europa",
+    "deprecated": false,
+    "control": [
+      [
+        -9.1393,
+        38.7223
+      ],
+      [
+        -8.611,
+        41.1496
+      ]
+    ],
+    "note": null
+  },
+  "5013": {
+    "epsg": 5013,
+    "name": "PTRA08",
+    "pt": "PTRA08",
+    "kind": "geographic",
+    "proj4": "+proj=longlat +ellps=GRS80 +no_defs",
+    "esri_wkt": "GEOGCS[\"GCS_PTRA08\",DATUM[\"D_PTRA08\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]]",
+    "coverage": "Açores e Madeira",
+    "deprecated": false,
+    "control": [
+      [
+        -25.6756,
+        37.7412
+      ],
+      [
+        -16.9241,
+        32.6669
+      ]
+    ],
+    "note": null
+  },
+  "3763": {
+    "epsg": 3763,
+    "name": "ETRS89 / Portugal TM06",
+    "pt": "ETRS89 / Portugal TM06",
+    "kind": "projected",
+    "proj4": "+proj=tmerc +lat_0=39.6682583333333 +lon_0=-8.13310833333333 +k=1 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs",
+    "esri_wkt": "PROJCS[\"ETRS_1989_Portugal_TM06\",GEOGCS[\"GCS_ETRS_1989\",DATUM[\"D_ETRS_1989\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",0.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-8.13310833333333],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",39.6682583333333],UNIT[\"Meter\",1.0]]",
+    "coverage": "Portugal continental",
+    "deprecated": false,
+    "control": [
+      [
+        -9.14,
+        38.72
+      ],
+      [
+        -8.61,
+        41.15
+      ],
+      [
+        -7.93,
+        37.02
+      ],
+      [
+        -6.76,
+        41.8
+      ]
+    ],
+    "note": null
+  },
+  "25829": {
+    "epsg": 25829,
+    "name": "ETRS89 / UTM zone 29N",
+    "pt": "ETRS89 / UTM 29N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=29 +ellps=GRS80 +units=m +no_defs",
+    "esri_wkt": "PROJCS[\"ETRS_1989_UTM_Zone_29N\",GEOGCS[\"GCS_ETRS_1989\",DATUM[\"D_ETRS_1989\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-9.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Portugal continental",
+    "deprecated": false,
+    "control": [
+      [
+        -9.14,
+        38.72
+      ],
+      [
+        -8.61,
+        41.15
+      ],
+      [
+        -7.93,
+        37.02
+      ]
+    ],
+    "note": null
+  },
+  "32629": {
+    "epsg": 32629,
+    "name": "WGS 84 / UTM zone 29N",
+    "pt": "WGS 84 / UTM 29N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=29 +datum=WGS84 +units=m +no_defs",
+    "esri_wkt": "PROJCS[\"WGS_1984_UTM_Zone_29N\",GEOGCS[\"GCS_WGS_1984\",DATUM[\"D_WGS_1984\",SPHEROID[\"WGS_1984\",6378137.0,298.257223563]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-9.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Portugal continental",
+    "deprecated": false,
+    "control": [
+      [
+        -9.14,
+        38.72
+      ],
+      [
+        -8.61,
+        41.15
+      ],
+      [
+        -7.93,
+        37.02
+      ]
+    ],
+    "note": null
+  },
+  "27493": {
+    "epsg": 27493,
+    "name": "Datum 73 / Modified Portuguese Grid",
+    "pt": "Datum 73 / Hayford-Gauss IPCC",
+    "kind": "projected",
+    "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=-8.13190611111111 +k=1 +x_0=180.598 +y_0=-86.99 +ellps=intl +units=m +no_defs +towgs84=-239.749,88.181,30.488,0.263,0.082,1.211,2.229",
+    "esri_wkt": "PROJCS[\"Datum_73_Modified_Portuguese_Grid\",GEOGCS[\"GCS_Datum_73\",DATUM[\"D_Datum_73\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",180.598],PARAMETER[\"False_Northing\",-86.99],PARAMETER[\"Central_Meridian\",-8.13190611111111],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",39.6666666666667],UNIT[\"Meter\",1.0]]",
+    "coverage": "Portugal continental",
+    "deprecated": false,
+    "control": [
+      [
+        -9.14,
+        38.72
+      ],
+      [
+        -8.61,
+        41.15
+      ],
+      [
+        -7.93,
+        37.02
+      ],
+      [
+        -6.76,
+        41.8
+      ]
+    ],
+    "note": "Known in Portugal as Hayford-Gauss IPCC or Datum 73."
+  },
+  "20790": {
+    "epsg": 20790,
+    "name": "Lisbon (Lisbon) / Portuguese National Grid",
+    "pt": "Lisboa / Hayford-Gauss Militar",
+    "kind": "projected",
+    "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=1 +k=1 +x_0=200000 +y_0=300000 +ellps=intl +pm=lisbon +units=m +no_defs +towgs84=-288.885,-91.744,126.244,-1.691,0.41,-0.211,-4.598",
+    "esri_wkt": "PROJCS[\"Portuguese_National_Grid\",GEOGCS[\"GCS_Lisbon_Lisbon\",DATUM[\"Lisbon_1937_(Lisbon)\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Lisbon\",-9.13190611111111],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",200000.0],PARAMETER[\"False_Northing\",300000.0],PARAMETER[\"Central_Meridian\",1.0],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",39.6666666666667],UNIT[\"Meter\",1.0]]",
+    "coverage": "Portugal continental",
+    "deprecated": false,
+    "control": [
+      [
+        -9.14,
+        38.72
+      ],
+      [
+        -8.61,
+        41.15
+      ],
+      [
+        -7.93,
+        37.02
+      ],
+      [
+        -6.76,
+        41.8
+      ]
+    ],
+    "note": "Known in Portugal as Hayford-Gauss Militar; EPSG names it \"Lisbon (Lisbon) / Portuguese National Grid\"."
+  },
+  "5014": {
+    "epsg": 5014,
+    "name": "PTRA08 / UTM zone 25N",
+    "pt": "PTRA08 / UTM 25N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=25 +ellps=GRS80 +units=m +no_defs",
+    "esri_wkt": "PROJCS[\"PTRA08_UTM_Zone_25N\",GEOGCS[\"GCS_PTRA08\",DATUM[\"D_PTRA08\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-33.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Açores, Grupo Ocidental (Flores, Corvo)",
+    "deprecated": false,
+    "control": [
+      [
+        -31.13,
+        39.45
+      ],
+      [
+        -31.11,
+        39.7
+      ]
+    ],
+    "note": null
+  },
+  "5015": {
+    "epsg": 5015,
+    "name": "PTRA08 / UTM zone 26N",
+    "pt": "PTRA08 / UTM 26N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=26 +ellps=GRS80 +units=m +no_defs",
+    "esri_wkt": "PROJCS[\"PTRA08_UTM_Zone_26N\",GEOGCS[\"GCS_PTRA08\",DATUM[\"D_PTRA08\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-27.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Açores, Grupos Central e Oriental",
+    "deprecated": false,
+    "control": [
+      [
+        -25.67,
+        37.74
+      ],
+      [
+        -27.22,
+        38.66
+      ],
+      [
+        -28.63,
+        38.53
+      ]
+    ],
+    "note": null
+  },
+  "5016": {
+    "epsg": 5016,
+    "name": "PTRA08 / UTM zone 28N",
+    "pt": "PTRA08 / UTM 28N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=28 +ellps=GRS80 +units=m +no_defs",
+    "esri_wkt": "PROJCS[\"PTRA08_UTM_Zone_28N\",GEOGCS[\"GCS_PTRA08\",DATUM[\"D_PTRA08\",SPHEROID[\"GRS_1980\",6378137.0,298.257222101]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-15.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Madeira, Porto Santo, Desertas, Selvagens",
+    "deprecated": false,
+    "control": [
+      [
+        -16.92,
+        32.67
+      ],
+      [
+        -16.34,
+        33.06
+      ]
+    ],
+    "note": null
+  },
+  "2188": {
+    "epsg": 2188,
+    "name": "Azores Occidental 1939 / UTM zone 25N",
+    "pt": "Açores Ocidental 1939 / UTM 25N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=25 +ellps=intl +units=m +no_defs +towgs84=-422.651,-172.995,84.02,0,0,0,0",
+    "esri_wkt": "PROJCS[\"Azores_Occidental_1939_UTM_Zone_25N\",GEOGCS[\"GCS_Azores_Occidental_1939\",DATUM[\"D_Azores_Occidental_Islands_1939\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-33.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Flores, Corvo",
+    "deprecated": false,
+    "control": [
+      [
+        -31.13,
+        39.45
+      ],
+      [
+        -31.11,
+        39.7
+      ]
+    ],
+    "note": null
+  },
+  "2189": {
+    "epsg": 2189,
+    "name": "Azores Central 1948 / UTM zone 26N",
+    "pt": "Açores Central 1948 / UTM 26N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-104,167,-38,0,0,0,0",
+    "esri_wkt": "PROJCS[\"Azores_Central_1948_UTM_Zone_26N\",GEOGCS[\"GCS_Azores_Central_1948\",DATUM[\"D_Azores_Central_Islands_1948\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-27.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Faial, Graciosa, Pico, São Jorge, Terceira",
+    "deprecated": false,
+    "control": [
+      [
+        -27.22,
+        38.66
+      ],
+      [
+        -28.63,
+        38.53
+      ],
+      [
+        -28.03,
+        38.4
+      ]
+    ],
+    "note": null
+  },
+  "2190": {
+    "epsg": 2190,
+    "name": "Azores Oriental 1940 / UTM zone 26N",
+    "pt": "Açores Oriental 1940 / UTM 26N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-203,141,53,0,0,0,0",
+    "esri_wkt": "PROJCS[\"Azores_Oriental_1940_UTM_Zone_26N\",GEOGCS[\"GCS_Azores_Oriental_1940\",DATUM[\"D_Azores_Oriental_Islands_1940\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-27.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "São Miguel, Santa Maria, Formigas",
+    "deprecated": false,
+    "control": [
+      [
+        -25.67,
+        37.74
+      ],
+      [
+        -25.09,
+        36.97
+      ]
+    ],
+    "note": null
+  },
+  "2191": {
+    "epsg": 2191,
+    "name": "Madeira 1936 / UTM zone 28N",
+    "pt": "Madeira 1936 / UTM 28N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs",
+    "esri_wkt": "PROJCS[\"Madeira_1936_UTM_Zone_28N\",GEOGCS[\"GCS_Madeira_1936\",DATUM[\"D_Madeira_1936\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"degree minute second hemisphere\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-15.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Madeira",
+    "deprecated": true,
+    "control": [
+      [
+        -16.92,
+        32.67
+      ],
+      [
+        -17.19,
+        32.8
+      ]
+    ],
+    "note": "EPSG publishes no datum transformation for Madeira 1936: only a ballpark offset of unknown accuracy. The values are read on the International 1924 graticule with no shift applied, which is enough to recognise a legacy coordinate and not enough to position one. Use Porto Santo 1936 (2942) or, better, PTRA08 (5016)."
+  },
+  "2942": {
+    "epsg": 2942,
+    "name": "Porto Santo / UTM zone 28N",
+    "pt": "Porto Santo 1936 / UTM 28N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-499,-249,314,0,0,0,0",
+    "esri_wkt": "PROJCS[\"Porto_Santo_1936_UTM_Zone_28N\",GEOGCS[\"GCS_Porto_Santo_1936\",DATUM[\"D_Porto_Santo_1936\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-15.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Madeira, Porto Santo",
+    "deprecated": false,
+    "control": [
+      [
+        -16.34,
+        33.06
+      ],
+      [
+        -16.3,
+        33.1
+      ]
+    ],
+    "note": null
+  },
+  "3061": {
+    "epsg": 3061,
+    "name": "Porto Santo 1995 / UTM zone 28N",
+    "pt": "Porto Santo 1995 / UTM 28N",
+    "kind": "projected",
+    "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-210.502,-66.902,-48.476,2.094,-15.067,-5.817,0.485",
+    "esri_wkt": "PROJCS[\"Porto_Santo_1995_UTM_Zone_28N\",GEOGCS[\"GCS_Porto_Santo_1995\",DATUM[\"D_Porto_Santo_1995\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-15.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
+    "coverage": "Madeira, Porto Santo, Desertas",
+    "deprecated": false,
+    "control": [
+      [
+        -16.34,
+        33.06
+      ],
+      [
+        -16.3,
+        33.1
+      ]
+    ],
+    "note": null
+  }
+}
