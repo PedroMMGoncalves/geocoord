@@ -13,6 +13,7 @@ from geocoord.converter import (
     tidy_table,
 )
 from geocoord.geoexport import sanitize_filename, to_geojson, to_kml, to_shapefile_zip
+from geocoord.reader import excel_engine, read_csv_bytes
 
 APP_NAME = "GeoCoord"
 ACCENT = "#1f7a4d"  # accent colour — replace with an official LNEG colour if desired
@@ -123,23 +124,8 @@ def _step(label):
 # Reading
 # ---------------------------------------------------------------------------
 def read_csv(uploaded, sep, decimal):
-    kwargs = {"decimal": decimal}
-    if sep is None:
-        kwargs.update(sep=None, engine="python")
-    else:
-        kwargs.update(sep=sep)
-    for enc in ("utf-8", "latin1"):
-        try:
-            uploaded.seek(0)
-            return pd.read_csv(uploaded, encoding=enc, **kwargs)
-        except UnicodeDecodeError:
-            continue
     uploaded.seek(0)
-    return pd.read_csv(uploaded, encoding="latin1", **kwargs)
-
-
-def excel_engine(name):
-    return "openpyxl" if name.endswith(".xlsx") else "xlrd"
+    return read_csv_bytes(uploaded.read(), sep=sep, decimal=decimal)
 
 
 def _round(value, decimals):

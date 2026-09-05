@@ -48,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- File reading moved out of `app.py` into `geocoord/reader.py` as pure
+  functions over text and bytes, so the step before `tidy_table` can be tested
+  on its own and mirrored in the JavaScript port. Behaviour is unchanged apart
+  from the single-column fix below.
 - Reorganised the repository into a `geocoord/` package (`converter`,
   `geoexport`) and a `scripts/` folder for the Windows helper batch files.
 - Reworked the interface: a numbered step-by-step flow, results organised into
@@ -78,6 +82,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A coordinate that arrives already numeric is taken as it stands. Below 1e-4
   Python renders a float in exponential form, and the digits of the exponent
   were parsed as minutes, so a latitude of `1e-05` came back as `1.0833`.
+- A CSV with a single column no longer has its header cut in half. When
+  `csv.Sniffer` finds no delimiter, pandas guesses one out of the data itself,
+  so `lat` came back as the two columns `la` and `Unnamed: 1`. The separator is
+  now sniffed explicitly and falls back to a comma, which yields the one column
+  the file actually has.
 - Seconds are rounded by an explicit half-to-even rule rather than the host
   language's own. Python's `round` and JavaScript's `Math.round` disagree at a
   tie, which made the same file export different DMS strings from the desktop
