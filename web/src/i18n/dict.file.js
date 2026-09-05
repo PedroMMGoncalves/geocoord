@@ -17,7 +17,40 @@ export default {
   'file.step1': { pt: 'Ficheiro', en: 'File' },
   'file.step2': { pt: 'Colunas e região', en: 'Columns and region' },
   'file.step3': { pt: 'Resultado', en: 'Result' },
+  'file.stepMap': { pt: 'Mapa', en: 'Map' },
   'file.step4': { pt: 'Descarregar', en: 'Download' },
+
+  'map.optIn': {
+    pt: 'O mapa vai buscar imagens de fundo ao Esri, ao CARTO ou ao OpenStreetMap. '
+      + 'As suas coordenadas continuam a não sair daqui, mas a área que estiver a ver '
+      + 'fica implícita nos pedidos das imagens — por isso o mapa só abre se o pedir.',
+    en: 'The map fetches background imagery from Esri, CARTO or OpenStreetMap. Your '
+      + 'coordinates still do not leave this machine, but the area you are looking at '
+      + 'is implied by those requests — so the map only opens if you ask for it.',
+  },
+  'map.show': {
+    pt: 'Mostrar os {n} pontos no mapa',
+    ptOne: 'Mostrar o ponto no mapa',
+    en: 'Show the {n} points on a map',
+    enOne: 'Show the point on a map',
+  },
+  'map.nothingToShow': {
+    pt: 'Nenhum ponto para mostrar',
+    en: 'No points to show',
+  },
+  'map.loading': { pt: 'A carregar o mapa…', en: 'Loading the map…' },
+  'map.failed': {
+    pt: 'Não foi possível carregar o mapa. A conversão e as descargas não dependem dele.',
+    en: 'The map could not be loaded. Conversion and downloads do not depend on it.',
+  },
+  'map.label': { pt: 'Mapa dos pontos convertidos', en: 'Map of the converted points' },
+  'map.legendOk': { pt: 'Convertido', en: 'Converted' },
+  'map.legendSuspect': { pt: 'A rever', en: 'Needs review' },
+  'map.baseDark': { pt: 'Escuro', en: 'Dark' },
+  'map.baseLight': { pt: 'Claro', en: 'Light' },
+  'map.baseSat': { pt: 'Satélite', en: 'Satellite' },
+  'map.baseHybrid': { pt: 'Híbrido', en: 'Hybrid' },
+  'map.baseOsm': { pt: 'OpenStreetMap', en: 'OpenStreetMap' },
 
   'file.dropHere': {
     pt: 'Arraste o ficheiro para aqui',

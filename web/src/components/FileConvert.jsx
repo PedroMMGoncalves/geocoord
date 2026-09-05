@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { detectSwaps, regionCheck, tidyTable } from '../core/converter.js'
+import PointsMap from './PointsMap.jsx'
+import { detectSwaps, inRange, regionCheck, tidyTable } from '../core/converter.js'
 import { sanitizeFilename, toGeoJSON, toKML, toShapefileZip } from '../core/geoexport.js'
 import {
   LAT_CANDIDATES,
@@ -130,6 +131,9 @@ export default function FileConvert() {
   const [decimals, setDecimals] = useState(6)
   const [addDms, setAddDms] = useState(true)
   const [accepted, setAccepted] = useState(() => new Set())
+  // The map is opened by hand. Until it is, the page has spoken to nobody,
+  // and that is a promise worth keeping literally rather than nearly.
+  const [showMap, setShowMap] = useState(false)
 
   const inputRef = useRef(null)
   // The file's name, outside React state: the re-read effect needs it without
@@ -255,6 +259,34 @@ export default function FileConvert() {
     const { features, fieldNames } = featuresInRange(final)
     return { features, fieldNames }
   }, [final])
+
+  // The status to show for a row, as opposed to the status detection gave it.
+  // Detection runs on the data as it was read, so that unticking a row brings
+  // its suggestion back; but once the user has accepted an inversion the row is
+  // no longer pending review, and colouring it as suspect would say otherwise.
+  const displayLabel = useCallback(
+    (i) => (accepted.has(i) ? 'ok' : detection?.labels[i]),
+    [accepted, detection],
+  )
+
+  // What to draw. A row flagged swap_range is drawn where it would be if the
+  // columns were the other way round, which is the only place it could be: as
+  // written it is not a point on Earth. Mirrors render_map in app.py.
+  const mapPoints = useMemo(() => {
+    if (!final || !detection) return []
+    const out = []
+    for (let i = 0; i < final.rows.length; i += 1) {
+      const lat = final.lats[i]
+      const lon = final.lons[i]
+      const label = accepted.has(i) ? 'ok' : detection.labels[i]
+      if (inRange(lat, 'lat') && inRange(lon, 'lon')) {
+        out.push({ lat, lon, row: i, label, suspect: label !== 'ok' })
+      } else if (inRange(lon, 'lat') && inRange(lat, 'lon')) {
+        out.push({ lat: lon, lon: lat, row: i, label, suspect: true })
+      }
+    }
+    return out
+  }, [final, detection, accepted])
 
   function onDrop(e) {
     e.preventDefault()
@@ -508,7 +540,7 @@ export default function FileConvert() {
                 <tbody>
                   {final.rows.slice(0, PREVIEW_ROWS).map((row, i) => (
                     <tr key={i} className="border-b border-edge/50 last:border-0">
-                      <td className={`px-2 py-1 font-mono ${STATUS_STYLE[detection.labels[i]] ?? 'text-slate-500'}`}>
+                      <td className={`px-2 py-1 font-mono ${STATUS_STYLE[displayLabel(i)] ?? 'text-slate-500'}`}>
                         {i + 1}
                       </td>
                       {row.map((v, c) => (
@@ -528,7 +560,29 @@ export default function FileConvert() {
             )}
           </Step>
 
-          <Step n={4} title={t('file.step4')}>
+          <Step n={4} title={t('file.stepMap')}>
+            {showMap ? (
+              <PointsMap points={mapPoints} />
+            ) : (
+              <div>
+                <p className="text-sm text-slate-400">{t('map.optIn')}</p>
+                <button
+                  type="button"
+                  disabled={mapPoints.length === 0}
+                  onClick={() => setShowMap(true)}
+                  className="mt-2 rounded border border-accent/50 px-3 py-1.5 text-sm text-accent
+                             transition-colors hover:bg-accent hover:text-panel
+                             focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent
+                             disabled:cursor-not-allowed disabled:border-edge disabled:text-slate-600
+                             disabled:hover:bg-transparent"
+                >
+                  {mapPoints.length === 0 ? t('map.nothingToShow') : t('map.show', { n: mapPoints.length })}
+                </button>
+              </div>
+            )}
+          </Step>
+
+          <Step n={5} title={t('file.step4')}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               <DownloadButton
                 label="CSV"

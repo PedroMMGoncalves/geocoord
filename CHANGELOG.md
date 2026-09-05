@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A map of the converted points on the web page, on Leaflet, with the same
+  basemaps as the sibling tools (snap-wkt-generator, dji-mission-planner): Esri
+  imagery, Esri hybrid, CARTO light and dark, and OpenStreetMap, with the choice
+  remembered. Points are coloured with the same colour-blind-safe pair the
+  desktop map uses, a row suspected of being reversed is drawn where it would
+  be if it were, and accepting the inversion recolours it and re-frames the map.
+  It opens on request rather than on load: the basemap tiles come from third
+  parties, and while the coordinates never leave the machine, the area on screen
+  is implied by which tiles are asked for. That is said on the page.
 - A web application at `web/`, running entirely in the browser and published to
   GitHub Pages, so a coordinate can be converted with no installation and no
   account. It converts a whole spreadsheet or CSV - dropped, chosen or pasted
