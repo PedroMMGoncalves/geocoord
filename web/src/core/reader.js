@@ -130,32 +130,62 @@ export function workbookSheets(bytes) {
 }
 
 /**
+ * The text of one cell, as GeoCoord wants to read it.
+ *
+ * SheetJS offers two views of a cell: the stored value `v` and the text `w`
+ * that Excel would paint in the cell. Neither is right on its own.
+ *
+ * Taking `w` throughout - which is what `raw: false` does - reads a cell
+ * through its display format, and that loses data twice over. A number of
+ * twelve digits or more under the General format is painted in scientific
+ * notation, so a lab number of 1234567890123456 arrives as "1.23457E+15" and
+ * is gone. Worse for this application, a coordinate stored as 38.7083335 but
+ * formatted to two decimals is painted "38.71", which is a different place on
+ * the ground by two and a half kilometres, with nothing to say so.
+ *
+ * Taking `v` throughout loses the dates: a date is stored as the number of
+ * days since 1900 and would arrive as 45358.
+ *
+ * So: dates by their displayed text, everything else by its stored value.
+ * That is also what the desktop application sees, since openpyxl hands pandas
+ * the underlying value.
+ */
+function cellText(cell) {
+  if (cell === undefined || cell === null) return ''
+  if (cell.t === 'd') return cell.w ?? String(cell.v)
+  if (cell.v === undefined || cell.v === null) return ''
+  if (cell.t === 'n') return String(cell.v)
+  if (cell.t === 'b') return cell.w ?? (cell.v ? 'TRUE' : 'FALSE')
+  return String(cell.v)
+}
+
+/**
  * Read one sheet of a workbook into the neutral table shape.
  *
- * `raw: false` with `defval: ''` asks SheetJS for the formatted text of each
- * cell rather than its underlying value, which is what keeps a date looking
- * like a date instead of arriving as a serial number, and keeps this side
- * producing strings like the CSV path does.
+ * The grid is walked cell by cell rather than through `sheet_to_json`, because
+ * that helper only offers the all-`v` or all-`w` choice that cellText exists to
+ * avoid.
  */
 export function readWorkbook(bytes, sheetName = null) {
-  const book = XLSX.read(bytes, { type: 'array', cellDates: false })
+  const book = XLSX.read(bytes, { type: 'array', cellDates: true, cellNF: true })
   const name = sheetName ?? book.SheetNames[0]
   const sheet = book.Sheets[name]
-  if (!sheet) return { columns: [], rows: [] }
+  if (!sheet || !sheet['!ref']) return { columns: [], rows: [] }
 
-  const grid = XLSX.utils.sheet_to_json(sheet, {
-    header: 1,
-    raw: false,
-    defval: '',
-    blankrows: true,
-  })
+  const range = XLSX.utils.decode_range(sheet['!ref'])
+  const grid = []
+  for (let r = range.s.r; r <= range.e.r; r += 1) {
+    const row = []
+    for (let c = range.s.c; c <= range.e.c; c += 1) {
+      row.push(cellText(sheet[XLSX.utils.encode_cell({ r, c })]))
+    }
+    grid.push(row)
+  }
+
   while (grid.length > 0 && grid[grid.length - 1].every((c) => c === '')) grid.pop()
   if (grid.length === 0) return { columns: [], rows: [] }
 
-  const width = Math.max(...grid.map((row) => row.length))
-  const columns = headerNames(
-    Array.from({ length: width }, (_, i) => grid[0][i] ?? ''),
-  )
+  const columns = headerNames(grid[0])
   const rows = grid.slice(1).map((row) => columns.map((_, i) => String(row[i] ?? '')))
   return { columns, rows }
 }

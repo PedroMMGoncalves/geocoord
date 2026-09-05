@@ -12,7 +12,14 @@ import pytest
 
 from geocoord.converter import tidy_table
 
-from geocoord.reader import excel_engine, read_csv_bytes, read_csv_text, sniff_separator
+from geocoord.reader import (
+    excel_engine,
+    read_csv_bytes,
+    read_csv_text,
+    read_excel_bytes,
+    sniff_separator,
+    workbook_sheets,
+)
 
 
 # --- Separator detection ----------------------------------------------------
@@ -155,3 +162,100 @@ def test_empty_cells_are_still_empty():
 ])
 def test_excel_engine(name, expected):
     assert excel_engine(name) == expected
+
+
+# ---------------------------------------------------------------------------
+# Excel
+# ---------------------------------------------------------------------------
+def _workbook(rows, formats=()):
+    """An in-memory .xlsx built cell by cell, so the cell types are exact."""
+    openpyxl = pytest.importorskip("openpyxl")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    for row in rows:
+        ws.append(row)
+    for (r, c, fmt) in formats:
+        ws.cell(row=r, column=c).number_format = fmt
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def test_read_excel_keeps_leading_zeros():
+    """The corruption the CSV path was rewritten to stop, on the path most
+    field data actually arrives by: pandas' inference read "0071" as 71."""
+    data = _workbook(
+        [["amostra", "lat", "lon"], ["0071", 38.5, -9.0], ["0072", 38.6, -9.1]],
+        formats=[(2, 1, "@"), (3, 1, "@")],
+    )
+    df = read_excel_bytes(data, "f.xlsx")
+    assert list(df["amostra"]) == ["0071", "0072"]
+
+
+def test_read_excel_keeps_a_long_integer_whole():
+    data = _workbook([["id"], [1234567890123456]])
+    assert list(read_excel_bytes(data, "f.xlsx")["id"]) == ["1234567890123456"]
+
+
+def test_read_excel_keeps_full_precision_under_a_short_format():
+    """The cell displays 38.71; the file holds 38.7083335. Reading what is
+    displayed would move the point two and a half kilometres."""
+    data = _workbook([["lat"], [38.7083335]], formats=[(2, 1, "0.00")])
+    assert list(read_excel_bytes(data, "f.xlsx")["lat"]) == ["38.7083335"]
+
+
+def test_read_excel_blank_in_an_id_column_does_not_make_it_a_float():
+    """With inference on, one blank cell typed the column float64 and every
+    identifier gained a ".0"."""
+    data = _workbook([["id_lab", "nota"], [20240001, "a"], [None, "b"], [20240003, "c"]])
+    assert list(read_excel_bytes(data, "f.xlsx")["id_lab"]) == ["20240001", "", "20240003"]
+
+
+def test_read_excel_renders_a_date_rather_than_its_day_count():
+    import datetime
+
+    data = _workbook([
+        ["data", "hora"],
+        [datetime.datetime(2024, 3, 7), datetime.datetime(2024, 3, 8, 14, 30)],
+    ])
+    df = read_excel_bytes(data, "f.xlsx")
+    assert list(df["data"]) == ["2024-03-07"]
+    assert list(df["hora"]) == ["2024-03-08 14:30:00"]
+
+
+def test_read_excel_is_all_text():
+    data = _workbook([["a", "b"], ["x", 1]])
+    df = read_excel_bytes(data, "f.xlsx")
+    assert set(df.dtypes.astype(str)) == {"object"}
+    assert all(isinstance(v, str) for v in df.to_numpy().ravel())
+
+
+def test_read_excel_survives_tidy_table():
+    data = _workbook([["amostra", "lat", "lon"], ["0071", "38.5", "-9.0"]],
+                     formats=[(2, 1, "@")])
+    tidied = tidy_table(read_excel_bytes(data, "f.xlsx"))
+    assert list(tidied["amostra"]) == ["0071"]
+
+
+def test_workbook_sheets_lists_in_book_order():
+    openpyxl = pytest.importorskip("openpyxl")
+    wb = openpyxl.Workbook()
+    wb.active.title = "Um"
+    wb.create_sheet("Dois")
+    buf = io.BytesIO()
+    wb.save(buf)
+    assert workbook_sheets(buf.getvalue(), "f.xlsx") == ["Um", "Dois"]
+
+
+def test_read_excel_reads_the_named_sheet():
+    openpyxl = pytest.importorskip("openpyxl")
+    wb = openpyxl.Workbook()
+    wb.active.title = "Um"
+    wb.active.append(["a"])
+    wb.active.append(["1"])
+    second = wb.create_sheet("Dois")
+    second.append(["b"])
+    second.append(["2"])
+    buf = io.BytesIO()
+    wb.save(buf)
+    assert list(read_excel_bytes(buf.getvalue(), "f.xlsx", "Dois").columns) == ["b"]

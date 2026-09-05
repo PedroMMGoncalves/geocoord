@@ -13,7 +13,7 @@ from geocoord.converter import (
     tidy_table,
 )
 from geocoord.geoexport import sanitize_filename, to_geojson, to_kml, to_shapefile_zip
-from geocoord.reader import excel_engine, read_csv_bytes
+from geocoord.reader import read_csv_bytes, read_excel_bytes, workbook_sheets
 
 APP_NAME = "GeoCoord"
 ACCENT = "#1f7a4d"  # accent colour — replace with an official LNEG colour if desired
@@ -107,7 +107,10 @@ STATUS_TEXT = {
 REGION_MASKS = {
     "Portugal mainland": [(36.8, 42.2, -9.6, -6.1)],
     "Azores": [(36.9, 39.8, -31.3, -24.9)],
-    "Madeira": [(32.3, 33.2, -17.3, -16.2)],
+    # The Selvagens, the southernmost Portuguese territory, belong to the
+    # Autonomous Region of Madeira but sit far south of the
+    # Madeira/Porto Santo/Desertas box, so they need one of their own.
+    "Madeira": [(32.3, 33.2, -17.3, -16.2), (30.0, 30.25, -16.1, -15.7)],
     "Angola": [(-18.1, -4.3, 11.6, 24.2)],
     "Cabo Verde": [(14.7, 17.3, -25.5, -22.6)],
     "Guiné-Bissau": [(10.8, 12.8, -16.9, -13.5)],
@@ -417,11 +420,12 @@ with tab_file:
                 df = read_csv(uploaded, sep, decimal)
             else:
                 uploaded.seek(0)
-                xls = pd.ExcelFile(uploaded, engine=excel_engine(name))
-                sheet = xls.sheet_names[0]
-                if len(xls.sheet_names) > 1:
-                    sheet = st.selectbox("Sheet", xls.sheet_names)
-                df = xls.parse(sheet)
+                data = uploaded.read()
+                sheets = workbook_sheets(data, name)
+                sheet = sheets[0]
+                if len(sheets) > 1:
+                    sheet = st.selectbox("Sheet", sheets)
+                df = read_excel_bytes(data, name, sheet)
         except Exception as e:
             st.error(f"Could not read the file: {e}")
             st.stop()

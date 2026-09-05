@@ -31,6 +31,7 @@ cases, every one of them carrying a stray quote. Well-formed exports agree.
 from __future__ import annotations
 
 import csv
+import datetime as _dt
 import io
 
 import pandas as pd
@@ -211,3 +212,72 @@ def excel_engine(name: str) -> str:
     the legacy BIFF ``.xls`` files that still turn up in field data.
     """
     return "openpyxl" if name.lower().endswith(".xlsx") else "xlrd"
+
+
+def _cell_text(value) -> str:
+    """One spreadsheet cell as the text GeoCoord carries.
+
+    The rule is the same one the JavaScript port applies in ``cellText``: a
+    date by how it reads, everything else by the value actually stored.
+
+    A date is written to the file as a count of days since 1900, so it has to
+    be rendered or it arrives as ``45358``; midnight is dropped, because a date
+    cell with no time is a date, not an instant. Everything else keeps its
+    stored value: a number formatted to two decimals in the sheet still holds
+    all its digits, and taking what the cell *displays* would move a coordinate
+    of 38.7083335 to 38.71 - two and a half kilometres - with nothing to say so.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, float) and value != value:      # NaN
+        return ""
+    if isinstance(value, bool):
+        # Matching what SheetJS renders, so both halves of the port agree.
+        return "TRUE" if value else "FALSE"
+    if isinstance(value, _dt.datetime):
+        if (value.hour, value.minute, value.second, value.microsecond) == (0, 0, 0, 0):
+            return value.strftime("%Y-%m-%d")
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(value, _dt.date):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value, _dt.time):
+        return value.strftime("%H:%M:%S")
+    return str(value)
+
+
+def workbook_sheets(data: bytes, name: str) -> list[str]:
+    """The sheet names of a workbook, in book order."""
+    return pd.ExcelFile(io.BytesIO(data), engine=excel_engine(name)).sheet_names
+
+
+def read_excel_bytes(data: bytes, name: str, sheet=0) -> pd.DataFrame:
+    """Read one sheet of a workbook into a dataframe of strings.
+
+    The same every-cell-is-text contract as :func:`read_csv_text`, and for the
+    same reasons: a sample code of ``"0071"`` is an identifier, not the number
+    71, and this path is how most field data actually arrives. Reading with
+    pandas' own inference turned it into ``71`` and exported it that way, while
+    an identifier column holding one blank cell became a float and exported
+    ``20240001.0``.
+
+    ``dtype=object`` rather than ``dtype=str``: it keeps whatever the workbook
+    reader handed over - a string stays a string, a date stays a date - and
+    :func:`_cell_text` then applies GeoCoord's own rule. ``dtype=str`` would
+    stringify a date as ``2024-03-07 00:00:00``.
+
+    One divergence from the browser is left standing and is recorded here
+    rather than left to be found: a date is rendered ISO on this side and by
+    the sheet's own display format on the other, so a cell formatted
+    ``dd/mm/yyyy`` reads ``2024-03-07`` here and ``07/03/2024`` there. Excel
+    reading sits outside the parity contract - openpyxl and SheetJS build
+    different intermediate representations of the same workbook - and only
+    attribute columns are affected; the coordinates agree.
+    """
+    frame = pd.ExcelFile(io.BytesIO(data), engine=excel_engine(name)).parse(
+        sheet, dtype=object,
+    )
+    return pd.DataFrame(
+        {col: [_cell_text(v) for v in frame[col]] for col in frame.columns},
+        columns=frame.columns,
+        dtype=str,
+    )
