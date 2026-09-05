@@ -49,18 +49,36 @@ def read_csv_text(text: str, sep: str | None = None, decimal: str = ".") -> pd.D
 
     ``sep`` of ``None`` means detect it; anything else is used as given.
 
-    ``decimal`` is passed through to pandas, but note that it does nothing on
-    the messy-export path this application exists to handle: when the real
-    header sits in the first data row, the column is object dtype and pandas
-    never parses it as a number. ``"33,6603"`` arrives at
-    :func:`geocoord.converter.parse_coordinate` as a string either way. The
-    option only bites on a clean file whose column really is numeric.
+    **Every cell is read as text.** GeoCoord converts the coordinate columns
+    and carries the rest through unchanged, so inferring types on them buys
+    nothing and costs three things. A sample code of ``"007"`` became the
+    integer 7 and was exported that way, which corrupts an identifier in
+    silence, and geological codes carry leading zeros as a matter of course. An
+    integer past 2**53 cannot be represented exactly by a JavaScript number, so
+    inferring one would guarantee a divergence with the browser port. And
+    pandas' inference rules would have to be reimplemented in JavaScript to
+    keep the two in step, which is a wide surface for exactly the kind of
+    silent disagreement this port is built to prevent.
+
+    ``keep_default_na=False`` goes with it: a cell reading ``NA`` is what the
+    file says, and an empty cell is an empty string on both sides, which is
+    what PapaParse produces too. :func:`geocoord.converter.tidy_table` already
+    treats a blank string as missing, so empty rows and columns are still
+    dropped.
+
+    ``decimal`` is passed through to pandas, but with everything read as text
+    it now has no effect at all. It is kept because the interface offers it and
+    because :func:`geocoord.converter.parse_coordinate` understands both a dot
+    and a comma; the option documents the user's intent rather than changing
+    the parse.
     """
     if text.startswith(_BOM):
         text = text[len(_BOM):]
     if sep is None:
         sep = sniff_separator(text[:8192])
-    return pd.read_csv(io.StringIO(text), sep=sep, decimal=decimal)
+    return pd.read_csv(
+        io.StringIO(text), sep=sep, decimal=decimal, dtype=str, keep_default_na=False
+    )
 
 
 def read_csv_bytes(data: bytes, sep: str | None = None, decimal: str = ".") -> pd.DataFrame:

@@ -82,6 +82,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A coordinate that arrives already numeric is taken as it stands. Below 1e-4
   Python renders a float in exponential form, and the digits of the exponent
   were parsed as minutes, so a latitude of `1e-05` came back as `1.0833`.
+- Columns that are not coordinates keep exactly what the file said. Every cell
+  is now read as text, so a sample code of `007` stays `007` instead of being
+  inferred as the integer 7 and exported that way, and an integer past 2**53
+  keeps every digit. The coordinate columns are unaffected: `parse_coordinate`
+  reads them from text as it always did, and the derived `Latitude_DD` and
+  `Longitude_DD` columns are numbers as before. A numeric attribute column now
+  exports as text rather than as a number, which is the cost of the trade.
 - A CSV with a single column no longer has its header cut in half. When
   `csv.Sniffer` finds no delimiter, pandas guesses one out of the data itself,
   so `lat` came back as the two columns `la` and `Unnamed: 1`. The separator is

@@ -10,6 +10,8 @@ import io
 import pandas as pd
 import pytest
 
+from geocoord.converter import tidy_table
+
 from geocoord.reader import excel_engine, read_csv_bytes, read_csv_text, sniff_separator
 
 
@@ -98,6 +100,49 @@ def test_read_csv_bytes_strips_a_byte_order_mark():
     data = "﻿nome,lat\nBeja,38.0\n".encode("utf-8")
     df = read_csv_bytes(data, sep=",", decimal=".")
     assert list(df.columns) == ["nome", "lat"]
+
+
+# --- Everything is read as text ---------------------------------------------
+
+CODES = "codigo,lat\n007,38.7\n042,41.2\n"
+
+
+def test_leading_zeros_survive():
+    # A sample code of "007" used to be inferred as the integer 7 and exported
+    # that way. Geological sample and station codes carry leading zeros as a
+    # matter of course, and losing them corrupts the identifier silently.
+    df = read_csv_text(CODES, sep=",", decimal=".")
+    assert df["codigo"].tolist() == ["007", "042"]
+
+
+def test_large_integers_keep_every_digit():
+    # Beyond 2**53 a JavaScript number cannot represent an integer exactly, so
+    # inferring one here would guarantee a divergence with the browser port.
+    df = read_csv_text("id\n9007199254740993\n", sep=",", decimal=".")
+    assert df["id"].iloc[0] == "9007199254740993"
+
+
+def test_numbers_are_not_coerced():
+    df = read_csv_text("lat,lon,n\n39.5,-8.25,3\n", sep=",", decimal=".")
+    assert [df[c].iloc[0] for c in ("lat", "lon", "n")] == ["39.5", "-8.25", "3"]
+    # And parse_coordinate still gets what it needs out of them.
+    from geocoord.converter import parse_coordinate
+    assert parse_coordinate(df["lat"].iloc[0]) == 39.5
+
+
+def test_na_is_kept_as_written():
+    # pandas would read "NA" as a missing value. What the file says is what the
+    # column carries; a coordinate of "NA" fails to parse and is reported as
+    # such, which is more use than a blank.
+    df = read_csv_text("nome,lat\nNA,38.7\n", sep=",", decimal=".")
+    assert df["nome"].iloc[0] == "NA"
+
+
+def test_empty_cells_are_still_empty():
+    # Blank cells must still read as missing, or tidy_table would stop dropping
+    # empty rows and columns.
+    tidy = tidy_table(read_csv_text("a,b\n,1\n", sep=",", decimal="."))
+    assert list(tidy.columns) == ["b"]
 
 
 # --- Excel engine -----------------------------------------------------------
