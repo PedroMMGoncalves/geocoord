@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A web application at `web/`, running entirely in the browser and published to
+  GitHub Pages, so a coordinate can be converted with no installation and no
+  account. It converts a whole spreadsheet or CSV - dropped, chosen or pasted
+  straight out of Excel - guessing the coordinate columns by name, listing
+  suspected latitude/longitude reversals for the user to accept row by row, and
+  exporting to CSV, GeoJSON, KML, zipped Shapefile and GPX. The file is read on
+  the machine it came from and never leaves it. A single-coordinate converter
+  sits beside it, and both work in Portuguese and English.
+- `web/src/core/pipeline.js`, the part of `app.py` that is not Streamlit -
+  region masks, column guessing, derived columns, swap application, the feature
+  list the exporters take - as pure functions over the neutral table shape.
+- GPX export, for the handheld GPS receivers these coordinates usually end up
+  in. It has no counterpart in the Python package and is marked as outside the
+  parity contract where it is defined.
+- `reader.read_excel_bytes` and `reader.workbook_sheets`, so both halves of
+  reading live in one module under one documented contract and `app.py` no
+  longer holds pandas directly.
 - Detection of likely swapped latitude/longitude (range-based and cluster-based)
   with a review-and-confirm step and an invert option for ambiguous cases.
 - Region mask for swap detection (Portugal mainland by default, plus Azores,
@@ -64,6 +81,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A spreadsheet cell is read by the value it holds rather than by how it is
+  displayed. Both halves of the application read Excel through the display
+  format, and it cost data twice over. Leading zeros went the way they used to
+  in CSV before that path was rewritten - `0071` became `71`, and one blank
+  cell in an identifier column typed it as a float so `20240001` exported as
+  `20240001.0`. Worse for a coordinate tool, a cell holding `38.7083335` but
+  formatted to two decimals was read as `38.71` in the browser, which is a
+  different place on the ground by two and a half kilometres, and a twelve-digit
+  lab number was read as `1.23457E+15` and lost. Dates are still rendered, since
+  a date is stored as a count of days and would otherwise arrive as `45358`.
+- The Ilhas Selvagens are inside the Madeira region mask. They are the
+  southernmost Portuguese territory and part of the Autonomous Region of
+  Madeira, but sit two degrees south of the Madeira/Porto Santo/Desertas box,
+  so every point on them was reported as falling outside the declared region.
 - The hemisphere was dropped when its letter was written against the number,
   with no space: `38.5W` was read as +38.5 while `38.5 W` was read as -38.5.
   A letter is now treated as a hemisphere unless it sits against another
