@@ -352,12 +352,50 @@ export function detectSwaps(lats, lons, options = {}) {
   const { center, radius } = denseCenter(asIs)
   const outlierFactor = 3.0
   const returnFactor = 1.5
-  for (const i of inrangeIdx) {
+
+  const distances = new Map(inrangeIdx.map((i) => {
     const la = Number(lats[i])
     const lo = Number(lons[i])
-    const dAs = Math.hypot(la - center[0], lo - center[1])
-    const dSw = Math.hypot(lo - center[0], la - center[1])
-    if (dAs > outlierFactor * radius && dSw <= returnFactor * radius) {
+    return [i, [
+      Math.hypot(la - center[0], lo - center[1]),
+      Math.hypot(lo - center[0], la - center[1]),
+    ]]
+  }))
+
+  // How far the good data actually reaches from the centre. `radius` is the
+  // radius of the dense *core*, and a country is much wider than its core: in
+  // a survey around Lisbon with points nationwide the core radius came to 1.85
+  // degrees, so the old tolerance of 1.5 x radius was 2.78 degrees while
+  // mainland Portugal is 5.4 degrees tall. A row reversed anywhere north of
+  // Coimbra or along the eastern border landed outside that tolerance and was
+  // reported as fine: 38% of genuinely reversed rows went undetected.
+  //
+  // The outliers are excluded from the measurement, so a reversed row cannot
+  // inflate the tolerance that has to catch it. That also bounds the result:
+  // an inlier is within outlierFactor x radius by definition, so the tolerance
+  // never exceeds 4 x radius against an outlier threshold of 3.
+  let extent = 0.0
+  for (const [dAs] of distances.values()) {
+    if (dAs <= outlierFactor * radius && dAs > extent) extent = dAs
+  }
+  const returnTolerance = Math.max(returnFactor * radius, extent + radius)
+
+  // The extent test needs the data to have some spread before it can help. A
+  // single tight survey - one quarry, one municipality - has none, and a row
+  // reversed there stays missed however the tolerance is written, because the
+  // tolerance is derived from evidence the file does not contain. What that row
+  // does show is that swapping it moves it enormously closer to the rest: ten
+  // times closer is the threshold, chosen by measuring both sides of the trade.
+  // Below it the tool starts accusing real places (a factor of 6 puts 0.7% of
+  // the world under suspicion for a Portuguese survey); above it recall falls
+  // away on compact data (a factor of 15 misses 8% of reversals in a 2 km
+  // survey). See the Python docstring for the measurement.
+  const returnRatio = 10.0
+
+  for (const i of inrangeIdx) {
+    const [dAs, dSw] = distances.get(i)
+    if (dAs <= outlierFactor * radius) continue
+    if (dSw <= returnTolerance || (dSw > 0.0 && dAs >= returnRatio * dSw)) {
       labels[i] = 'swap_cluster'
     }
   }

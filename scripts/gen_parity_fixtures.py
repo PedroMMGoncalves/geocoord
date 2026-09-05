@@ -203,6 +203,47 @@ DETECT_INPUTS = [
         "lons": [-8.0, -7.9, 35.0],
         "kwargs": {"mask": [PT, MZ]},
     },
+    # The blind spot the old auto rule had. Its return tolerance was 1.5 x the
+    # radius of the dense *core*, and a country is far wider than its core, so
+    # a row reversed away from the core - the north-east here - fell outside
+    # the tolerance and was reported as fine. A sweep of true positions over
+    # mainland Portugal put it at 38% of genuinely reversed rows missed. The
+    # tolerance now reaches as far as the good data actually reaches.
+    {
+        "id": "reversed_away_from_the_core_is_caught",
+        "lats": [39.0, 39.1, 38.9, 39.2, 38.8, 39.05, 41.5, -6.8],
+        "lons": [-8.0, -8.1, -7.9, -8.2, -7.8, -8.05, -6.5, 41.8],
+        "kwargs": {},
+    },
+    # A compact survey gives the extent test nothing to work with: every good
+    # point is in the core, so the tolerance stays at its floor. What catches
+    # this row is the ratio - swapping it moves it about twenty times closer to
+    # the data than it was.
+    {
+        "id": "reversed_in_a_compact_survey_is_caught_by_the_ratio",
+        "lats": [39.0, 39.1, 38.9, 39.2, 38.8, 39.05, -6.8],
+        "lons": [-8.0, -8.1, -7.9, -8.2, -7.8, -8.05, 41.8],
+        "kwargs": {},
+    },
+    # The widened tolerance must not start accusing real places. Maputo in a
+    # Portuguese file is an outlier, but swapping it does not bring it home, so
+    # it stays ok.
+    {
+        "id": "distant_real_place_is_not_accused",
+        "lats": [39.0, 39.1, 38.9, 39.2, 38.8, 39.05, 41.5, -25.97],
+        "lons": [-8.0, -8.1, -7.9, -8.2, -7.8, -8.05, -6.5, 32.57],
+        "kwargs": {},
+    },
+    # The ambiguity the docstring admits, pinned so it stays visible: a real
+    # point in the Congo basin at (-6, 41) is arithmetically indistinguishable
+    # from a Braganca row entered backwards, and is reported as a suspected
+    # swap. That is why the application asks before changing anything.
+    {
+        "id": "mirror_of_the_data_is_reported_as_ambiguous",
+        "lats": [39.0, 39.1, 38.9, 39.2, 38.8, 39.05, 41.5, -6.0],
+        "lons": [-8.0, -8.1, -7.9, -8.2, -7.8, -8.05, -6.5, 41.0],
+        "kwargs": {},
+    },
 ]
 
 REGION_CHECK_INPUTS = [

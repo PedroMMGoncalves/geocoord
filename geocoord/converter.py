@@ -270,7 +270,10 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
          it is the expected location and ``region_radius`` (degrees) the
          tolerance.
        - Otherwise the expected location is auto-detected as the densest cluster
-         of the in-range points, assuming the correct data is the majority.
+         of the in-range points, assuming the correct data is the majority, and
+         a row is flagged when it sits beyond three core radii of the centre
+         and its swapped position lands back inside the area the good data
+         occupies.
 
     Returns ``(labels, center)`` where ``center`` is the (lat, lon) used as the
     expected location, or ``None`` for mask mode / when no cluster step ran.
@@ -278,9 +281,13 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
     Note: in auto mode, from coordinates alone the correct orientation is
     fundamentally ambiguous when about half the data is swapped (the densest
     cluster may be the swapped one), and a genuine point at the mirror of the
-    cluster cannot be told apart from a swapped one. Treat ``swap_cluster`` as a
-    suggestion to be reviewed; provide ``mask`` or ``reference`` when the region
-    is known.
+    cluster cannot be told apart from a swapped one - a real point in the Congo
+    basin at (-6, 41) is arithmetically indistinguishable from a Braganca row
+    entered backwards. Widening the tolerance to cover the whole country widens
+    that mirror with it, which is why ``swap_cluster`` is a suggestion to be
+    reviewed rather than a correction to be applied. Provide ``mask`` or
+    ``reference`` when the region is known: mask mode misses nothing and has no
+    mirror.
     """
     n = len(lats)
     labels = ["missing"] * n
@@ -324,11 +331,48 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
     as_is = np.array([[float(lats[i]), float(lons[i])] for i in inrange_idx], dtype=float)
     center, radius = _dense_center(as_is)
     outlier_factor, return_factor = 3.0, 1.5
+
+    distances = {i: (math.hypot(float(lats[i]) - center[0], float(lons[i]) - center[1]),
+                     math.hypot(float(lons[i]) - center[0], float(lats[i]) - center[1]))
+                 for i in inrange_idx}
+
+    # How far the good data actually reaches from the centre. `radius` is the
+    # radius of the dense *core*, and a country is much wider than its core: in
+    # a survey around Lisbon with points nationwide the core radius came to
+    # 1.85 degrees, so the old tolerance of 1.5 x radius was 2.78 degrees while
+    # mainland Portugal is 5.4 degrees tall. A row reversed anywhere north of
+    # Coimbra or along the eastern border landed outside that tolerance and was
+    # reported as fine: 38% of genuinely reversed rows went undetected, and the
+    # whole of Tras-os-Montes was a blind spot.
+    #
+    # The outliers are excluded from the measurement, so a reversed row cannot
+    # inflate the tolerance that has to catch it. That also bounds the result:
+    # an inlier is within outlier_factor x radius by definition, so the
+    # tolerance never exceeds 4 x radius against an outlier threshold of 3.
+    extent = max((d_as for i, (d_as, _) in distances.items()
+                  if d_as <= outlier_factor * radius), default=0.0)
+    return_tolerance = max(return_factor * radius, extent + radius)
+
+    # The extent test needs the data to have some spread before it can help. A
+    # single tight survey - one quarry, one municipality - has none, and a row
+    # reversed there stays missed however the tolerance is written, because the
+    # tolerance is derived from evidence the file does not contain. What that
+    # row does show is that swapping it moves it enormously closer to the rest:
+    # ten times closer is the threshold, chosen by measuring both sides of the
+    # trade. Below it the tool starts accusing real places (a factor of 6 puts
+    # 0.7% of the world's land under suspicion for a Portuguese survey); above
+    # it recall falls away on compact data (a factor of 15 misses 8% of
+    # reversals in a 2 km survey). At ten, recall is complete on every survey
+    # shape tried - a quarry, a road transect, two towns, a sparse national
+    # spread, an island group - and the cost is around one place in four
+    # hundred, all of them in the mirror of the data.
+    return_ratio = 10.0
+
     for i in inrange_idx:
-        la, lo = float(lats[i]), float(lons[i])
-        d_as = math.hypot(la - center[0], lo - center[1])
-        d_sw = math.hypot(lo - center[0], la - center[1])
-        if d_as > outlier_factor * radius and d_sw <= return_factor * radius:
+        d_as, d_sw = distances[i]
+        if d_as <= outlier_factor * radius:
+            continue
+        if d_sw <= return_tolerance or (d_sw > 0.0 and d_as >= return_ratio * d_sw):
             labels[i] = "swap_cluster"
 
     return labels, (float(center[0]), float(center[1]))

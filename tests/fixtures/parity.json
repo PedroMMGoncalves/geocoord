@@ -1589,6 +1589,163 @@
         ],
         "center": null
       }
+    },
+    {
+      "id": "reversed_away_from_the_core_is_caught",
+      "lats": [
+        39.0,
+        39.1,
+        38.9,
+        39.2,
+        38.8,
+        39.05,
+        41.5,
+        -6.8
+      ],
+      "lons": [
+        -8.0,
+        -8.1,
+        -7.9,
+        -8.2,
+        -7.8,
+        -8.05,
+        -6.5,
+        41.8
+      ],
+      "kwargs": {},
+      "expected": {
+        "labels": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "swap_cluster"
+        ],
+        "center": [
+          39.05,
+          -8.0
+        ]
+      }
+    },
+    {
+      "id": "reversed_in_a_compact_survey_is_caught_by_the_ratio",
+      "lats": [
+        39.0,
+        39.1,
+        38.9,
+        39.2,
+        38.8,
+        39.05,
+        -6.8
+      ],
+      "lons": [
+        -8.0,
+        -8.1,
+        -7.9,
+        -8.2,
+        -7.8,
+        -8.05,
+        41.8
+      ],
+      "kwargs": {},
+      "expected": {
+        "labels": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "swap_cluster"
+        ],
+        "center": [
+          39.025,
+          -8.025
+        ]
+      }
+    },
+    {
+      "id": "distant_real_place_is_not_accused",
+      "lats": [
+        39.0,
+        39.1,
+        38.9,
+        39.2,
+        38.8,
+        39.05,
+        41.5,
+        -25.97
+      ],
+      "lons": [
+        -8.0,
+        -8.1,
+        -7.9,
+        -8.2,
+        -7.8,
+        -8.05,
+        -6.5,
+        32.57
+      ],
+      "kwargs": {},
+      "expected": {
+        "labels": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok"
+        ],
+        "center": [
+          39.05,
+          -8.0
+        ]
+      }
+    },
+    {
+      "id": "mirror_of_the_data_is_reported_as_ambiguous",
+      "lats": [
+        39.0,
+        39.1,
+        38.9,
+        39.2,
+        38.8,
+        39.05,
+        41.5,
+        -6.0
+      ],
+      "lons": [
+        -8.0,
+        -8.1,
+        -7.9,
+        -8.2,
+        -7.8,
+        -8.05,
+        -6.5,
+        41.0
+      ],
+      "kwargs": {},
+      "expected": {
+        "labels": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "swap_cluster"
+        ],
+        "center": [
+          39.05,
+          -8.0
+        ]
+      }
     }
   ],
   "region_check": [
