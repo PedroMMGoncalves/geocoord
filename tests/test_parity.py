@@ -23,6 +23,7 @@ import pytest
 
 from geocoord.converter import (
     detect_swaps,
+    hemisphere_axis,
     format_dms,
     identify_region,
     in_range,
@@ -35,6 +36,7 @@ from geocoord.reader import read_csv_text
 from geocoord.geoexport import (
     sanitize_filename,
     to_geojson,
+    csv_safe,
     to_kml,
     to_shapefile_zip,
     _safe_field_names,
@@ -183,7 +185,9 @@ def test_safe_field_names(case):
     "case", FIXTURES["to_geojson"], ids=ids(FIXTURES["to_geojson"])
 )
 def test_to_geojson(case):
-    got = json.loads(to_geojson(case["features"]).decode("utf-8"))
+    # The text, not the parsed object. Parsing hoists integer-like keys to the
+    # front on both sides, which cancelled out a real ordering divergence.
+    got = to_geojson(case["features"]).decode("utf-8")
     assert got == case["expected"]
 
 
@@ -222,3 +226,13 @@ def test_to_shapefile_zip(case):
         case["features"], case["field_names"], base_name=case["base_name"]
     )
     assert _shapefile_components(data) == case["expected"]
+@pytest.mark.parametrize(
+    "case", FIXTURES["hemisphere_axis"], ids=ids(FIXTURES["hemisphere_axis"])
+)
+def test_hemisphere_axis(case):
+    assert hemisphere_axis(case["input"]) == case["expected"]
+
+
+@pytest.mark.parametrize("case", FIXTURES["csv_safe"], ids=ids(FIXTURES["csv_safe"]))
+def test_csv_safe(case):
+    assert csv_safe(case["input"]) == case["expected"]

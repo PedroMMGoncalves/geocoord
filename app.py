@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from geocoord.converter import (
+    axis_mismatch,
     detect_swaps,
     format_dms,
     in_range,
@@ -12,7 +13,13 @@ from geocoord.converter import (
     region_check,
     tidy_table,
 )
-from geocoord.geoexport import sanitize_filename, to_geojson, to_kml, to_shapefile_zip
+from geocoord.geoexport import (
+    csv_safe,
+    sanitize_filename,
+    to_geojson,
+    to_kml,
+    to_shapefile_zip,
+)
 from geocoord.reader import read_csv_bytes, read_excel_bytes, workbook_sheets
 
 APP_NAME = "GeoCoord"
@@ -96,6 +103,7 @@ st.caption("DMS to Decimal Degrees coordinate converter — WGS84 / EPSG:4326")
 
 STATUS_TEXT = {
     "ok": "OK",
+    "swap_axis": "Certain swap (the hemisphere letter contradicts the column)",
     "swap_range": "Possible swap (out of range as-is)",
     "swap_cluster": "Possible swap (outlier)",
     "out_of_range": "Out of valid range",
@@ -199,7 +207,7 @@ def features_in_range(result):
 # not rebuild the others, and only a real data/region change recomputes them.
 @st.cache_data(show_spinner=False)
 def export_csv(df):
-    return df.to_csv(index=False).encode("utf-8-sig")
+    return df.map(csv_safe).to_csv(index=False).encode("utf-8-sig")
 
 
 @st.cache_data(show_spinner=False)
@@ -226,7 +234,10 @@ def export_shapefile(df, base):
 
 
 def guess_column(cols, candidates, fallback_index):
-    lower_map = {c.lower(): c for c in cols}
+    # str(): a header cell can be a number - a workbook whose first row is a
+    # row of years, say - and calling .lower() on it raised before anything
+    # was drawn.
+    lower_map = {str(c).lower(): c for c in cols}
     for c in candidates:
         if c.lower() in lower_map:
             return cols.index(lower_map[c.lower()])
@@ -457,6 +468,12 @@ with tab_file:
         if st.button("Convert coordinates", type="primary"):
             with st.spinner("Converting..."):
                 st.session_state.result = build_result(df, lat_col, lon_col, decimals, add_dms)
+                # Which rows carry a hemisphere letter that contradicts the
+                # column it sits in. Computed here, where the raw cells are
+                # still in hand: build_result converts them to numbers and the
+                # letter is gone.
+                st.session_state.axis_mismatch = axis_mismatch(
+                    df[lat_col].tolist(), df[lon_col].tolist())
                 st.session_state.name_key = cols[0] if cols else None
 
         if st.session_state.get("result") is not None:
@@ -466,12 +483,14 @@ with tab_file:
             mask, reference, region_radius, is_auto, region_label = swap_detection_controls()
             lat_list = result["Latitude_DD"].tolist()
             lon_list = result["Longitude_DD"].tolist()
-            labels, center = detect_swaps(lat_list, lon_list, reference=reference,
-                                          region_radius=region_radius, mask=mask)
+            labels, center = detect_swaps(
+                lat_list, lon_list, reference=reference, region_radius=region_radius,
+                mask=mask, axis_mismatch=st.session_state.get("axis_mismatch"))
             result["status"] = [STATUS_TEXT[s] for s in labels]
 
             n_ok = sum(1 for s in labels if s == "ok")
-            n_swap = sum(1 for s in labels if s in ("swap_range", "swap_cluster"))
+            n_swap = sum(1 for s in labels
+                         if s in ("swap_range", "swap_cluster", "swap_axis"))
             n_bad = sum(1 for s in labels if s in ("out_of_range", "missing"))
 
             # Region awareness: valid points that landed outside the declared region.
@@ -517,6 +536,10 @@ with tab_file:
             if n_swap:
                 cluster_idx = [i for i, s in enumerate(labels) if s == "swap_cluster"]
                 range_idx = [i for i, s in enumerate(labels) if s == "swap_range"]
+                # Proof rather than suggestion: the hemisphere letter names an
+                # axis, so these rows are inverted whichever way the cluster
+                # suggestion is read.
+                axis_idx = [i for i, s in enumerate(labels) if s == "swap_axis"]
                 ok_idx = [i for i, s in enumerate(labels) if s == "ok"]
                 with st.expander(f"Review {n_swap} possible swapped coordinate(s)", expanded=True):
                     if cluster_idx and center is not None:
@@ -525,7 +548,12 @@ with tab_file:
                     elif cluster_idx and mask is not None:
                         st.caption("Points outside the expected region whose swapped "
                                    "coordinates fall inside are flagged.")
-                    susp = result.iloc[range_idx + cluster_idx]
+                    if axis_idx:
+                        st.caption(f"{len(axis_idx)} row(s) carry a hemisphere letter that "
+                                   "contradicts the column they sit in - an N or S in the "
+                                   "longitude column, or an E/W/O/L in the latitude one. "
+                                   "That is not a guess.")
+                    susp = result.iloc[axis_idx + range_idx + cluster_idx]
                     st.dataframe(
                         susp[[c for c in (lat_col, lon_col, "Latitude_DD", "Longitude_DD", "status")
                               if c in susp.columns]],
@@ -535,9 +563,18 @@ with tab_file:
                         invert = st.checkbox(
                             "Invert cluster suggestion (the main cluster is the swapped side)",
                             value=False)
-                    target = range_idx + (ok_idx if invert else cluster_idx)
+                    target = axis_idx + range_idx + (ok_idx if invert else cluster_idx)
                     if st.button(f"Apply swap to {len(target)} row(s)", type="primary"):
                         st.session_state.result = apply_swaps(result, target, add_dms)
+                        # The row is settled. Its raw cell still reads "W", but
+                        # it is no longer sitting in the latitude column, so the
+                        # proof no longer applies and the suggestion must stop
+                        # coming back.
+                        settled = st.session_state.get("axis_mismatch")
+                        if settled is not None:
+                            for i in target:
+                                if 0 <= i < len(settled):
+                                    settled[i] = False
                         st.rerun()
 
             t_table, t_map, t_summary, t_download = st.tabs(

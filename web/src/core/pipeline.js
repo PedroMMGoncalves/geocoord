@@ -11,10 +11,12 @@
  * and a value out.
  */
 import {
+  axisMismatch,
   formatDms,
   inRange,
   parseCoordinate,
 } from './converter.js'
+import { csvSafe } from './geoexport.js'
 
 /**
  * Expected-region masks for swap detection: name -> list of bounding boxes,
@@ -110,7 +112,14 @@ export function buildResult(table, latCol, lonCol, { decimals = 6, addDms = true
   const lats = table.rows.map((row) => roundHalfEven(parseCoordinate(row[latAt]), decimals))
   const lons = table.rows.map((row) => roundHalfEven(parseCoordinate(row[lonAt]), decimals))
 
-  return withDerived({ columns, rows }, lats, lons, addDms)
+  // Computed here because this is the last place that still knows which raw
+  // cell came from which column, which is the whole of the evidence.
+  const mismatch = axisMismatch(
+    table.rows.map((row) => row[latAt]),
+    table.rows.map((row) => row[lonAt]),
+  )
+
+  return { ...withDerived({ columns, rows }, lats, lons, addDms), axisMismatch: mismatch }
 }
 
 /** Append Latitude_DD..Longitude_GMS to a table, given the parsed coordinates. */
@@ -140,7 +149,7 @@ export function applySwaps(result, indices, { addDms = true } = {}) {
   const lons = result.lons.map((v, i) => (swap.has(i) ? result.lats[i] : v))
 
   const base = stripDerived(result)
-  return withDerived(base, lats, lons, addDms)
+  return { ...withDerived(base, lats, lons, addDms), axisMismatch: result.axisMismatch }
 }
 
 /** The original columns of a result, with everything the pipeline added removed. */
@@ -190,11 +199,14 @@ export function featuresInRange(result) {
  * is what Python's csv.writer does with its default dialect, and an embedded
  * quote is doubled. The caller adds the byte-order mark: Excel needs it to
  * open a UTF-8 file correctly, and every other consumer is happier without it.
+ *
+ * Cells go through csvSafe first, so a value a spreadsheet would run as a
+ * formula is displayed instead. Numbers are left exactly as they are.
  */
 export function toCsv(table, delimiter = ',') {
   const cell = (v) => {
     if (v === null || v === undefined) return ''
-    const s = String(v)
+    const s = csvSafe(String(v))
     return /["\n\r]/.test(s) || s.includes(delimiter)
       ? `"${s.replaceAll('"', '""')}"`
       : s

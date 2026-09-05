@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import JSZip from 'jszip'
 import { cases } from './fixtures.js'
-import { sanitizeFilename, safeFieldNames, toGeoJSON, toKML, toShapefileZip } from '../src/core/geoexport.js'
+import {
+  csvSafe,
+  safeFieldNames,
+  sanitizeFilename,
+  toGeoJSON,
+  toKML,
+  toShapefileZip,
+} from '../src/core/geoexport.js'
 
 describe('sanitizeFilename', () => {
   it.each(cases('sanitize_filename'))('%s', (_id, c) => {
@@ -17,20 +24,33 @@ describe('safeFieldNames', () => {
   })
 })
 
+/**
+ * Rebuild each feature's properties as a Map, in the order the contract
+ * records. A plain object cannot carry that order: JavaScript hoists an
+ * integer-like key to the front, and JSON.parse has already done so by the
+ * time the fixture reaches here. This is also how the application calls the
+ * exporters.
+ */
+function withOrder(c) {
+  return c.features.map(([lon, lat, props], i) =>
+    [lon, lat, new Map(c.prop_order[i].map((k) => [k, props[k]]))])
+}
+
 describe('toGeoJSON', () => {
+  // The text, not the parsed object: parsing hoists the integer-like keys
+  // again, which cancelled out a real ordering divergence inside the test.
   it.each(cases('to_geojson'))('%s', (_id, c) => {
-    expect(JSON.parse(toGeoJSON(c.features))).toEqual(c.expected)
+    expect(toGeoJSON(withOrder(c))).toBe(c.expected)
+  })
+
+  it('keeps the column order a plain object would destroy', () => {
+    const ordered = new Map([['2', 'b'], ['amostra', 'A'], ['1', 'a']])
+    const text = toGeoJSON([[-8.0, 39.0, ordered]])
+    expect(text).toContain('"properties":{"2":"b","amostra":"A","1":"a"}')
   })
 })
 
 describe('toKML', () => {
-  // The properties are rebuilt as Maps from the contract's prop_order. A plain
-  // object cannot carry the column order: JavaScript hoists an integer-like key
-  // to the front, and JSON.parse has already done so by the time the fixture
-  // reaches here. This is also how the application must call the exporter.
-  const withOrder = (c) => c.features.map(([lon, lat, props], i) =>
-    [lon, lat, new Map(c.prop_order[i].map((k) => [k, props[k]]))])
-
   it.each(cases('to_kml'))('%s', (_id, c) => {
     expect(toKML(withOrder(c), c.name_key)).toBe(c.expected)
   })
@@ -90,5 +110,14 @@ describe('toShapefileZip', () => {
     const fields = ['name', 'count']
     expect(await shapefileComponents(await toShapefileZip(asMap, fields)))
       .toEqual(await shapefileComponents(await toShapefileZip(asObject, fields)))
+  })
+})
+
+describe('csvSafe', () => {
+  // A converted file is opened in Excel the moment it is downloaded, and a cell
+  // beginning with =, +, - or @ is a formula there. Numbers are never touched:
+  // a negative coordinate begins with a minus.
+  it.each(cases('csv_safe'))('%s', (_id, c) => {
+    expect(csvSafe(c.input)).toBe(c.expected)
   })
 })

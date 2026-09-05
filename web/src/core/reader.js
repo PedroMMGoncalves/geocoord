@@ -120,20 +120,47 @@ export function readCsvText(text, { sep = null, decimal = '.' } = {}) {
 }
 
 /**
- * Decode `bytes` and parse, preferring utf-8 and falling back to windows-1252.
+ * Decode `bytes` to text: by byte-order mark first, utf-8 second, and
+ * windows-1252 as the fallback that never fails. Mirrors decode_csv_bytes()
+ * in geocoord/reader.py.
  *
  * Spreadsheet exports out of older Windows tooling are routinely latin1, and
  * failing on them would be worse than reading them slightly wrong. This is the
  * one part of reading the shared contract cannot cover: its inputs travel as
  * JSON strings, already decoded, so there is nothing left to recover from.
  */
-export function readCsvBytes(bytes, options = {}) {
-  try {
-    const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-    return readCsvText(text, options)
-  } catch {
-    return readCsvText(new TextDecoder('windows-1252').decode(bytes), options)
+export function decodeCsvBytes(bytes) {
+  const b = bytes
+  // A byte-order mark settles the encoding before anything is guessed. A UTF-16
+  // file starts with FF FE or FE FF, which is not valid utf-8, so it used to
+  // fall through to the single-byte decoder and every column name came back
+  // interleaved with NUL bytes. Excel's "Unicode Text" export is UTF-16, so
+  // this is a format users produce without meaning to.
+  const bom = (...sig) => sig.length <= b.length && sig.every((v, i) => b[i] === v)
+  let label = null
+  if (bom(0xff, 0xfe, 0x00, 0x00)) label = 'utf-32le'
+  else if (bom(0xff, 0xfe)) label = 'utf-16le'
+  else if (bom(0xfe, 0xff)) label = 'utf-16be'
+  else if (bom(0xef, 0xbb, 0xbf)) label = 'utf-8'
+
+  if (label !== null) {
+    try {
+      return new TextDecoder(label).decode(b)
+    } catch {
+      /* an encoding this browser will not decode: fall through */
+    }
   }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(b)
+  } catch {
+    // windows-1252, matching the Python side: exports out of older Windows
+    // tooling are habitually called latin1 and almost never are.
+    return new TextDecoder('windows-1252').decode(b)
+  }
+}
+
+export function readCsvBytes(bytes, options = {}) {
+  return readCsvText(decodeCsvBytes(bytes), options)
 }
 
 /**

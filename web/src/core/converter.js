@@ -78,6 +78,15 @@ export function parseCoordinate(value) {
   const nums = [...txt.matchAll(NUMBER_RE)].map((m) => parseFloat(m[0].replace(',', '.')))
   if (nums.length === 0) return null
 
+  // Minutes and seconds are sexagesimal: sixty of either is the next unit up,
+  // so "41 60' 00\"" is not a coordinate, it is a typo for 42 degrees or
+  // 41 degrees 06. Carrying the arithmetic silently turned the digit
+  // transpositions commonest in hand-copied field notebooks into a well-formed
+  // coordinate, in range and indistinguishable from good data, up to 111 km
+  // out of place.
+  if (nums.length >= 2 && nums[1] >= 60.0) return null
+  if (nums.length >= 3 && nums[2] >= 60.0) return null
+
   let magnitude
   if (nums.length === 1) {
     magnitude = nums[0]
@@ -92,6 +101,45 @@ export function parseCoordinate(value) {
   const negative = direction !== null ? NEGATIVE_DIRS.has(direction) : hasMinus
 
   return negative ? -magnitude : magnitude
+}
+
+/**
+ * Which axis the hemisphere letter in `value` belongs to, if any.
+ *
+ * N/S can only be a latitude and E/W/O/L only a longitude, so the letter is
+ * free, decisive evidence of which column a value came from. Returns 'lat',
+ * 'lon', or null when there is no letter. Uses the same guarded match as
+ * parseCoordinate, so a word like "Norte" in a name column is not mistaken for
+ * one. Mirrors hemisphere_axis() in geocoord/converter.py.
+ */
+export function hemisphereAxis(value) {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return null
+  const txt = String(value)
+    .replace(STRIP_CHARS_RE, '')
+    .replace(ORDINAL_SIGNS_RE, '°')
+    .trim()
+  const match = DIRECTION_RE.exec(txt)
+  if (match === null) return null
+  return ['N', 'S'].includes(match[1].toUpperCase()) ? 'lat' : 'lon'
+}
+
+/**
+ * Rows whose hemisphere letters contradict the columns they sit in.
+ *
+ * A W in the latitude column, or an N in the longitude column, is not a guess
+ * about a swap - it is proof of one. It was being discarded: a value of
+ * 9 degrees 8' 12" W chosen as a latitude became -9.136667, passed the range
+ * check, and was written back out with an S on it, so the exported file
+ * asserted a hemisphere nobody had entered. Mirrors axis_mismatch() in
+ * geocoord/converter.py.
+ */
+export function axisMismatch(latValues, lonValues) {
+  const out = []
+  for (let i = 0; i < latValues.length; i += 1) {
+    out.push(hemisphereAxis(latValues[i]) === 'lon' || hemisphereAxis(lonValues[i]) === 'lat')
+  }
+  return out
 }
 
 /**
@@ -129,6 +177,10 @@ export function formatDms(value, axis, secondsDecimals = 3) {
   if (value === null || value === undefined) return null
   const num = Number(value)
   if (!Number.isFinite(num)) return null
+
+  // A value outside its axis has no DMS form: writing 123 degrees 30' 0" N into
+  // a Latitude_GMS column states a latitude that does not exist.
+  if (!inRange(num, axis)) return null
 
   const [positive, negative] = axis === 'lat' ? ['N', 'S'] : ['E', 'W']
   const hemisphere = num >= 0 ? positive : negative
@@ -302,10 +354,12 @@ export function detectSwaps(lats, lons, options = {}) {
   const reference = options.reference ?? null
   const regionRadius = options.region_radius ?? options.regionRadius ?? 10.0
   const mask = options.mask ?? null
+  const mismatchOpt = options.axis_mismatch ?? options.axisMismatch ?? null
 
   const n = lats.length
   const labels = new Array(n).fill('missing')
   const inrangeIdx = []
+  const mismatch = mismatchOpt === null ? new Array(n).fill(false) : Array.from(mismatchOpt)
 
   for (let i = 0; i < n; i += 1) {
     const la = toNumber(lats[i])
@@ -322,6 +376,12 @@ export function detectSwaps(lats, lons, options = {}) {
     }
   }
 
+  // A hemisphere letter in the wrong column outranks every heuristic below.
+  const applyAxisProof = () => {
+    for (const i of inrangeIdx) if (mismatch[i]) labels[i] = 'swap_axis'
+    return labels
+  }
+
   if (mask && mask.length) {
     for (const i of inrangeIdx) {
       const la = Number(lats[i])
@@ -330,7 +390,7 @@ export function detectSwaps(lats, lons, options = {}) {
         labels[i] = 'swap_cluster'
       }
     }
-    return { labels, center: null }
+    return { labels: applyAxisProof(), center: null }
   }
 
   if (reference !== null) {
@@ -343,10 +403,10 @@ export function detectSwaps(lats, lons, options = {}) {
       const dSw = Math.hypot(lo - center[0], la - center[1])
       if (dAs > tol && dSw <= tol) labels[i] = 'swap_cluster'
     }
-    return { labels, center }
+    return { labels: applyAxisProof(), center }
   }
 
-  if (inrangeIdx.length < minCluster) return { labels, center: null }
+  if (inrangeIdx.length < minCluster) return { labels: applyAxisProof(), center: null }
 
   const asIs = inrangeIdx.map((i) => [Number(lats[i]), Number(lons[i])])
   const { center, radius } = denseCenter(asIs)
@@ -400,7 +460,7 @@ export function detectSwaps(lats, lons, options = {}) {
     }
   }
 
-  return { labels, center: [center[0], center[1]] }
+  return { labels: applyAxisProof(), center: [center[0], center[1]] }
 }
 
 /**

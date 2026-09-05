@@ -30,9 +30,11 @@ cases, every one of them carrying a stray quote. Well-formed exports agree.
 """
 from __future__ import annotations
 
+import codecs
 import csv
 import datetime as _dt
 import io
+import sys
 
 import pandas as pd
 
@@ -45,6 +47,24 @@ _BOM = "﻿"
 
 # Rows read while guessing the separator. Ten is what PapaParse uses.
 _GUESS_ROWS = 10
+
+# The stdlib parser refuses a field over 128 KB by default, which pandas did
+# not: a single cell holding a long description - a WKT geometry, a pasted note
+# - made the whole file unreadable with "field larger than field limit". The
+# ceiling is raised rather than removed, so a malformed file still fails
+# instead of consuming the machine.
+csv.field_size_limit(min(sys.maxsize, 64 * 1024 * 1024))
+
+# The five bytes windows-1252 leaves undefined. A browser's TextDecoder maps
+# them to the C1 control characters of the same value rather than failing, and
+# this handler does the same, so a byte sequence decodes identically on both
+# sides. Without it Python fell back to latin1 for the whole file and a curly
+# apostrophe (0x92) came out as an invisible control character on the desktop
+# while the browser read it as the apostrophe Excel meant.
+codecs.register_error(
+    "geocoord_c1",
+    lambda e: (e.object[e.start:e.end].decode("latin1"), e.end),
+)
 
 
 def _rows(text: str, sep: str, limit: int | None = None) -> list[list[str]]:
@@ -190,19 +210,42 @@ def read_csv_text(text: str, sep: str | None = None, decimal: str = ".") -> pd.D
     return pd.DataFrame(body, columns=columns, dtype=str)
 
 
-def read_csv_bytes(data: bytes, sep: str | None = None, decimal: str = ".") -> pd.DataFrame:
-    """Decode ``data`` and parse it, preferring utf-8 and falling back to latin1.
+def decode_csv_bytes(data: bytes) -> str:
+    """Decode CSV bytes to text, by byte-order mark first and utf-8 second.
 
-    Spreadsheet exports out of older Windows tooling are routinely latin1, and
-    failing on them would be worse than reading them slightly wrong: latin1
-    decodes any byte sequence, so this always produces something.
+    A UTF-16 file starts with ``FF FE`` or ``FE FF``, which is not valid utf-8,
+    so it used to fall through to the single-byte fallback and every column name
+    came back interleaved with NUL bytes, so a column named ``codigo`` arrived
+    as eleven characters of mojibake. Excel's "Unicode Text" export is
+    UTF-16, so this is a format users produce without meaning to.
+
+    The single-byte fallback is windows-1252, not latin1. Exports out of older
+    Windows tooling are habitually called latin1 and almost never are: the two
+    differ over bytes 0x80-0x9F, where cp1252 keeps the typographic characters
+    Excel writes - the curly apostrophe, the en dash - and latin1 has control
+    characters. The five bytes cp1252 leaves undefined fall back to their latin1
+    meaning, which is exactly what a browser's TextDecoder does, so both halves
+    of the port read the same bytes the same way.
     """
-    for encoding in ("utf-8", "latin1"):
-        try:
-            return read_csv_text(data.decode(encoding), sep=sep, decimal=decimal)
-        except UnicodeDecodeError:
-            continue
-    return read_csv_text(data.decode("latin1", errors="replace"), sep=sep, decimal=decimal)
+    for bom, encoding in ((codecs.BOM_UTF8, "utf-8-sig"),
+                          (codecs.BOM_UTF32_LE, "utf-32"),
+                          (codecs.BOM_UTF32_BE, "utf-32"),
+                          (codecs.BOM_UTF16_LE, "utf-16"),
+                          (codecs.BOM_UTF16_BE, "utf-16")):
+        if data.startswith(bom):
+            try:
+                return data.decode(encoding)
+            except UnicodeDecodeError:
+                break
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("cp1252", errors="geocoord_c1")
+
+
+def read_csv_bytes(data: bytes, sep: str | None = None, decimal: str = ".") -> pd.DataFrame:
+    """Decode ``data`` (see :func:`decode_csv_bytes`) and parse it."""
+    return read_csv_text(decode_csv_bytes(data), sep=sep, decimal=decimal)
 
 
 def excel_engine(name: str) -> str:

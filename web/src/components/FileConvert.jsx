@@ -34,6 +34,7 @@ const SEPARATOR_LABELS = [
 // red only for what could not be used at all.
 const STATUS_STYLE = {
   ok: 'text-accent',
+  swap_axis: 'text-amber-400',
   swap_range: 'text-amber-400',
   swap_cluster: 'text-amber-400',
   out_of_range: 'text-red-400',
@@ -232,7 +233,10 @@ export default function FileConvert() {
   const detection = useMemo(() => {
     if (!converted) return null
     const mask = region === 'auto' ? null : REGION_MASKS[region]
-    const { labels } = detectSwaps(converted.lats, converted.lons, { mask })
+    const { labels } = detectSwaps(converted.lats, converted.lons, {
+      mask,
+      axis_mismatch: converted.axisMismatch,
+    })
     const { detected } = regionCheck(converted.lats, converted.lons, labels, REGION_MASKS, { mask })
     return { labels, detected }
   }, [converted, region])
@@ -247,7 +251,8 @@ export default function FileConvert() {
     if (!detection) return []
     return detection.labels
       .map((label, i) => ({ label, i }))
-      .filter(({ label }) => label === 'swap_range' || label === 'swap_cluster')
+      .filter(({ label }) => label === 'swap_range' || label === 'swap_cluster'
+        || label === 'swap_axis')
   }, [detection])
 
   const counts = detection ? countByStatus(detection.labels) : new Map()
@@ -442,7 +447,7 @@ export default function FileConvert() {
         <>
           <Step n={3} title={t('file.step3')}>
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-              {['ok', 'swap_range', 'swap_cluster', 'out_of_range', 'missing'].map((s) => (
+              {['ok', 'swap_axis', 'swap_range', 'swap_cluster', 'out_of_range', 'missing'].map((s) => (
                 counts.get(s) ? (
                   <span key={s} className={STATUS_STYLE[s]}>
                     <span className="font-mono font-semibold">{counts.get(s)}</span>

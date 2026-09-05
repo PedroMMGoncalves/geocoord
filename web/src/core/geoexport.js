@@ -83,17 +83,26 @@ function propGet(props, key) {
  * the comparison here.
  */
 export function toGeoJSON(features) {
-  const fc = {
-    type: 'FeatureCollection',
-    features: features.map(([lon, lat, props]) => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [Number(lon), Number(lat)] },
-      properties: Object.fromEntries(
-        propEntries(props).map(([k, v]) => [String(k), jsonSafe(v)]),
-      ),
-    })),
-  }
-  return JSON.stringify(fc)
+  // The properties object is written out by hand rather than through
+  // JSON.stringify. JavaScript hoists integer-like keys to the front of an
+  // object, so a table with a column named "1" came out of Object.fromEntries
+  // reordered - "1","2","amostra" where Python wrote "2","amostra","1" - and
+  // the Map that carries the column order this far was undone at the last
+  // step. The parity contract could not see it either: it compares the parsed
+  // objects, and parsing hoists the keys again.
+  const body = features.map(([lon, lat, props]) => {
+    const entries = propEntries(props)
+      .map(([k, v]) => `${JSON.stringify(String(k))}:${JSON.stringify(jsonSafe(v))}`)
+      .join(',')
+    // pyFloat, not JSON.stringify: Python keeps the ".0" on an integral float
+    // and pads an exponent to two digits, and JavaScript does neither, so the
+    // same point would be written -8.0 there and -8 here. The KML writer has
+    // needed this all along; the contract could not see that GeoJSON did too.
+    const coords = `[${pyFloat(Number(lon))},${pyFloat(Number(lat))}]`
+    return '{"type":"Feature","geometry":{"type":"Point","coordinates":'
+      + `${coords}},"properties":{${entries}}}`
+  }).join(',')
+  return `{"type":"FeatureCollection","features":[${body}]}`
 }
 
 /**
@@ -104,6 +113,46 @@ export function toGeoJSON(features) {
  */
 function escapeXml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// A cell a spreadsheet would execute rather than display. Excel, LibreOffice
+// and Google Sheets all treat a leading =, +, - or @ as the start of a formula,
+// and a leading tab or carriage return as an invitation to look at the next one.
+const FORMULA_START = ['=', '+', '-', '@', '\t', '\r']
+// ...but a negative coordinate starts with a minus and must be left exactly as
+// it is, decimal comma included. Anything made only of digits and the
+// characters a number can contain is a number, not a formula.
+const NUMERIC_LIKE_RE = /^[-+]?[0-9.,eE+-]*$/
+
+/**
+ * A cell that a spreadsheet will display rather than execute.
+ *
+ * A converted file is usually somebody else's data, and it is opened in Excel
+ * the moment it is downloaded. A cell reading `=HYPERLINK(...)` or `@SUM(...)`
+ * came through the export verbatim and ran there. Prefixing an apostrophe is
+ * the standard remedy and is invisible in the spreadsheet.
+ *
+ * Numbers are never touched: `-8.61` and `-8,61` are coordinates, and a tool
+ * that quietly turned them into text would break the thing it exists to
+ * produce. Mirrors csv_safe() in geocoord/geoexport.py.
+ */
+export function csvSafe(value) {
+  if (typeof value !== 'string' || value === '') return value
+  if (!FORMULA_START.includes(value[0])) return value
+  if (NUMERIC_LIKE_RE.test(value)) return value
+  return `'${value}`
+}
+
+/**
+ * Escape text going into an XML *attribute*, quotes included.
+ *
+ * escapeXml leaves the double quote alone, which is right inside an element and
+ * wrong inside an attribute: a column named `a"b` produced `<Data name="a"b">`
+ * and the KML was not well-formed XML at all, so no GIS would open the file.
+ * Mirrors _escape_attr() in geocoord/geoexport.py.
+ */
+function escapeAttr(s) {
+  return escapeXml(s).replace(/"/g, '&quot;')
 }
 
 /**
@@ -157,7 +206,7 @@ export function toKML(features, nameKey = null) {
     }
     const data = propEntries(props)
       .filter(([, v]) => jsonSafe(v) !== null)
-      .map(([k, v]) => `<Data name="${escapeXml(String(k))}"><value>${escapeXml(String(jsonSafe(v)))}</value></Data>`)
+      .map(([k, v]) => `<Data name="${escapeAttr(String(k))}"><value>${escapeXml(String(jsonSafe(v)))}</value></Data>`)
       .join('')
     parts.push(
       '<Placemark>'

@@ -89,6 +89,17 @@ def parse_coordinate(value) -> Optional[float]:
     if not nums:
         return None
 
+    # Minutes and seconds are sexagesimal: sixty of either is the next unit up,
+    # so "41 60' 00\"" is not a coordinate, it is a typo for 42°00' or 41°06'.
+    # Carrying the arithmetic silently turned the digit transpositions that are
+    # commonest in hand-copied field notebooks - 62 for 26, 90 for 09 - into a
+    # well-formed coordinate that was in range, inside the declared region and
+    # indistinguishable from good data, up to 111 km from where it belonged.
+    if len(nums) >= 2 and nums[1] >= 60.0:
+        return None
+    if len(nums) >= 3 and nums[2] >= 60.0:
+        return None
+
     if len(nums) == 1:
         magnitude = nums[0]
     elif len(nums) == 2:
@@ -103,6 +114,42 @@ def parse_coordinate(value) -> Optional[float]:
         negative = has_minus
 
     return -magnitude if negative else magnitude
+
+
+def hemisphere_axis(value) -> Optional[str]:
+    """Which axis the hemisphere letter in ``value`` belongs to, if any.
+
+    ``N``/``S`` can only be a latitude and ``E``/``W``/``O``/``L`` only a
+    longitude, so the letter is free, decisive evidence of which column a value
+    came from. Returns ``"lat"``, ``"lon"``, or ``None`` when there is no
+    letter. Uses the same guarded match as :func:`parse_coordinate`, so a word
+    like ``Norte`` or ``Oeste`` in a name column is not mistaken for one.
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return None
+    txt = _STRIP_CHARS_RE.sub("", str(value)).translate(_ORDINAL_SIGNS).strip()
+    match = _DIRECTION_RE.search(txt)
+    if match is None:
+        return None
+    return "lat" if match.group(1).upper() in ("N", "S") else "lon"
+
+
+def axis_mismatch(lat_values, lon_values) -> list:
+    """Rows whose hemisphere letters contradict the columns they sit in.
+
+    A ``W`` in the latitude column, or an ``N`` in the longitude column, is not
+    a guess about a swap - it is proof of one, and the only evidence in the file
+    that costs nothing to read. It was being discarded: ``9° 8' 12" W`` chosen
+    as a latitude became -9.136667, passed the range check, and was written back
+    out as ``9° 8' 12" S``, so the exported file asserted a hemisphere that
+    nobody had entered.
+    """
+    out = []
+    for lat, lon in zip(lat_values, lon_values):
+        out.append(hemisphere_axis(lat) == "lon" or hemisphere_axis(lon) == "lat")
+    return out
 
 
 def in_range(value: Optional[float], axis: str) -> bool:
@@ -122,6 +169,12 @@ def format_dms(value, axis: str, seconds_decimals: int = 3) -> Optional[str]:
     Example: format_dms(-9.136667, 'lon') -> "9° 8' 12\" W".
     """
     if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+
+    # A value outside its axis has no DMS form: writing 123° 30' 0" N into a
+    # Latitude_GMS column states a latitude that does not exist, and the
+    # exported file then carries an assertion nobody made.
+    if not in_range(value, axis):
         return None
 
     positive, negative = ("N", "S") if axis == "lat" else ("E", "W")
@@ -250,8 +303,9 @@ def _dense_center(points: np.ndarray):
 
 
 def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
-                 region_radius: float = 10.0, mask=None):
-    """Classify each row as ok / missing / out_of_range / swap_range / swap_cluster.
+                 region_radius: float = 10.0, mask=None, axis_mismatch=None):
+    """Classify each row as ok / missing / out_of_range / swap_range /
+    swap_cluster / swap_axis.
 
     Two layers of detection:
 
@@ -292,6 +346,7 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
     n = len(lats)
     labels = ["missing"] * n
     inrange_idx = []
+    mismatch = list(axis_mismatch) if axis_mismatch is not None else [False] * n
 
     for i in range(n):
         la, lo = lats[i], lons[i]
@@ -307,12 +362,19 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
         else:
             labels[i] = "out_of_range"
 
+    def _apply_axis_proof(lbls):
+        """A hemisphere letter in the wrong column outranks every heuristic."""
+        for i in inrange_idx:
+            if mismatch[i]:
+                lbls[i] = "swap_axis"
+        return lbls
+
     if mask:
         for i in inrange_idx:
             la, lo = float(lats[i]), float(lons[i])
             if not _in_mask(la, lo, mask) and _in_mask(lo, la, mask):
                 labels[i] = "swap_cluster"
-        return labels, None
+        return _apply_axis_proof(labels), None
 
     if reference is not None:
         center = (float(reference[0]), float(reference[1]))
@@ -323,10 +385,10 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
             d_sw = math.hypot(lo - center[0], la - center[1])
             if d_as > tol and d_sw <= tol:
                 labels[i] = "swap_cluster"
-        return labels, center
+        return _apply_axis_proof(labels), center
 
     if len(inrange_idx) < min_cluster:
-        return labels, None
+        return _apply_axis_proof(labels), None
 
     as_is = np.array([[float(lats[i]), float(lons[i])] for i in inrange_idx], dtype=float)
     center, radius = _dense_center(as_is)
@@ -375,7 +437,7 @@ def detect_swaps(lats, lons, min_cluster: int = 6, reference=None,
         if d_sw <= return_tolerance or (d_sw > 0.0 and d_as >= return_ratio * d_sw):
             labels[i] = "swap_cluster"
 
-    return labels, (float(center[0]), float(center[1]))
+    return _apply_axis_proof(labels), (float(center[0]), float(center[1]))
 
 
 # ---------------------------------------------------------------------------

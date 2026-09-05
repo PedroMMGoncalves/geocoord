@@ -170,6 +170,41 @@
       "id": "null",
       "input": null,
       "expected": null
+    },
+    {
+      "id": "dms_minutes_sixty",
+      "input": "41° 60' 00\"",
+      "expected": null
+    },
+    {
+      "id": "dms_minutes_transposed",
+      "input": "38° 62' 30\"",
+      "expected": null
+    },
+    {
+      "id": "dms_seconds_sixty",
+      "input": "38° 30' 60\"",
+      "expected": null
+    },
+    {
+      "id": "dms_seconds_transposed",
+      "input": "38° 30' 90\"",
+      "expected": null
+    },
+    {
+      "id": "dm_minutes_sixty",
+      "input": "41° 60'",
+      "expected": null
+    },
+    {
+      "id": "dm_decimal_minutes_kept",
+      "input": "38° 30.5'",
+      "expected": 38.50833333333333
+    },
+    {
+      "id": "dms_seconds_just_under_sixty",
+      "input": "38° 30' 59.999\"",
+      "expected": 38.516666388888886
     }
   ],
   "in_range": [
@@ -306,6 +341,154 @@
       "value": null,
       "axis": "lat",
       "expected": null
+    },
+    {
+      "id": "latitude_beyond_the_pole",
+      "value": 123.5,
+      "axis": "lat",
+      "expected": null
+    },
+    {
+      "id": "longitude_beyond_the_meridian",
+      "value": 200.0,
+      "axis": "lon",
+      "expected": null
+    },
+    {
+      "id": "latitude_at_the_pole_is_fine",
+      "value": 90.0,
+      "axis": "lat",
+      "expected": "90° 0' 0\" N"
+    },
+    {
+      "id": "longitude_at_the_antimeridian_is_fine",
+      "value": -180.0,
+      "axis": "lon",
+      "expected": "180° 0' 0\" W"
+    }
+  ],
+  "hemisphere_axis": [
+    {
+      "id": "west_is_a_longitude",
+      "input": "9° 8' 12\" W",
+      "expected": "lon"
+    },
+    {
+      "id": "oeste_abbreviated_is_a_longitude",
+      "input": "9° 8' 12\" O",
+      "expected": "lon"
+    },
+    {
+      "id": "leste_abbreviated_is_a_longitude",
+      "input": "9.5 L",
+      "expected": "lon"
+    },
+    {
+      "id": "north_is_a_latitude",
+      "input": "38° 42' 30\" N",
+      "expected": "lat"
+    },
+    {
+      "id": "south_is_a_latitude",
+      "input": "38.5S",
+      "expected": "lat"
+    },
+    {
+      "id": "no_letter_at_all",
+      "input": "38.5",
+      "expected": null
+    },
+    {
+      "id": "a_word_is_not_a_letter",
+      "input": "Norte",
+      "expected": null
+    },
+    {
+      "id": "oeste_written_out_is_not_a_letter",
+      "input": "Oeste",
+      "expected": null
+    },
+    {
+      "id": "a_number_has_no_letter",
+      "input": 38.5,
+      "expected": null
+    },
+    {
+      "id": "empty",
+      "input": "",
+      "expected": null
+    },
+    {
+      "id": "none",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "ordinal_degree_sign_still_reads",
+      "input": "9ºO",
+      "expected": "lon"
+    }
+  ],
+  "csv_safe": [
+    {
+      "id": "formula_equals",
+      "input": "=1+1",
+      "expected": "'=1+1"
+    },
+    {
+      "id": "formula_at",
+      "input": "@SUM(A1)",
+      "expected": "'@SUM(A1)"
+    },
+    {
+      "id": "formula_plus_hyperlink",
+      "input": "+HYPERLINK(\"http://x\")",
+      "expected": "'+HYPERLINK(\"http://x\")"
+    },
+    {
+      "id": "formula_command",
+      "input": "=cmd|' /C calc'!A0",
+      "expected": "'=cmd|' /C calc'!A0"
+    },
+    {
+      "id": "negative_coordinate_untouched",
+      "input": "-8.61",
+      "expected": "-8.61"
+    },
+    {
+      "id": "negative_coordinate_decimal_comma_untouched",
+      "input": "-8,61",
+      "expected": "-8,61"
+    },
+    {
+      "id": "positive_signed_number_untouched",
+      "input": "+38.5",
+      "expected": "+38.5"
+    },
+    {
+      "id": "plain_number_untouched",
+      "input": "38.5",
+      "expected": "38.5"
+    },
+    {
+      "id": "leading_zero_code_untouched",
+      "input": "0071",
+      "expected": "0071"
+    },
+    {
+      "id": "exponent_untouched",
+      "input": "-1e-05",
+      "expected": "-1e-05"
+    },
+    {
+      "id": "ordinary_text_untouched",
+      "input": "texto",
+      "expected": "texto"
+    },
+    {
+      "id": "empty_untouched",
+      "input": "",
+      "expected": ""
     }
   ],
   "point_in_mask": [
@@ -644,39 +827,17 @@
           }
         ]
       ],
-      "expected": {
-        "type": "FeatureCollection",
-        "features": [
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                -8.611,
-                41.1496
-              ]
-            },
-            "properties": {
-              "name": "Porto",
-              "count": 3
-            }
-          },
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                -9.1393,
-                38.7223
-              ]
-            },
-            "properties": {
-              "name": "Lisboa",
-              "count": 12
-            }
-          }
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-8.611,41.1496]},\"properties\":{\"name\":\"Porto\",\"count\":3}},{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-9.1393,38.7223]},\"properties\":{\"name\":\"Lisboa\",\"count\":12}}]}",
+      "prop_order": [
+        [
+          "name",
+          "count"
+        ],
+        [
+          "name",
+          "count"
         ]
-      }
+      ]
     },
     {
       "id": "xml_special_characters",
@@ -689,24 +850,12 @@
           }
         ]
       ],
-      "expected": {
-        "type": "FeatureCollection",
-        "features": [
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                -8.0,
-                39.0
-              ]
-            },
-            "properties": {
-              "note": "A & B <C> \"quoted\" 'apostrophe'"
-            }
-          }
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-8.0,39.0]},\"properties\":{\"note\":\"A & B <C> \\\"quoted\\\" 'apostrophe'\"}}]}",
+      "prop_order": [
+        [
+          "note"
         ]
-      }
+      ]
     },
     {
       "id": "long_accented_attribute_truncated",
@@ -719,24 +868,12 @@
           }
         ]
       ],
-      "expected": {
-        "type": "FeatureCollection",
-        "features": [
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                -8.0,
-                39.0
-              ]
-            },
-            "properties": {
-              "note": "ãããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããã"
-            }
-          }
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-8.0,39.0]},\"properties\":{\"note\":\"ãããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããã\"}}]}",
+      "prop_order": [
+        [
+          "note"
         ]
-      }
+      ]
     },
     {
       "id": "accented_attribute_value",
@@ -749,24 +886,12 @@
           }
         ]
       ],
-      "expected": {
-        "type": "FeatureCollection",
-        "features": [
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                6.7273,
-                0.1864
-              ]
-            },
-            "properties": {
-              "country": "São Tomé e Príncipe"
-            }
-          }
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[6.7273,0.1864]},\"properties\":{\"country\":\"São Tomé e Príncipe\"}}]}",
+      "prop_order": [
+        [
+          "country"
         ]
-      }
+      ]
     },
     {
       "id": "none_and_long_attribute",
@@ -786,37 +911,15 @@
           }
         ]
       ],
-      "expected": {
-        "type": "FeatureCollection",
-        "features": [
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                -8.0,
-                39.0
-              ]
-            },
-            "properties": {
-              "note": null
-            }
-          },
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                -8.1,
-                39.1
-              ]
-            },
-            "properties": {
-              "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            }
-          }
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-8.0,39.0]},\"properties\":{\"note\":null}},{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-8.1,39.1]},\"properties\":{\"note\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}}]}",
+      "prop_order": [
+        [
+          "note"
+        ],
+        [
+          "note"
         ]
-      }
+      ]
     },
     {
       "id": "single_point",
@@ -829,24 +932,12 @@
           }
         ]
       ],
-      "expected": {
-        "type": "FeatureCollection",
-        "features": [
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                -8.0,
-                39.0
-              ]
-            },
-            "properties": {
-              "name": "Only"
-            }
-          }
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-8.0,39.0]},\"properties\":{\"name\":\"Only\"}}]}",
+      "prop_order": [
+        [
+          "name"
         ]
-      }
+      ]
     },
     {
       "id": "exponential_coordinates",
@@ -880,63 +971,21 @@
           }
         ]
       ],
-      "expected": {
-        "type": "FeatureCollection",
-        "features": [
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                1e-05,
-                -51.468987049
-              ]
-            },
-            "properties": {
-              "note": "gap"
-            }
-          },
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                -111.9941399921,
-                1e-05
-              ]
-            },
-            "properties": {
-              "note": "gap"
-            }
-          },
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                1e-07,
-                -1e-07
-              ]
-            },
-            "properties": {
-              "note": "both exponential"
-            }
-          },
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                0.0001,
-                -0.0001
-              ]
-            },
-            "properties": {
-              "note": "neither exponential"
-            }
-          }
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[1e-05,-51.468987049]},\"properties\":{\"note\":\"gap\"}},{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-111.9941399921,1e-05]},\"properties\":{\"note\":\"gap\"}},{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[1e-07,-1e-07]},\"properties\":{\"note\":\"both exponential\"}},{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[0.0001,-0.0001]},\"properties\":{\"note\":\"neither exponential\"}}]}",
+      "prop_order": [
+        [
+          "note"
+        ],
+        [
+          "note"
+        ],
+        [
+          "note"
+        ],
+        [
+          "note"
         ]
-      }
+      ]
     },
     {
       "id": "integer_like_property_key",
@@ -952,35 +1001,41 @@
           }
         ]
       ],
-      "expected": {
-        "type": "FeatureCollection",
-        "features": [
-          {
-            "type": "Feature",
-            "geometry": {
-              "type": "Point",
-              "coordinates": [
-                -8.0,
-                39.0
-              ]
-            },
-            "properties": {
-              "local": "Beja",
-              "2024": "12",
-              "nota": "x",
-              "0": "zero"
-            }
-          }
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-8.0,39.0]},\"properties\":{\"local\":\"Beja\",\"2024\":\"12\",\"nota\":\"x\",\"0\":\"zero\"}}]}",
+      "prop_order": [
+        [
+          "local",
+          "2024",
+          "nota",
+          "0"
         ]
-      }
+      ]
     },
     {
       "id": "empty_feature_list",
       "features": [],
-      "expected": {
-        "type": "FeatureCollection",
-        "features": []
-      }
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[]}",
+      "prop_order": []
+    },
+    {
+      "id": "attribute_name_with_a_quote",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "a\"b": "v",
+            "c<d": "e&f"
+          }
+        ]
+      ],
+      "expected": "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-8.0,39.0]},\"properties\":{\"a\\\"b\":\"v\",\"c<d\":\"e&f\"}}]}",
+      "prop_order": [
+        [
+          "a\"b",
+          "c<d"
+        ]
+      ]
     }
   ],
   "to_kml": [
@@ -1202,6 +1257,27 @@
       "name_key": null,
       "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document></Document></kml>",
       "prop_order": []
+    },
+    {
+      "id": "attribute_name_with_a_quote",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "a\"b": "v",
+            "c<d": "e&f"
+          }
+        ]
+      ],
+      "name_key": null,
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><Placemark><name></name><ExtendedData><Data name=\"a&quot;b\"><value>v</value></Data><Data name=\"c&lt;d\"><value>e&amp;f</value></Data></ExtendedData><Point><coordinates>-8.0,39.0,0</coordinates></Point></Placemark></Document></kml>",
+      "prop_order": [
+        [
+          "a\"b",
+          "c<d"
+        ]
+      ]
     }
   ],
   "to_shapefile_zip": [
@@ -1549,6 +1625,94 @@
           "ok",
           "ok",
           "swap_cluster"
+        ],
+        "center": null
+      }
+    },
+    {
+      "id": "axis_proof_beats_a_clean_bill_of_health",
+      "lats": [
+        -9.136667,
+        39.0,
+        38.9
+      ],
+      "lons": [
+        38.708333,
+        -8.0,
+        -7.9
+      ],
+      "kwargs": {
+        "axis_mismatch": [
+          true,
+          false,
+          false
+        ]
+      },
+      "expected": {
+        "labels": [
+          "swap_axis",
+          "ok",
+          "ok"
+        ],
+        "center": null
+      }
+    },
+    {
+      "id": "axis_proof_overrides_the_mask_verdict",
+      "lats": [
+        39.0,
+        38.9,
+        -9.136667
+      ],
+      "lons": [
+        -8.0,
+        -7.9,
+        38.708333
+      ],
+      "kwargs": {
+        "mask": [
+          [
+            36.8,
+            42.2,
+            -9.6,
+            -6.1
+          ]
+        ],
+        "axis_mismatch": [
+          false,
+          false,
+          true
+        ]
+      },
+      "expected": {
+        "labels": [
+          "ok",
+          "ok",
+          "swap_axis"
+        ],
+        "center": null
+      }
+    },
+    {
+      "id": "axis_proof_does_not_touch_a_row_that_never_parsed",
+      "lats": [
+        null,
+        39.0
+      ],
+      "lons": [
+        -8.0,
+        -8.1
+      ],
+      "kwargs": {
+        "axis_mismatch": [
+          true,
+          false
+        ]
+      },
+      "expected": {
+        "labels": [
+          "missing",
+          "ok"
         ],
         "center": null
       }

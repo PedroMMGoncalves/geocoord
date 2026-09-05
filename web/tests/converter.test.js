@@ -1,6 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { fixtures, cases } from './fixtures.js'
-import { parseCoordinate, inRange, formatDms, pointInMask, identifyRegion, detectSwaps, percentileLinear, median, regionCheck, tidyTable } from '../src/core/converter.js'
+import {
+  axisMismatch,
+  detectSwaps,
+  formatDms,
+  hemisphereAxis,
+  identifyRegion,
+  inRange,
+  median,
+  parseCoordinate,
+  percentileLinear,
+  pointInMask,
+  regionCheck,
+  tidyTable,
+} from '../src/core/converter.js'
 
 describe('parity fixtures', () => {
   // A tripwire against a truncated, empty or half-written contract, not a
@@ -66,6 +79,30 @@ describe('pointInMask', () => {
 describe('identifyRegion', () => {
   it.each(cases('identify_region'))('%s', (_id, c) => {
     expect(identifyRegion(c.lat, c.lon, c.regions)).toBe(c.expected)
+  })
+})
+
+describe('hemisphereAxis', () => {
+  // N/S can only be a latitude and E/W/O/L only a longitude, so the letter
+  // names the column a value belongs in - the one piece of evidence about a
+  // swapped pair of columns that costs nothing to read.
+  it.each(cases('hemisphere_axis'))('%s', (_id, c) => {
+    expect(hemisphereAxis(c.input)).toBe(c.expected)
+  })
+})
+
+describe('axisMismatch', () => {
+  it('flags a row whose letters contradict the columns they sit in', () => {
+    expect(axisMismatch(["9\u00b0 8' 12\" W"], ["38\u00b0 42' 30\" N"])).toEqual([true])
+    expect(axisMismatch(["38\u00b0 42' 30\" N"], ["9\u00b0 8' 12\" W"])).toEqual([false])
+  })
+
+  it('says nothing about a row with no letters at all', () => {
+    expect(axisMismatch(['38.5'], ['-9.0'])).toEqual([false])
+  })
+
+  it('is not fooled by a word in a name column', () => {
+    expect(axisMismatch(['Norte'], ['Oeste'])).toEqual([false])
   })
 })
 

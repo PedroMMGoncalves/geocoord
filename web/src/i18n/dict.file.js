@@ -105,6 +105,10 @@ export default {
   },
 
   'file.status.ok': { pt: 'convertidas', en: 'converted' },
+  'file.status.swap_axis': {
+    pt: 'troca certa (a letra do hemisfério contradiz a coluna)',
+    en: 'certain swap (the hemisphere letter contradicts the column)',
+  },
   'file.status.swap_range': {
     pt: 'possível troca (fora do intervalo)',
     en: 'possible swap (out of range)',

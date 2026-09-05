@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A hemisphere letter that contradicts the column it sits in is now reported as
+  a certain swap rather than ignored. N and S can only be a latitude and E, W, O
+  and L only a longitude, so the letter is proof of a reversed pair of columns
+  and not a guess about one; it outranks every heuristic and is offered for
+  inversion first (`converter.hemisphere_axis`, `converter.axis_mismatch`, and
+  the new `swap_axis` status).
+- `geoexport.csv_safe`, applied to every CSV export: a cell beginning with `=`,
+  `+`, `-` or `@` is a formula to Excel, LibreOffice and Google Sheets, and a
+  converted file is usually somebody else's data being opened on your machine.
+  Numbers are never touched, so `-8,61` stays a coordinate.
 - A map of the converted points on the web page, on Leaflet, with the same
   basemaps as the sibling tools (snap-wkt-generator, dji-mission-planner): Esri
   imagery, Esri hybrid, CARTO light and dark, and OpenStreetMap, with the choice
@@ -94,6 +104,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A hemisphere in the wrong column was silently converted and then reinvented.
+  `9° 8' 12" W` chosen as a latitude became -9.136667, passed the range check,
+  and was written back out as `9° 8' 12" S`, so the exported file asserted a
+  hemisphere that nobody had entered.
+- Degrees-minutes-seconds with sixty or more minutes or seconds are rejected
+  instead of carried. `41° 60' 00"` is not a coordinate, it is a typo for 42°00'
+  or 41°06', and the arithmetic turned exactly the digit transpositions
+  commonest in hand-copied field notebooks into a well-formed coordinate that
+  was in range, inside the declared region, and up to 111 km out of place.
+- `format_dms` refuses a value outside its axis rather than writing
+  `123° 30' 0" N` into a Latitude_GMS column.
+- The browser wrote GeoJSON properties in a different order from the desktop
+  application whenever a column was named like an integer, because JavaScript
+  hoists such keys to the front of an object. The parity contract could not see
+  it: it compared the parsed objects, and parsing hoists them again on both
+  sides. GeoJSON is now written by hand on the JavaScript side, Python emits
+  compact separators, and the contract compares the text, as it already did for
+  KML — which pins the ordering, the spacing and the number rendering at once.
+- A column name containing a double quote produced `<Data name="a"b">` and a KML
+  that is not well-formed XML at all, so no GIS would open the file and nothing
+  said why. Attribute names are now escaped for an attribute, quotes included.
+- A UTF-16 CSV — which is what Excel's "Unicode Text" export writes — was read
+  as mojibake, column names included. The byte-order mark now settles the
+  encoding before anything is guessed.
+- The single-byte fallback is windows-1252 on both sides. It was latin1 in
+  Python and windows-1252 in the browser, which differ over bytes 0x80-0x9F, so
+  a curly apostrophe out of Excel read as an invisible control character on the
+  desktop and correctly in the browser.
+- A CSV cell longer than 128 KB no longer makes the whole file unreadable. The
+  standard library's parser refuses one by default where `pd.read_csv` did not.
+- `guess_column` no longer raises on a header cell that is not a string, such as
+  a workbook whose first row is a row of years.
 - Auto mode no longer reports reversed coordinates as fine. Its tolerance for
   "the swap brings this row back where the data is" was one and a half times
   the radius of the dense *core* of the data, and a country is far wider than

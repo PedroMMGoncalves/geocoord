@@ -31,7 +31,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from geocoord.converter import (
+    axis_mismatch,
     detect_swaps,
+    hemisphere_axis,
     format_dms,
     identify_region,
     in_range,
@@ -44,6 +46,7 @@ from geocoord.reader import read_csv_text
 from geocoord.geoexport import (
     sanitize_filename,
     to_geojson,
+    csv_safe,
     to_kml,
     to_shapefile_zip,
     _safe_field_names,
@@ -103,6 +106,17 @@ PARSE_INPUTS = [
     ("em_dash", "—"),
     ("text", "texto"),
     ("null", None),
+    # Minutes and seconds run 0-59. Sixty of either is the next unit up, so
+    # these are typos, not coordinates - and the arithmetic used to carry them
+    # silently into a plausible in-region position up to 111 km out.
+    ("dms_minutes_sixty", "41\u00b0 60' 00\""),
+    ("dms_minutes_transposed", "38\u00b0 62' 30\""),
+    ("dms_seconds_sixty", "38\u00b0 30' 60\""),
+    ("dms_seconds_transposed", "38\u00b0 30' 90\""),
+    ("dm_minutes_sixty", "41\u00b0 60'"),
+    # ...but decimal minutes below sixty are ordinary, and must still work.
+    ("dm_decimal_minutes_kept", "38\u00b0 30.5'"),
+    ("dms_seconds_just_under_sixty", "38\u00b0 30' 59.999\""),
 ]
 
 IN_RANGE_INPUTS = [
@@ -134,6 +148,13 @@ FORMAT_DMS_INPUTS = [
     ("rounding_tie_to_even", 38.70703125, "lat"),
     ("rounding_tie_small", 1.736111111111111e-05, "lat"),
     ("null", None, "lat"),
+    # Outside the axis there is no DMS form: writing 123 30' 0" N states a
+    # latitude that does not exist, and the export then carries an assertion
+    # nobody made.
+    ("latitude_beyond_the_pole", 123.5, "lat"),
+    ("longitude_beyond_the_meridian", 200.0, "lon"),
+    ("latitude_at_the_pole_is_fine", 90.0, "lat"),
+    ("longitude_at_the_antimeridian_is_fine", -180.0, "lon"),
 ]
 
 # The messy export from the README, and from tests/test_converter.py.
@@ -197,6 +218,28 @@ DETECT_INPUTS = [
         "lons": [-8.0, -8.1, 40.692444],
         "kwargs": {"mask": [PT]},
     },
+    # The hemisphere letter contradicts the column it sits in. That is not a
+    # guess about a swap, it is proof of one, and it used to be discarded: the
+    # value passed the range check and was re-exported with an S on it, so the
+    # file asserted a hemisphere nobody had entered.
+    {
+        "id": "axis_proof_beats_a_clean_bill_of_health",
+        "lats": [-9.136667, 39.0, 38.9],
+        "lons": [38.708333, -8.0, -7.9],
+        "kwargs": {"axis_mismatch": [True, False, False]},
+    },
+    {
+        "id": "axis_proof_overrides_the_mask_verdict",
+        "lats": [39.0, 38.9, -9.136667],
+        "lons": [-8.0, -7.9, 38.708333],
+        "kwargs": {"mask": [PT], "axis_mismatch": [False, False, True]},
+    },
+    {
+        "id": "axis_proof_does_not_touch_a_row_that_never_parsed",
+        "lats": [None, 39.0],
+        "lons": [-8.0, -8.1],
+        "kwargs": {"axis_mismatch": [True, False]},
+    },
     {
         "id": "mask_multi_region_no_false_positive",
         "lats": [39.0, 38.9, -18.0],
@@ -244,6 +287,41 @@ DETECT_INPUTS = [
         "lons": [-8.0, -8.1, -7.9, -8.2, -7.8, -8.05, -6.5, 41.0],
         "kwargs": {},
     },
+]
+
+# N/S can only be a latitude and E/W/O/L only a longitude, so the letter names
+# the column a value belongs in - the one piece of evidence about a swap that
+# costs nothing to read, and was being thrown away.
+HEMISPHERE_AXIS_INPUTS = [
+    ("west_is_a_longitude", "9\u00b0 8' 12\" W"),
+    ("oeste_abbreviated_is_a_longitude", "9\u00b0 8' 12\" O"),
+    ("leste_abbreviated_is_a_longitude", "9.5 L"),
+    ("north_is_a_latitude", "38\u00b0 42' 30\" N"),
+    ("south_is_a_latitude", "38.5S"),
+    ("no_letter_at_all", "38.5"),
+    ("a_word_is_not_a_letter", "Norte"),
+    ("oeste_written_out_is_not_a_letter", "Oeste"),
+    ("a_number_has_no_letter", 38.5),
+    ("empty", ""),
+    ("none", None),
+    ("ordinal_degree_sign_still_reads", "9\u00baO"),
+]
+
+# A cell a spreadsheet would run rather than show, and the numbers that must
+# never be mistaken for one.
+CSV_SAFE_INPUTS = [
+    ("formula_equals", "=1+1"),
+    ("formula_at", "@SUM(A1)"),
+    ("formula_plus_hyperlink", "+HYPERLINK(\"http://x\")"),
+    ("formula_command", "=cmd|' /C calc'!A0"),
+    ("negative_coordinate_untouched", "-8.61"),
+    ("negative_coordinate_decimal_comma_untouched", "-8,61"),
+    ("positive_signed_number_untouched", "+38.5"),
+    ("plain_number_untouched", "38.5"),
+    ("leading_zero_code_untouched", "0071"),
+    ("exponent_untouched", "-1e-05"),
+    ("ordinary_text_untouched", "texto"),
+    ("empty_untouched", ""),
 ]
 
 REGION_CHECK_INPUTS = [
@@ -549,7 +627,16 @@ EXPORT_FEATURES = [
         [],
         None,
     ),
+    # A double quote inside an XML attribute has to be escaped or the document
+    # is not well-formed at all: <Data name="a"b"> made a KML no GIS would open,
+    # and nothing said why.
+    (
+        "attribute_name_with_a_quote",
+        [(-8.0, 39.0, {'a"b': "v", "c<d": "e&f"})],
+        None,
+    ),
 ]
+
 
 # Separate, deliberately small cases for to_shapefile_zip: the DBF pads every
 # field to 254 bytes regardless of content, so each case below is already a
@@ -657,6 +744,14 @@ def build():
             {"id": i, "value": v, "axis": a, "expected": format_dms(v, a)}
             for i, v, a in FORMAT_DMS_INPUTS
         ],
+        "hemisphere_axis": [
+            {"id": i, "input": v, "expected": hemisphere_axis(v)}
+            for i, v in HEMISPHERE_AXIS_INPUTS
+        ],
+        "csv_safe": [
+            {"id": i, "input": v, "expected": csv_safe(v)}
+            for i, v in CSV_SAFE_INPUTS
+        ],
         "point_in_mask": [
             {"id": i, "lat": la, "lon": lo, "mask": m,
              "expected": point_in_mask(la, lo, m)}
@@ -679,7 +774,13 @@ def build():
             {
                 "id": i,
                 "features": feats,
-                "expected": json.loads(to_geojson(feats).decode("utf-8")),
+                # The text, not the parsed object: parsing hoists an
+                # integer-like key to the front on both sides, so a real
+                # ordering divergence cancelled out inside the comparison.
+                "expected": to_geojson(feats).decode("utf-8"),
+                # The key order, so the JavaScript half can rebuild a Map. A
+                # plain object cannot carry it - see integer_like_property_key.
+                "prop_order": [list(props.keys()) for _, _, props in feats],
             }
             for i, feats, _name_key in EXPORT_FEATURES
         ],
