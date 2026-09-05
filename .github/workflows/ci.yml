@@ -20,9 +20,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
+        # Named rather than -r requirements.txt: the engine and its tests do not
+        # need Streamlit, and installing it here would add a minute a run for a
+        # dependency none of this exercises. openpyxl is here so the Excel tests
+        # actually run - they skip themselves without it, which is worse than
+        # failing.
         run: |
           python -m pip install --upgrade pip
-          pip install pandas "pyshp>=3.1.6" pytest
+          pip install pandas "pyshp>=3.1.6" "pyproj>=3.6.0" openpyxl pytest
       - name: Check the parity contract is in sync with its generator
         run: python scripts/gen_parity_fixtures.py --check
       - name: Run tests
