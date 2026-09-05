@@ -1,6 +1,6 @@
 /**
  * Dictionary for the app shell: the header, the language selector, and the
- * line shown while there is no converter yet. Split out from i18n.jsx so
+ * language selector. Split out from i18n.jsx so
  * later areas (file import, results table, map) can each grow their own
  * dict.<area>.js instead of this one file becoming unwieldy.
  */
@@ -12,9 +12,5 @@ export default {
   'app.langLabel': {
     pt: 'Idioma',
     en: 'Language',
-  },
-  'app.comingSoon': {
-    pt: 'O conversor chega em breve.',
-    en: 'The converter is coming soon.',
   },
 }

@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import appDict from './i18n/dict.app.js'
+import quickDict from './i18n/dict.quick.js'
 
 /**
  * PT/EN internationalisation.
@@ -41,6 +42,6 @@ export function useT() {
   return (key, vars) => translate(DICT, lang, key, vars)
 }
 
-const DICT = { ...appDict }
+const DICT = { ...appDict, ...quickDict }
 
 export default DICT

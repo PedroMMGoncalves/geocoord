@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import QuickConvert from './components/QuickConvert.jsx'
 import { LANGS, LangContext, useT } from './i18n.jsx'
 
 const STORAGE_KEY = 'geocoord:lang'
@@ -86,8 +87,8 @@ function AppInner({ lang, setLang }) {
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-4 text-center">
-        <p className="text-sm text-slate-500">{t('app.comingSoon')}</p>
+      <main className="flex-1">
+        <QuickConvert />
       </main>
     </div>
   )
