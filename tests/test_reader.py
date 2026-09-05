@@ -224,9 +224,15 @@ def test_read_excel_renders_a_date_rather_than_its_day_count():
 
 
 def test_read_excel_is_all_text():
+    """Every value is a Python string.
+
+    The dtype's *name* is not asserted: pandas reports a string column as
+    "object" up to 2.x and as "str" from 3.0, and which one it says is an
+    implementation detail of pandas rather than a promise this reader makes.
+    What the reader promises is that nothing arrives as a number.
+    """
     data = _workbook([["a", "b"], ["x", 1]])
     df = read_excel_bytes(data, "f.xlsx")
-    assert set(df.dtypes.astype(str)) == {"object"}
     assert all(isinstance(v, str) for v in df.to_numpy().ravel())
 
 
