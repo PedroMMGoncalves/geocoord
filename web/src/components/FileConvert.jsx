@@ -15,6 +15,7 @@ import {
   toCsv,
   toGpx,
 } from '../core/pipeline.js'
+import * as crs from '../core/crs.js'
 import { SEPARATORS, readCsvBytes, readCsvText, readWorkbook, workbookSheets } from '../core/reader.js'
 import { useT } from '../i18n.jsx'
 
@@ -53,6 +54,46 @@ function download(bytes, filename, mime) {
   // Revoking immediately can cancel the download in some browsers; a turn of
   // the event loop is enough for it to have started.
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/**
+ * A coordinate-system chooser: the registry grouped by kind, then the two
+ * escape hatches. The deprecated ones are marked rather than hidden - somebody
+ * with a file in Madeira 1936 still has to be able to say so.
+ */
+function CrsSelect({ id, label, value, onChange, includeNone = false, t }) {
+  const geographic = crs.systems('geographic')
+  const projected = crs.systems('projected')
+  return (
+    <div className="min-w-0 flex-1">
+      <label htmlFor={id} className="mb-1 block text-xs text-slate-400">{label}</label>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded border border-edge bg-panel px-2 py-1.5 text-sm text-slate-100
+                   focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+      >
+        {includeNone && <option value="none">{t('crs.none')}</option>}
+        <optgroup label={t('crs.geographic')}>
+          {geographic.map((s) => (
+            <option key={s.epsg} value={String(s.epsg)}>{s.pt} — EPSG:{s.epsg}</option>
+          ))}
+        </optgroup>
+        <optgroup label={t('crs.projected')}>
+          {projected.map((s) => (
+            <option key={s.epsg} value={String(s.epsg)}>
+              {s.pt} — EPSG:{s.epsg}{s.deprecated ? ` (${t('crs.deprecated')})` : ''}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label={t('crs.generic')}>
+          <option value="utm">{t('crs.utm')}</option>
+          <option value="custom">{t('crs.custom')}</option>
+        </optgroup>
+      </select>
+    </div>
+  )
 }
 
 function Step({ n, title, children }) {
@@ -132,9 +173,61 @@ export default function FileConvert() {
   const [decimals, setDecimals] = useState(6)
   const [addDms, setAddDms] = useState(true)
   const [accepted, setAccepted] = useState(() => new Set())
+
+  // The coordinate systems. 'utm' and 'custom' are the two escape hatches: a
+  // UTM zone by number, and a proj4 definition pasted whole. Neither needs this
+  // application to have guessed at a national datum it cannot verify.
+  const [inputSel, setInputSel] = useState(crs.WGS84)
+  const [outputSel, setOutputSel] = useState('none')
+  const [utmZone, setUtmZone] = useState('29')
+  const [utmSouth, setUtmSouth] = useState(false)
+  const [customProj4, setCustomProj4] = useState('')
   // The map is opened by hand. Until it is, the page has spoken to nobody,
   // and that is a promise worth keeping literally rather than nearly.
   const [showMap, setShowMap] = useState(false)
+
+  /**
+   * Turn a selection into `{ proj4, kind, suffix, label, epsg }`, or null when
+   * it is not usable yet - an empty custom definition, a zone out of range.
+   */
+  const resolve = useCallback((selection) => {
+    if (selection === 'none') return null
+    if (selection === 'utm') {
+      const zone = Number(utmZone)
+      if (!Number.isInteger(zone) || zone < 1 || zone > 60) return null
+      return {
+        proj4: crs.utmProj4(zone, utmSouth),
+        kind: 'projected',
+        suffix: crs.utmLabel(zone, utmSouth),
+        label: `UTM ${zone}${utmSouth ? 'S' : 'N'} (WGS84)`,
+        epsg: null,
+      }
+    }
+    if (selection === 'custom') {
+      const definition = customProj4.trim()
+      if (!definition.startsWith('+proj=')) return null
+      return {
+        proj4: definition,
+        kind: definition.includes('+proj=longlat') ? 'geographic' : 'projected',
+        suffix: 'custom',
+        label: t('crs.custom'),
+        epsg: null,
+      }
+    }
+    const entry = crs.REGISTRY[selection]
+    if (entry === undefined) return null
+    return {
+      proj4: entry.proj4,
+      kind: entry.kind,
+      suffix: String(entry.epsg),
+      label: entry.pt,
+      epsg: entry.epsg,
+    }
+  }, [customProj4, t, utmSouth, utmZone])
+
+  const inputCrs = resolve(inputSel)
+  const outputCrs = resolve(outputSel)
+  const projectedInput = inputCrs !== null && inputCrs.kind === 'projected'
 
   const inputRef = useRef(null)
   // The file's name, outside React state: the re-read effect needs it without
@@ -220,15 +313,51 @@ export default function FileConvert() {
   const columnKey = JSON.stringify(columns)
   useEffect(() => {
     if (columns.length === 0) return
-    setLatCol(columns[guessColumn(columns, LAT_CANDIDATES, 0)])
-    setLonCol(columns[guessColumn(columns, LON_CANDIDATES, columns.length > 1 ? 1 : 0)])
+    // The first selector is the latitude for a geographic system and the X -
+    // the easting - for a projected one, and the candidate lists have to swap
+    // with it. They already overlap on exactly this: "y" is in the latitude
+    // list because a northing is a latitude, and "x" is in the longitude list
+    // for the same reason. Left unswapped, a file with columns named X and Y
+    // put the northing in the X slot, and every coordinate came out
+    // transposed - which looks like a plausible place, some kilometres away.
+    const first = projectedInput ? LON_CANDIDATES : LAT_CANDIDATES
+    const second = projectedInput ? LAT_CANDIDATES : LON_CANDIDATES
+    setLatCol(columns[guessColumn(columns, first, 0)])
+    setLonCol(columns[guessColumn(columns, second, columns.length > 1 ? 1 : 0)])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnKey])
+  }, [columnKey, projectedInput])
 
-  const converted = useMemo(() => {
-    if (!source || !latCol || !lonCol) return null
-    return buildResult(source.table, latCol, lonCol, { decimals, addDms })
-  }, [source, latCol, lonCol, decimals, addDms])
+  // Building is asynchronous now: a coordinate system may have to be fetched.
+  // A selection changed while an earlier build is still running must not have
+  // the stale result land on top of the newer one.
+  const [converted, setConverted] = useState(null)
+  const [converting, setConverting] = useState(false)
+  useEffect(() => {
+    if (!source || !latCol || !lonCol) {
+      setConverted(null)
+      return undefined
+    }
+    let cancelled = false
+    setConverting(true)
+    buildResult(source.table, latCol, lonCol, {
+      decimals,
+      addDms,
+      input: inputCrs,
+      output: outputCrs,
+    }).then((result) => {
+      if (cancelled) return
+      setConverted(result)
+      setError(null)
+    }).catch((e) => {
+      if (!cancelled) setError(t('crs.errTransform', { message: e?.message ?? String(e) }))
+    }).finally(() => {
+      if (!cancelled) setConverting(false)
+    })
+    return () => { cancelled = true }
+    // inputCrs/outputCrs are rebuilt every render; their proj4 is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source, latCol, lonCol, decimals, addDms,
+      inputCrs?.proj4, inputCrs?.kind, outputCrs?.proj4, outputCrs?.suffix])
 
   const detection = useMemo(() => {
     if (!converted) return null
@@ -241,10 +370,23 @@ export default function FileConvert() {
     return { labels, detected }
   }, [converted, region])
 
-  // The rows the user has agreed to invert, applied.
-  const final = useMemo(() => {
-    if (!converted) return null
-    return accepted.size === 0 ? converted : applySwaps(converted, accepted, { addDms })
+  // The rows the user has agreed to invert, applied. Asynchronous for the same
+  // reason as the build: the second system has to be recomputed.
+  const [final, setFinal] = useState(null)
+  useEffect(() => {
+    if (!converted) {
+      setFinal(null)
+      return undefined
+    }
+    if (accepted.size === 0) {
+      setFinal(converted)
+      return undefined
+    }
+    let cancelled = false
+    applySwaps(converted, accepted, { addDms }).then((r) => {
+      if (!cancelled) setFinal(r)
+    })
+    return () => { cancelled = true }
   }, [converted, accepted, addDms])
 
   const suspects = useMemo(() => {
@@ -406,10 +548,20 @@ export default function FileConvert() {
       {source && columns.length > 0 && (
         <Step n={2} title={t('file.step2')}>
           <div className="flex flex-wrap gap-3">
-            <Select id="lat-col" label={t('file.latColumn')} value={latCol} onChange={setLatCol}>
+            <Select
+              id="lat-col"
+              label={projectedInput ? t('crs.xColumn') : t('file.latColumn')}
+              value={latCol}
+              onChange={setLatCol}
+            >
               {columns.map((c) => <option key={c} value={c}>{c}</option>)}
             </Select>
-            <Select id="lon-col" label={t('file.lonColumn')} value={lonCol} onChange={setLonCol}>
+            <Select
+              id="lon-col"
+              label={projectedInput ? t('crs.yColumn') : t('file.lonColumn')}
+              value={lonCol}
+              onChange={setLonCol}
+            >
               {columns.map((c) => <option key={c} value={c}>{c}</option>)}
             </Select>
             <Select id="region" label={t('file.region')} value={region} onChange={setRegion}>
@@ -417,6 +569,75 @@ export default function FileConvert() {
               {Object.keys(REGION_MASKS).map((r) => <option key={r} value={r}>{r}</option>)}
             </Select>
           </div>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <CrsSelect
+              id="crs-in"
+              label={t('crs.input')}
+              value={inputSel}
+              onChange={setInputSel}
+              t={t}
+            />
+            <CrsSelect
+              id="crs-out"
+              label={t('crs.output')}
+              value={outputSel}
+              onChange={setOutputSel}
+              includeNone
+              t={t}
+            />
+          </div>
+
+          {(inputSel === 'utm' || outputSel === 'utm') && (
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <div>
+                <label htmlFor="utm-zone" className="mb-1 block text-xs text-slate-400">
+                  {t('crs.utmZone')}
+                </label>
+                <input
+                  id="utm-zone"
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={utmZone}
+                  onChange={(e) => setUtmZone(e.target.value)}
+                  className="w-24 rounded border border-edge bg-panel px-2 py-1.5 text-sm text-slate-100"
+                />
+              </div>
+              <label className="flex items-center gap-2 pb-2 text-xs text-slate-400">
+                <input
+                  type="checkbox"
+                  checked={utmSouth}
+                  onChange={(e) => setUtmSouth(e.target.checked)}
+                  className="accent-accent"
+                />
+                {t('crs.utmSouth')}
+              </label>
+            </div>
+          )}
+
+          {(inputSel === 'custom' || outputSel === 'custom') && (
+            <div className="mt-3">
+              <label htmlFor="custom-proj4" className="mb-1 block text-xs text-slate-400">
+                {t('crs.customLabel')}
+              </label>
+              <input
+                id="custom-proj4"
+                value={customProj4}
+                onChange={(e) => setCustomProj4(e.target.value)}
+                placeholder="+proj=utm +zone=33 +south +datum=WGS84 +units=m +no_defs"
+                className="w-full rounded border border-edge bg-panel px-3 py-2 font-mono text-xs
+                           text-slate-100 focus-visible:outline focus-visible:outline-2
+                           focus-visible:outline-accent"
+              />
+            </div>
+          )}
+
+          {inputCrs !== null && inputCrs.epsg !== null && crs.REGISTRY[String(inputCrs.epsg)]?.note && (
+            <p className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+              {crs.REGISTRY[String(inputCrs.epsg)].note}
+            </p>
+          )}
+
           <div className="mt-3 flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2 text-xs text-slate-400">
               {t('file.decimals')}
@@ -625,7 +846,12 @@ export default function FileConvert() {
                 hint={t('file.shpHint')}
                 disabled={exportable.features.length === 0}
                 onClick={async () => download(
-                  await toShapefileZip(exportable.features, exportable.fieldNames, baseName),
+                  // The .prj describes the system the geometry is written in.
+                  // Shapefile geometry stays WGS84 here, so the sidecar does
+                  // too: a .prj that names a system the coordinates are not in
+                  // is worse than none.
+                  await toShapefileZip(exportable.features, exportable.fieldNames, baseName,
+                    crs.esriWkt(crs.WGS84).wkt),
                   `${baseName}_shapefile.zip`,
                   'application/zip',
                 )}

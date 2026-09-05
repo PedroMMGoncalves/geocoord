@@ -281,10 +281,16 @@ export function dbfValue(v) {
  * a clean layer. DBF field names are truncated to 10 characters; all
  * attributes are written as text to avoid type/length surprises.
  *
+ * `prj` is the ESRI WKT written to the sidecar and describes the system the
+ * geometry is actually in. It defaults to WGS84, so every existing caller
+ * keeps its behaviour. A .prj naming a system the coordinates are not in is
+ * worse than none at all.
+ *
  * Returns a Promise for the zipped bytes: JSZip's own writer is
  * asynchronous, unlike Python's zipfile.
  */
-export async function toShapefileZip(features, fieldNames, baseName = 'coordinates') {
+export async function toShapefileZip(features, fieldNames, baseName = 'coordinates',
+  prj = WGS84_ESRI_WKT) {
   // JSZip is fetched on demand, like SheetJS: it is a hundred kilobytes that
   // only the Shapefile download needs, and most visitors take the CSV.
   const { default: JSZip } = await import('jszip')
@@ -301,6 +307,6 @@ export async function toShapefileZip(features, fieldNames, baseName = 'coordinat
   zip.file(`${layer}.shp`, writeShp(points))
   zip.file(`${layer}.shx`, writeShx(points))
   zip.file(`${layer}.dbf`, writeDbf(dbfNames, records))
-  zip.file(`${layer}.prj`, WGS84_ESRI_WKT)
+  zip.file(`${layer}.prj`, prj)
   return zip.generateAsync({ type: 'uint8array' })
 }

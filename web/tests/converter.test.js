@@ -9,6 +9,7 @@ import {
   inRange,
   median,
   parseCoordinate,
+  parseProjected,
   percentileLinear,
   pointInMask,
   regionCheck,
@@ -79,6 +80,15 @@ describe('pointInMask', () => {
 describe('identifyRegion', () => {
   it.each(cases('identify_region'))('%s', (_id, c) => {
     expect(identifyRegion(c.lat, c.lon, c.regions)).toBe(c.expected)
+  })
+})
+
+describe('parseProjected', () => {
+  // Metres, not degrees. Which separator is the decimal one is decided by
+  // position rather than by locale, so both 532.725,16 and 532,725.16 are
+  // 532725.16 - what a person reading either would say.
+  it.each(cases('parse_projected'))('%s', (_id, c) => {
+    expect(parseProjected(c.input)).toBe(c.expected)
   })
 })
 

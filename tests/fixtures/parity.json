@@ -207,6 +207,98 @@
       "expected": 38.516666388888886
     }
   ],
+  "parse_projected": [
+    {
+      "id": "plain",
+      "input": "532725.16",
+      "expected": 532725.16
+    },
+    {
+      "id": "decimal_comma",
+      "input": "532725,16",
+      "expected": 532725.16
+    },
+    {
+      "id": "thousands_dot_decimal_comma",
+      "input": "532.725,16",
+      "expected": 532725.16
+    },
+    {
+      "id": "thousands_comma_decimal_dot",
+      "input": "532,725.16",
+      "expected": 532725.16
+    },
+    {
+      "id": "thousands_space",
+      "input": "532 725,16",
+      "expected": 532725.16
+    },
+    {
+      "id": "thousands_non_breaking_space",
+      "input": "532 725,16",
+      "expected": 532725.16
+    },
+    {
+      "id": "negative",
+      "input": "-104538.892",
+      "expected": -104538.892
+    },
+    {
+      "id": "leading_plus",
+      "input": "+532725.16",
+      "expected": 532725.16
+    },
+    {
+      "id": "already_a_number",
+      "input": 4555481.99,
+      "expected": 4555481.99
+    },
+    {
+      "id": "integer",
+      "input": 532725,
+      "expected": 532725.0
+    },
+    {
+      "id": "exponent",
+      "input": "1e5",
+      "expected": 100000.0
+    },
+    {
+      "id": "northing_in_the_southern_hemisphere",
+      "input": "9022515.836",
+      "expected": 9022515.836
+    },
+    {
+      "id": "not_a_number",
+      "input": "texto",
+      "expected": null
+    },
+    {
+      "id": "empty",
+      "input": "",
+      "expected": null
+    },
+    {
+      "id": "just_a_sign",
+      "input": "-",
+      "expected": null
+    },
+    {
+      "id": "none",
+      "input": null,
+      "expected": null
+    },
+    {
+      "id": "hexadecimal_is_not_a_metre_value",
+      "input": "0x10",
+      "expected": null
+    },
+    {
+      "id": "infinity_is_not_a_metre_value",
+      "input": "Infinity",
+      "expected": null
+    }
+  ],
   "in_range": [
     {
       "id": "lat_valid",

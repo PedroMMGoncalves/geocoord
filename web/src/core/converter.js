@@ -103,6 +103,48 @@ export function parseCoordinate(value) {
   return negative ? -magnitude : magnitude
 }
 
+// Everything a spreadsheet might put between the digits of a metre value: the
+// thin and non-breaking spaces Excel uses as a thousands separator, and the
+// ordinary space somebody typed.
+const PROJECTED_STRIP_RE = /[\s\u00a0\u202f\u2009']/g
+
+/**
+ * Read a projected coordinate: a number of metres, not an angle.
+ *
+ * A projected coordinate is not a coordinate in the sense parseCoordinate
+ * means, and running one through that parser would be actively wrong:
+ * "532725 4555481" would be read as degrees, minutes and seconds. So it gets
+ * its own reader, chosen by the declared kind of the input system rather than
+ * guessed at.
+ *
+ * Which separator is the decimal one is decided by position, not by locale:
+ * whichever of "." and "," appears last is the decimal point and any earlier
+ * ones are thousands separators, so 532.725,16 and 532,725.16 are both
+ * 532725.16. Mirrors parse_projected() in geocoord/converter.py.
+ */
+export function parseProjected(value) {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+
+  let txt = String(value).replace(STRIP_CHARS_RE, '').replace(PROJECTED_STRIP_RE, '').trim()
+  if (txt === '' || txt === '-' || txt === '+') return null
+
+  const lastDot = txt.lastIndexOf('.')
+  const lastComma = txt.lastIndexOf(',')
+  if (lastDot >= 0 && lastComma >= 0) {
+    const at = Math.max(lastDot, lastComma)
+    txt = `${txt.slice(0, at).replaceAll('.', '').replaceAll(',', '')}.${txt.slice(at + 1)}`
+  } else if (lastComma >= 0) {
+    txt = txt.replaceAll(',', '.')
+  }
+
+  // Number() accepts "0x10", "Infinity" and "" as numbers; none of those is a
+  // metre value a spreadsheet meant to hold.
+  if (!/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(txt)) return null
+  const v = Number(txt)
+  return Number.isFinite(v) ? v : null
+}
+
 /**
  * Which axis the hemisphere letter in `value` belongs to, if any.
  *

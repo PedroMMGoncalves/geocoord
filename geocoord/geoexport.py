@@ -172,7 +172,8 @@ def _dbf_value(v):
     return "" if v is None else str(v)
 
 
-def to_shapefile_zip(features, field_names, base_name: str = "coordinates") -> bytes:
+def to_shapefile_zip(features, field_names, base_name: str = "coordinates",
+                     prj: str = WGS84_ESRI_WKT) -> bytes:
     """Point shapefile (.shp/.shx/.dbf/.prj) bundled into a single .zip.
 
     ``base_name`` names the components inside the zip and therefore the layer
@@ -181,6 +182,12 @@ def to_shapefile_zip(features, field_names, base_name: str = "coordinates") -> b
 
     DBF field names are truncated to 10 characters; all attributes are written
     as text to avoid type/length surprises.
+
+    ``prj`` is the ESRI WKT written to the sidecar, and describes the system
+    the geometry is actually in. It defaults to WGS84, so every existing
+    caller keeps its behaviour; a caller writing geometry in another system
+    passes that system's WKT. A .prj naming a system the coordinates are not
+    in is worse than none at all.
     """
     field_names = list(field_names)
     dbf_names = _safe_field_names(field_names)
@@ -200,5 +207,5 @@ def to_shapefile_zip(features, field_names, base_name: str = "coordinates") -> b
         z.writestr(f"{layer}.shp", shp.getvalue())
         z.writestr(f"{layer}.shx", shx.getvalue())
         z.writestr(f"{layer}.dbf", dbf.getvalue())
-        z.writestr(f"{layer}.prj", WGS84_ESRI_WKT)
+        z.writestr(f"{layer}.prj", prj)
     return buf.getvalue()

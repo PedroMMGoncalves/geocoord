@@ -39,6 +39,7 @@ from geocoord.converter import (
     identify_region,
     in_range,
     parse_coordinate,
+    parse_projected,
     point_in_mask,
     region_check,
     tidy_table,
@@ -119,6 +120,31 @@ PARSE_INPUTS = [
     # ...but decimal minutes below sixty are ordinary, and must still work.
     ("dm_decimal_minutes_kept", "38\u00b0 30.5'"),
     ("dms_seconds_just_under_sixty", "38\u00b0 30' 59.999\""),
+]
+
+# A projected coordinate is a number of metres, not an angle, and gets its own
+# reader: run through parse_coordinate, "532725 4555481" would be read as
+# degrees, minutes and seconds.
+PROJECTED_INPUTS = [
+    ("plain", "532725.16"),
+    ("decimal_comma", "532725,16"),
+    ("thousands_dot_decimal_comma", "532.725,16"),
+    ("thousands_comma_decimal_dot", "532,725.16"),
+    ("thousands_space", "532 725,16"),
+    ("thousands_non_breaking_space", "532\u00a0725,16"),
+    ("negative", "-104538.892"),
+    ("leading_plus", "+532725.16"),
+    ("already_a_number", 4555481.99),
+    ("integer", 532725),
+    ("exponent", "1e5"),
+    ("northing_in_the_southern_hemisphere", "9022515.836"),
+    ("not_a_number", "texto"),
+    ("empty", ""),
+    ("just_a_sign", "-"),
+    ("none", None),
+    # Number() would take these; a metre value never looks like this.
+    ("hexadecimal_is_not_a_metre_value", "0x10"),
+    ("infinity_is_not_a_metre_value", "Infinity"),
 ]
 
 IN_RANGE_INPUTS = [
@@ -774,6 +800,10 @@ def build():
         "parse_coordinate": [
             {"id": i, "input": v, "expected": parse_coordinate(v)}
             for i, v in PARSE_INPUTS
+        ],
+        "parse_projected": [
+            {"id": i, "input": v, "expected": parse_projected(v)}
+            for i, v in PROJECTED_INPUTS
         ],
         "in_range": [
             {"id": i, "value": v, "axis": a, "expected": in_range(v, a)}

@@ -28,6 +28,7 @@ from geocoord.converter import (
     identify_region,
     in_range,
     parse_coordinate,
+    parse_projected,
     point_in_mask,
     region_check,
     tidy_table,
@@ -63,6 +64,13 @@ def test_parse_coordinate(case):
     else:
         assert got is not None
         assert math.isclose(got, case["expected"], rel_tol=0, abs_tol=1e-12)
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["parse_projected"], ids=ids(FIXTURES["parse_projected"])
+)
+def test_parse_projected(case):
+    assert parse_projected(case["input"]) == case["expected"]
 
 
 @pytest.mark.parametrize("case", FIXTURES["in_range"], ids=ids(FIXTURES["in_range"]))

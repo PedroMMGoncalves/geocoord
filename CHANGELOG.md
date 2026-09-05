@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Coordinate systems, on the web page: a system for the file being read and an
+  optional second system for the output. Seventeen named systems - WGS 84,
+  ETRS89, PTRA08, Portugal TM06, UTM 29N, Datum 73, Lisboa/Hayford-Gauss
+  Militar, the three PTRA08 island zones and the six historic island datums -
+  plus two generic hatches that need no curation: a UTM zone by number and
+  hemisphere, and a proj4 definition pasted whole. Between them they cover
+  Angola, Cabo Verde, Guiné-Bissau, Moçambique and São Tomé e Príncipe without
+  this application having to guess at national datums it cannot verify.
+- A projected file is read as metres rather than as degrees
+  (`converter.parse_projected`), tolerant of the decimal comma and the
+  thousands separators a spreadsheet writes, and the column labels change to
+  X (Easting) and Y (Northing) to match.
+- When a second system is chosen, `X_<code>`, `Y_<code>` and `WKT_<code>`
+  columns are added alongside the WGS84 ones. Nothing is removed or replaced,
+  and the GIS formats stay WGS84, which is what GeoJSON, KML and GPX allow.
+- `geoexport.to_shapefile_zip` takes the `.prj` contents as a parameter,
+  defaulting to WGS84 so every existing caller is unchanged.
 - A hemisphere letter that contradicts the column it sits in is now reported as
   a certain swap rather than ignored. N and S can only be a latitude and E, W, O
   and L only a longitude, so the letter is proof of a reversed pair of columns

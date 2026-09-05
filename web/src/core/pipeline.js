@@ -15,7 +15,9 @@ import {
   formatDms,
   inRange,
   parseCoordinate,
+  parseProjected,
 } from './converter.js'
+import { WGS84_PROJ4, transformAll } from './crs.js'
 import { csvSafe } from './geoexport.js'
 
 /**
@@ -94,38 +96,109 @@ function roundHalfEven(value, decimals) {
 /**
  * Convert the chosen columns and append the derived ones.
  *
- * Returns a fresh `{ columns, rows }`; the input is untouched. Any derived
- * column already present - because the user is re-running after changing an
- * option - is dropped first rather than duplicated.
+ * Returns a fresh table; the input is untouched. Any derived column already
+ * present - because the user is re-running after changing an option - is
+ * dropped first rather than duplicated.
+ *
+ * `input` says how to read the two chosen columns: `{ proj4, kind }`, where
+ * kind is 'geographic' or 'projected'. Omitting it means WGS84 degrees, which
+ * is what the application did before there were systems to choose from.
+ * `output` adds columns in a second system: `{ proj4, suffix }`.
+ *
+ * Asynchronous because proj4 is fetched on demand, and because a file already
+ * in WGS84 with no output system never touches it at all.
  */
-export function buildResult(table, latCol, lonCol, { decimals = 6, addDms = true } = {}) {
+export async function buildResult(table, xCol, yCol, {
+  decimals = 6,
+  addDms = true,
+  input = null,
+  output = null,
+} = {}) {
   const keep = table.columns
     .map((c, i) => [c, i])
-    .filter(([c]) => !DERIVED.includes(c))
+    .filter(([c]) => !isDerived(c))
 
   const columns = keep.map(([c]) => c)
   const rows = table.rows.map((row) => keep.map(([, i]) => row[i] ?? null))
 
-  const latAt = table.columns.indexOf(latCol)
-  const lonAt = table.columns.indexOf(lonCol)
+  const xAt = table.columns.indexOf(xCol)
+  const yAt = table.columns.indexOf(yCol)
+  const rawX = table.rows.map((row) => row[xAt])
+  const rawY = table.rows.map((row) => row[yAt])
 
-  const lats = table.rows.map((row) => roundHalfEven(parseCoordinate(row[latAt]), decimals))
-  const lons = table.rows.map((row) => roundHalfEven(parseCoordinate(row[lonAt]), decimals))
+  const projected = input !== null && input.kind === 'projected'
+  // A projected value is a number of metres and must not go through the
+  // degrees parser: "532725 4555481" would be read as degrees, minutes and
+  // seconds, and it would be read successfully, which is worse.
+  const read = projected ? parseProjected : parseCoordinate
 
-  // Computed here because this is the last place that still knows which raw
-  // cell came from which column, which is the whole of the evidence.
-  const mismatch = axisMismatch(
-    table.rows.map((row) => row[latAt]),
-    table.rows.map((row) => row[lonAt]),
-  )
+  // The chosen columns are (lat, lon) for a geographic system and (X, Y) - so
+  // (lon-ish, lat-ish) - for a projected one. proj4 wants x first either way.
+  let firsts = rawX.map(read)
+  let seconds = rawY.map(read)
+  let lats
+  let lons
+  if (input === null || input.proj4 === WGS84_PROJ4) {
+    lats = firsts
+    lons = seconds
+  } else if (projected) {
+    const wgs = await transformAll(
+      firsts.map((v, i) => [v, seconds[i]]), input.proj4, WGS84_PROJ4)
+    lons = wgs.map((p) => p[0])
+    lats = wgs.map((p) => p[1])
+  } else {
+    // Geographic but not WGS84: ETRS89 or PTRA08 read as degrees, then shifted.
+    const wgs = await transformAll(
+      seconds.map((v, i) => [v, firsts[i]]), input.proj4, WGS84_PROJ4)
+    lons = wgs.map((p) => p[0])
+    lats = wgs.map((p) => p[1])
+  }
 
-  return { ...withDerived({ columns, rows }, lats, lons, addDms), axisMismatch: mismatch }
+  lats = lats.map((v) => roundHalfEven(v, decimals))
+  lons = lons.map((v) => roundHalfEven(v, decimals))
+
+  const mismatch = projected ? rows.map(() => false) : axisMismatch(rawX, rawY)
+  const extra = await outputColumns(lats, lons, output)
+
+  return {
+    ...withDerived({ columns, rows }, lats, lons, addDms, extra),
+    axisMismatch: mismatch,
+    output,
+  }
+}
+
+/**
+ * The X/Y pair in the output system, or null when there is no second system.
+ *
+ * Rounded to the millimetre. Metres carry their precision in the integer part,
+ * so the sixteen digits a float can hold leave far more decimals than any
+ * survey means, and writing them out only invites somebody to believe them.
+ */
+async function outputColumns(lats, lons, output) {
+  if (output === null || output === undefined) return null
+  if (output.proj4 === WGS84_PROJ4) return null
+  const pairs = await transformAll(
+    lats.map((lat, i) => (lat === null || lons[i] === null ? [null, null] : [lons[i], lat])),
+    WGS84_PROJ4, output.proj4)
+  return {
+    suffix: output.suffix,
+    xs: pairs.map(([x]) => (x === null ? null : roundHalfEven(x, 3))),
+    ys: pairs.map(([, y]) => (y === null ? null : roundHalfEven(y, 3))),
+  }
+}
+
+/** True for a column this pipeline appends, including the per-system ones. */
+function isDerived(name) {
+  return DERIVED.includes(name) || /^(X|Y|WKT)_[A-Za-z0-9]+$/.test(String(name))
 }
 
 /** Append Latitude_DD..Longitude_GMS to a table, given the parsed coordinates. */
-function withDerived(table, lats, lons, addDms) {
+function withDerived(table, lats, lons, addDms, extra = null) {
   const columns = [...table.columns, 'Latitude_DD', 'Longitude_DD', 'X_DD', 'Y_DD', 'WKT']
   if (addDms) columns.push('Latitude_GMS', 'Longitude_GMS')
+  if (extra !== null) {
+    columns.push(`X_${extra.suffix}`, `Y_${extra.suffix}`, `WKT_${extra.suffix}`)
+  }
 
   const rows = table.rows.map((row, i) => {
     const lat = lats[i]
@@ -133,30 +206,40 @@ function withDerived(table, lats, lons, addDms) {
     const valid = inRange(lat, 'lat') && inRange(lon, 'lon')
     const out = [...row, lat, lon, lon, lat, valid ? `POINT (${lon} ${lat})` : null]
     if (addDms) out.push(formatDms(lat, 'lat'), formatDms(lon, 'lon'))
+    if (extra !== null) {
+      const x = extra.xs[i]
+      const y = extra.ys[i]
+      out.push(x, y, x === null || y === null ? null : `POINT (${x} ${y})`)
+    }
     return out
   })
 
-  return { columns, rows, lats, lons }
+  return { columns, rows, lats, lons, extra }
 }
 
 /**
  * Swap Latitude_DD and Longitude_DD on the given row indices and rebuild every
- * column derived from them. Mirrors apply_swaps() in app.py.
+ * column derived from them, the output system's included.
  */
-export function applySwaps(result, indices, { addDms = true } = {}) {
+export async function applySwaps(result, indices, { addDms = true } = {}) {
   const swap = new Set(indices)
   const lats = result.lats.map((v, i) => (swap.has(i) ? result.lons[i] : v))
   const lons = result.lons.map((v, i) => (swap.has(i) ? result.lats[i] : v))
 
   const base = stripDerived(result)
-  return { ...withDerived(base, lats, lons, addDms), axisMismatch: result.axisMismatch }
+  const extra = await outputColumns(lats, lons, result.output ?? null)
+  return {
+    ...withDerived(base, lats, lons, addDms, extra),
+    axisMismatch: result.axisMismatch,
+    output: result.output ?? null,
+  }
 }
 
 /** The original columns of a result, with everything the pipeline added removed. */
 function stripDerived(result) {
   const keep = result.columns
     .map((c, i) => [c, i])
-    .filter(([c]) => !DERIVED.includes(c))
+    .filter(([c]) => !isDerived(c))
   return {
     columns: keep.map(([c]) => c),
     rows: result.rows.map((row) => keep.map(([, i]) => row[i])),
@@ -175,10 +258,11 @@ function stripDerived(result) {
  * against what the desktop application writes.
  */
 export function featuresInRange(result) {
+  // The second system's X/Y/WKT are geometry too, not attributes.
   const skip = new Set(['X_DD', 'Y_DD', 'WKT'])
   const fieldIdx = result.columns
     .map((c, i) => [c, i])
-    .filter(([c]) => !skip.has(c))
+    .filter(([c]) => !skip.has(c) && !/^(X|Y|WKT)_[A-Za-z0-9]+$/.test(String(c)))
   const fieldNames = fieldIdx.map(([c]) => c)
 
   const features = []

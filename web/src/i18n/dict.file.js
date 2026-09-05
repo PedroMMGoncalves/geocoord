@@ -169,6 +169,29 @@ export default {
       + 'formats carry only the points with valid coordinates.',
   },
 
+  'crs.input': { pt: 'Sistema do ficheiro', en: 'System the file is in' },
+  'crs.output': { pt: 'Sistema adicional na saída', en: 'Extra system in the output' },
+  'crs.none': { pt: 'Nenhum — só WGS84', en: 'None — WGS84 only' },
+  'crs.geographic': { pt: 'Geográficos (graus)', en: 'Geographic (degrees)' },
+  'crs.projected': { pt: 'Projetados (metros)', en: 'Projected (metres)' },
+  'crs.generic': { pt: 'Genéricos', en: 'Generic' },
+  'crs.utm': { pt: 'UTM por zona…', en: 'UTM by zone…' },
+  'crs.custom': { pt: 'Definição proj4 colada…', en: 'Pasted proj4 definition…' },
+  'crs.deprecated': { pt: 'depreciado', en: 'deprecated' },
+  'crs.utmZone': { pt: 'Zona UTM', en: 'UTM zone' },
+  'crs.utmSouth': { pt: 'Hemisfério sul', en: 'Southern hemisphere' },
+  'crs.customLabel': {
+    pt: 'Definição proj4 (funciona sem ligação; cobre qualquer sistema não listado)',
+    en: 'proj4 definition (works offline; covers any system not listed)',
+  },
+  'crs.xColumn': { pt: 'Coluna X (Este, metros)', en: 'X column (Easting, metres)' },
+  'crs.yColumn': { pt: 'Coluna Y (Norte, metros)', en: 'Y column (Northing, metres)' },
+  'crs.errTransform': {
+    pt: 'Não foi possível transformar as coordenadas: {message}',
+    en: 'The coordinates could not be transformed: {message}',
+  },
+  'crs.converting': { pt: 'A converter…', en: 'Converting…' },
+
   'file.tabFile': { pt: 'Ficheiro', en: 'File' },
   'file.tabQuick': { pt: 'Uma coordenada', en: 'Single coordinate' },
 }

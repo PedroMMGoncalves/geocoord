@@ -116,6 +116,50 @@ def parse_coordinate(value) -> Optional[float]:
     return -magnitude if negative else magnitude
 
 
+
+# Everything a spreadsheet might put between the digits of a metre value: the
+# thin and non-breaking spaces Excel uses as a thousands separator, and the
+# ordinary space somebody typed.
+_PROJECTED_STRIP_RE = re.compile(r"[\s\u00a0\u202f\u2009']")
+
+
+def parse_projected(value) -> Optional[float]:
+    """Read a projected coordinate: a number of metres, not an angle.
+
+    Tolerant of what a spreadsheet actually holds - a decimal comma, a thousands
+    separator, a leading plus - and of nothing else. A value that is not a
+    number comes back as ``None`` rather than as a guess.
+
+    Which separator is the decimal one is decided by position, not by locale:
+    whichever of ``.`` and ``,`` appears last is the decimal point, and any
+    earlier ones are thousands separators. ``532.725,16`` and ``532,725.16``
+    are therefore both 532725.16, which is what a person reading either would
+    say, and ``532725,16`` is 532725.16 rather than 532725160.
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        v = float(value)
+        return v if math.isfinite(v) else None
+
+    txt = _PROJECTED_STRIP_RE.sub("", _STRIP_CHARS_RE.sub("", str(value))).strip()
+    if txt in ("", "-", "+"):
+        return None
+
+    last_dot = txt.rfind(".")
+    last_comma = txt.rfind(",")
+    if last_dot >= 0 and last_comma >= 0:
+        decimal_at = max(last_dot, last_comma)
+        txt = txt[:decimal_at].replace(".", "").replace(",", "") + "." + txt[decimal_at + 1:]
+    elif last_comma >= 0:
+        txt = txt.replace(",", ".")
+
+    try:
+        v = float(txt)
+    except ValueError:
+        return None
+    return v if math.isfinite(v) else None
+
 def hemisphere_axis(value) -> Optional[str]:
     """Which axis the hemisphere letter in ``value`` belongs to, if any.
 
