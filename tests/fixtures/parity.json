@@ -1875,6 +1875,349 @@
       }
     }
   ],
+  "read_csv": [
+    {
+      "id": "messy_export",
+      "text": ",,,\n,Amostras,Y,X\n,1,\"33,6603\",\"-15,9469\"\n,2,\"33,6664\",\"-15,9364\"\n",
+      "sep": null,
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "Amostras",
+          "Y",
+          "X"
+        ],
+        "rows": [
+          [
+            "1",
+            "33,6603",
+            "-15,9469"
+          ],
+          [
+            "2",
+            "33,6664",
+            "-15,9364"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "comma_detected",
+      "text": "lat,lon\n39.0,-8.0\n",
+      "sep": null,
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "lat",
+          "lon"
+        ],
+        "rows": [
+          [
+            "39.0",
+            "-8.0"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "semicolon_detected",
+      "text": "lat;lon\n39,0;-8,0\n",
+      "sep": null,
+      "decimal": ",",
+      "expected": {
+        "columns": [
+          "lat",
+          "lon"
+        ],
+        "rows": [
+          [
+            "39,0",
+            "-8,0"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "tab_detected",
+      "text": "lat\tlon\n39.0\t-8.0\n",
+      "sep": null,
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "lat",
+          "lon"
+        ],
+        "rows": [
+          [
+            "39.0",
+            "-8.0"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "pipe_detected",
+      "text": "lat|lon\n39.0|-8.0\n",
+      "sep": null,
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "lat",
+          "lon"
+        ],
+        "rows": [
+          [
+            "39.0",
+            "-8.0"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "explicit_separator_overrides",
+      "text": "lat;lon\n39.0;-8.0\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "lat;lon"
+        ],
+        "rows": [
+          [
+            "39.0;-8.0"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "separator_inside_quotes",
+      "text": "nome,lat\n\"Silva, Joao\",39.0\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "nome",
+          "lat"
+        ],
+        "rows": [
+          [
+            "Silva, Joao",
+            "39.0"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ambiguous_separators",
+      "text": "a,b;c\n1,2;3\n",
+      "sep": null,
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "a",
+          "b;c"
+        ],
+        "rows": [
+          [
+            "1",
+            "2;3"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "single_column",
+      "text": "lat\n39.0\n38.9\n",
+      "sep": null,
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "lat"
+        ],
+        "rows": [
+          [
+            "39.0"
+          ],
+          [
+            "38.9"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "leading_zeros_kept",
+      "text": "codigo,lat\n007,38.7\n042,41.2\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "codigo",
+          "lat"
+        ],
+        "rows": [
+          [
+            "007",
+            "38.7"
+          ],
+          [
+            "042",
+            "41.2"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "large_integer_kept",
+      "text": "id,lat\n9007199254740993,38.7\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "id",
+          "lat"
+        ],
+        "rows": [
+          [
+            "9007199254740993",
+            "38.7"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "na_is_text",
+      "text": "nome,lat\nNA,38.7\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "nome",
+          "lat"
+        ],
+        "rows": [
+          [
+            "NA",
+            "38.7"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "blank_rows_and_columns_dropped",
+      "text": "idx,lat,lon\n,39.0,-8.0\n,,\n,38.9,-7.9\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "lat",
+          "lon"
+        ],
+        "rows": [
+          [
+            "39.0",
+            "-8.0"
+          ],
+          [
+            "38.9",
+            "-7.9"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "ragged_rows",
+      "text": "a,b,c\n1,2\n3,4,5\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "a",
+          "b",
+          "c"
+        ],
+        "rows": [
+          [
+            "1",
+            "2",
+            null
+          ],
+          [
+            "3",
+            "4",
+            "5"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "only_a_header",
+      "text": "lat,lon\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [],
+        "rows": []
+      }
+    },
+    {
+      "id": "empty_header_cell_named",
+      "text": "a,,c\n1,2,3\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "a",
+          "Unnamed: 1",
+          "c"
+        ],
+        "rows": [
+          [
+            "1",
+            "2",
+            "3"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "duplicate_header_names",
+      "text": "a,a,b\n1,2,3\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "a",
+          "a.1",
+          "b"
+        ],
+        "rows": [
+          [
+            "1",
+            "2",
+            "3"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "row_longer_than_header",
+      "text": "a,b\n1,2,3\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "a",
+          "b"
+        ],
+        "rows": [
+          [
+            "1",
+            "2"
+          ]
+        ]
+      }
+    }
+  ],
   "tidy_table": [
     {
       "id": "messy_export_recovers_header",

@@ -40,6 +40,7 @@ from geocoord.converter import (
     region_check,
     tidy_table,
 )
+from geocoord.reader import read_csv_text
 from geocoord.geoexport import (
     sanitize_filename,
     to_geojson,
@@ -134,6 +135,14 @@ FORMAT_DMS_INPUTS = [
     ("rounding_tie_small", 1.736111111111111e-05, "lat"),
     ("null", None, "lat"),
 ]
+
+# The messy export from the README, and from tests/test_converter.py.
+MESSY_CSV = (
+    ",,,\n"
+    ",Amostras,Y,X\n"
+    ',1,"33,6603","-15,9469"\n'
+    ',2,"33,6664","-15,9364"\n'
+)
 
 PT = [36.8, 42.2, -9.6, -6.1]
 MZ = [-27.0, -10.4, 30.1, 41.0]
@@ -252,6 +261,51 @@ POINT_IN_MASK_INPUTS = [
     ("outside_portugal", -15.94, 33.66, [PT]),
     ("on_boundary", 36.8, -9.6, [PT]),
 ]
+
+# read_csv is the step the contract could not reach until the reader was pulled
+# out of app.py: it turns text into the same neutral table tidy_table produces,
+# which is exactly what the JavaScript side builds with PapaParse. Every cell is
+# read as text on both sides, so the tables compare directly.
+#
+# Encoding recovery is not here. The input travels as a JSON string, already
+# decoded, so utf-8-then-latin1 has nothing to bite on; each side tests its own.
+READ_CSV_INPUTS = [
+    # The real case this application exists for: a blank first line, a leading
+    # empty index column, and decimal commas inside quoted fields.
+    ("messy_export", MESSY_CSV, None, "."),
+    ("comma_detected", "lat,lon\n39.0,-8.0\n", None, "."),
+    ("semicolon_detected", "lat;lon\n39,0;-8,0\n", None, ","),
+    ("tab_detected", "lat\tlon\n39.0\t-8.0\n", None, "."),
+    ("pipe_detected", "lat|lon\n39.0|-8.0\n", None, "."),
+    # Forced to a comma, a semicolon file is one column. Both sides must honour
+    # an explicit separator over what they would have detected.
+    ("explicit_separator_overrides", "lat;lon\n39.0;-8.0\n", ",", "."),
+    ("separator_inside_quotes", 'nome,lat\n"Silva, Joao",39.0\n', ",", "."),
+    # A comma and a semicolon both appear; the comma wins, and "b;c" is the
+    # honest column name that follows.
+    ("ambiguous_separators", "a,b;c\n1,2;3\n", None, "."),
+    # No delimiter at all. pandas used to guess one out of the header and cut it
+    # in half; the answer is one column named lat.
+    ("single_column", "lat\n39.0\n38.9\n", None, "."),
+    ("leading_zeros_kept", "codigo,lat\n007,38.7\n042,41.2\n", ",", "."),
+    ("large_integer_kept", "id,lat\n9007199254740993,38.7\n", ",", "."),
+    # "NA" is what the file says, not a missing value.
+    ("na_is_text", "nome,lat\nNA,38.7\n", ",", "."),
+    ("blank_rows_and_columns_dropped", "idx,lat,lon\n,39.0,-8.0\n,,\n,38.9,-7.9\n", ",", "."),
+    ("ragged_rows", "a,b,c\n1,2\n3,4,5\n", ",", "."),
+    ("only_a_header", "lat,lon\n", ",", "."),
+    # pandas names an empty header cell "Unnamed: N" and disambiguates a
+    # repeat with ".1". tidy_table keys off exactly those names when it
+    # decides whether to promote the first row, so the JavaScript reader
+    # has to produce them too.
+    ("empty_header_cell_named", "a,,c\n1,2,3\n", ",", "."),
+    ("duplicate_header_names", "a,a,b\n1,2,3\n", ",", "."),
+    # A row longer than its header. Without index_col=False pandas turns
+    # the extra field into the row index and shifts every label off its
+    # data, returning ["2", "3"] where the file says 1, 2, 3.
+    ("row_longer_than_header", "a,b\n1,2,3\n", ",", "."),
+]
+
 
 # tidy_table works on a neutral table shape so the fixture is language-agnostic:
 # {"columns": [...], "rows": [[...], ...]}. The Python side converts to and from
@@ -602,6 +656,7 @@ def build():
         ],
         "detect_swaps": [],
         "region_check": [],
+        "read_csv": [],
         "tidy_table": [],
     }
 
@@ -635,6 +690,16 @@ def build():
                 "out_idx": out_idx,
                 "detected": [[k, v] for k, v in detected.items()],
             },
+        })
+
+    for case_id, text, sep, decimal in READ_CSV_INPUTS:
+        tidy = tidy_table(read_csv_text(text, sep=sep, decimal=decimal))
+        data["read_csv"].append({
+            "id": case_id,
+            "text": text,
+            "sep": sep,
+            "decimal": decimal,
+            "expected": df_to_table(tidy),
         })
 
     for case in TIDY_INPUTS:

@@ -31,6 +31,7 @@ from geocoord.converter import (
     region_check,
     tidy_table,
 )
+from geocoord.reader import read_csv_text
 from geocoord.geoexport import (
     sanitize_filename,
     to_geojson,
@@ -128,6 +129,24 @@ def test_region_check(case):
     )
     assert out_idx == case["expected"]["out_idx"]
     assert [[k, v] for k, v in detected.items()] == case["expected"]["detected"]
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["read_csv"], ids=ids(FIXTURES["read_csv"])
+)
+def test_read_csv(case):
+    # Reading is the step the contract could not reach until the reader was
+    # pulled out of app.py. The JavaScript side parses the same text with
+    # PapaParse and must arrive at the same table.
+    tidy = tidy_table(
+        read_csv_text(case["text"], sep=case["sep"], decimal=case["decimal"])
+    )
+    assert [str(c) for c in tidy.columns] == case["expected"]["columns"]
+    rows = [
+        [None if v is None or (isinstance(v, float) and v != v) else v for v in row]
+        for row in tidy.astype(object).where(tidy.notna(), None).values.tolist()
+    ]
+    assert rows == case["expected"]["rows"]
 
 
 @pytest.mark.parametrize(

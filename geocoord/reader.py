@@ -76,8 +76,19 @@ def read_csv_text(text: str, sep: str | None = None, decimal: str = ".") -> pd.D
         text = text[len(_BOM):]
     if sep is None:
         sep = sniff_separator(text[:8192])
+    # index_col=False stops pandas turning a stray extra field into the row
+    # index. Given the header "a,b" and the row "1,2,3" it would otherwise
+    # return the row as ["2", "3"] - the 1 silently promoted to an index and the
+    # column labels shifted off their data. With it off, the row reads ["1",
+    # "2"] and the extra field is dropped, which is what a reader that has no
+    # index concept (PapaParse, on the other side of the port) does too.
     return pd.read_csv(
-        io.StringIO(text), sep=sep, decimal=decimal, dtype=str, keep_default_na=False
+        io.StringIO(text),
+        sep=sep,
+        decimal=decimal,
+        dtype=str,
+        keep_default_na=False,
+        index_col=False,
     )
 
 
