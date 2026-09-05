@@ -18,6 +18,7 @@ each side's own tests.
 """
 import io
 import json
+import math
 import pathlib
 import sys
 import zipfile
@@ -907,16 +908,71 @@ def build():
     return data
 
 
+
+def _describe_drift(current_text, generated_text):
+    """What differs between the committed contract and a fresh generation.
+
+    Returns None when the only differences are coordinate values inside the
+    tolerance that section declares, and a description otherwise.
+
+    Every section but one is exact, because both implementations run the same
+    arithmetic in two languages. crs_transform is not: its expected values come
+    from pyproj, which wraps a PROJ build whose last decimal places move between
+    versions, so a byte comparison fails on any machine whose PROJ differs from
+    the one that generated the file - including, as it turned out, CI. The
+    section is a tolerance contract, so this is the question to ask of it.
+    """
+    if not current_text:
+        return "the file does not exist"
+    try:
+        current = json.loads(current_text)
+    except json.JSONDecodeError as exc:
+        return f"it is not valid JSON ({exc})"
+    generated = json.loads(generated_text)
+
+    if set(current) != set(generated):
+        missing = sorted(set(generated) - set(current))
+        extra = sorted(set(current) - set(generated))
+        return f"sections differ (missing {missing}, unexpected {extra})"
+
+    for section in generated:
+        if section == "crs_transform":
+            continue
+        if current[section] != generated[section]:
+            return f"section {section!r} differs"
+
+    got = current["crs_transform"]
+    want = generated["crs_transform"]
+    if got["tolerance_m"] != want["tolerance_m"]:
+        return "the coordinate tolerance itself changed"
+    by_id = {c["id"]: c for c in got["cases"]}
+    if set(by_id) != {c["id"] for c in want["cases"]}:
+        return "the coordinate control points changed"
+    for case in want["cases"]:
+        mine = by_id[case["id"]]
+        if mine["proj4"] != case["proj4"]:
+            return f"the definition for {case['id']} changed"
+        drift = math.hypot(mine["x"] - case["x"], mine["y"] - case["y"])
+        if drift >= want["tolerance_m"]:
+            return (f"{case['id']} has moved {drift:.6f} m, which is outside "
+                    f"the {want['tolerance_m']} m this section pins")
+    return None
+
 if __name__ == "__main__":
     payload = json.dumps(build(), ensure_ascii=False, indent=2, allow_nan=False) + "\n"
 
     if "--check" in sys.argv:
         current = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
         if current != payload:
+            problem = _describe_drift(current, payload)
+            if problem is None:
+                print(f"{OUT} is up to date (coordinate values differ only "
+                      "within tolerance, which is what that section pins)")
+                raise SystemExit(0)
             print(
-                f"{OUT} is out of date with the generator. Either it was edited "
-                "by hand, or the inputs changed without regenerating. Run "
-                "`python scripts/gen_parity_fixtures.py` and review the diff.",
+                f"{OUT} is out of date with the generator: {problem}. Either it "
+                "was edited by hand, or the inputs changed without regenerating. "
+                "Run `python scripts/gen_parity_fixtures.py` and review the diff.",
                 file=sys.stderr,
             )
             raise SystemExit(1)
