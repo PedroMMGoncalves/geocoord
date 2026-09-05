@@ -2216,6 +2216,44 @@
           ]
         ]
       }
+    },
+    {
+      "id": "generated_name_collides_with_a_real_one",
+      "text": ",b,Unnamed: 0\n1,2,3\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "Unnamed: 0",
+          "b",
+          "Unnamed: 0.1"
+        ],
+        "rows": [
+          [
+            "1",
+            "2",
+            "3"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "blank_lines_skipped",
+      "text": "\na,b\n\n1,2\n\n",
+      "sep": ",",
+      "decimal": ".",
+      "expected": {
+        "columns": [
+          "a",
+          "b"
+        ],
+        "rows": [
+          [
+            "1",
+            "2"
+          ]
+        ]
+      }
     }
   ],
   "tidy_table": [

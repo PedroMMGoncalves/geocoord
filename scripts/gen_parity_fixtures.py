@@ -304,6 +304,16 @@ READ_CSV_INPUTS = [
     # the extra field into the row index and shifts every label off its
     # data, returning ["2", "3"] where the file says 1, 2, 3.
     ("row_longer_than_header", "a,b\n1,2,3\n", ",", "."),
+    # A header cell can literally read "Unnamed: 0" - that is what a file
+    # exported by pandas and opened again looks like - and it collides with
+    # the name generated for the empty cell beside it. Two columns then
+    # share a label, df[name] returns a frame rather than a series, and
+    # tidy_table raises. Found by a differential run, not by inspection.
+    ("generated_name_collides_with_a_real_one", ",b,Unnamed: 0\n1,2,3\n", ",", "."),
+    # A blank line is skipped rather than read as a row. csv.reader yields
+    # nothing for one and PapaParse yields a single empty field, so without
+    # this an empty first line would become the header on one side only.
+    ("blank_lines_skipped", "\na,b\n\n1,2\n\n", ",", "."),
 ]
 
 

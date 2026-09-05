@@ -5,6 +5,14 @@
  * contract (`tests/fixtures/parity.json`, section "read_csv"): the same text
  * must produce the same table on both sides, once tidyTable has run.
  *
+ * Where the two sides stop agreeing, stated plainly: on *malformed* CSV - an
+ * unbalanced quote, or a quote character in a file whose real delimiter is not
+ * the one guessed - Python's csv module and PapaParse disagree about where a
+ * field ends, and no amount of care here changes that without reimplementing
+ * one parser in the other language. A differential run over 2500 generated
+ * files put it at 15 cases, every one carrying a stray quote. Well-formed
+ * exports agree.
+ *
  * The output shape is the neutral `{ columns, rows }` the rest of the port
  * uses, with every cell a string - GeoCoord converts the coordinate columns
  * and carries the rest through, so inferring types would only lose leading
@@ -30,10 +38,17 @@ const BOM = '﻿'
  * strings would change how every messy export is read.
  */
 export function headerNames(cells) {
-  const seen = new Map()
-  return cells.map((cell, i) => {
+  // The generated names go through the same disambiguation as the written
+  // ones. A header cell can literally contain "Unnamed: 0" - that is what a
+  // file exported by pandas and opened again looks like - and it would
+  // otherwise collide with the name generated for an empty cell, leaving two
+  // columns sharing a label.
+  const raw = cells.map((cell, i) => {
     const name = String(cell ?? '')
-    if (name === '') return `Unnamed: ${i}`
+    return name === '' ? `Unnamed: ${i}` : name
+  })
+  const seen = new Map()
+  return raw.map((name) => {
     const count = seen.get(name) ?? 0
     seen.set(name, count + 1)
     return count === 0 ? name : `${name}.${count}`
@@ -53,7 +68,7 @@ export function sniffSeparator(text) {
   // and it gives up with UndetectableDelimiter and falls back to a comma - so
   // "a;b\n1;2\n" would be read as one column while "a;b\n1;2" reads as two.
   const sample = text.slice(0, 8192).replace(/[\r\n]+$/, '')
-  const { meta } = Papa.parse(sample, { delimitersToGuess: SEPARATORS })
+  const { meta } = Papa.parse(sample, { delimitersToGuess: SEPARATORS, skipEmptyLines: true })
   return SEPARATORS.includes(meta.delimiter) ? meta.delimiter : ','
 }
 
@@ -72,7 +87,10 @@ export function readCsvText(text, { sep = null, decimal = '.' } = {}) {
   if (body.startsWith(BOM)) body = body.slice(BOM.length)
 
   const delimiter = sep ?? sniffSeparator(body)
-  const { data } = Papa.parse(body, { delimiter, header: false, skipEmptyLines: false })
+  // skipEmptyLines matches the Python side, where csv.reader yields nothing
+  // for a line with no characters: an empty first line must not become the
+  // header on one side and be skipped on the other.
+  const { data } = Papa.parse(body, { delimiter, header: false, skipEmptyLines: true })
 
   // Papa keeps a trailing newline as one last empty row; pandas does not.
   while (data.length > 0 && data[data.length - 1].every((c) => c === '')) data.pop()

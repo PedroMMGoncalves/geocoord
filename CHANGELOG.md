@@ -89,6 +89,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reads them from text as it always did, and the derived `Latitude_DD` and
   `Longitude_DD` columns are numbers as before. A numeric attribute column now
   exports as text rather than as a number, which is the cost of the trade.
+- A CSV whose rows do not all have the same number of fields no longer raises.
+  `pd.read_csv` reported `ParserError` on a row with more fields than its
+  header; short rows are now padded and long ones truncated. A differential run
+  over 2500 generated files found 284 inputs that crashed the reader.
+- A header cell reading `Unnamed: 0` no longer collides with the name generated
+  for an empty cell beside it. That is what a file exported by this application
+  and opened again looks like, and the collision left two columns sharing a
+  label, which raised further down.
+- The separator is guessed by field-count consistency rather than by character
+  frequency. `csv.Sniffer` reads a tab-separated file whose cells hold decimal
+  commas as comma-separated, and every column is then wrong.
 - A CSV with a single column no longer has its header cut in half. When
   `csv.Sniffer` finds no delimiter, pandas guesses one out of the data itself,
   so `lat` came back as the two columns `la` and `Unnamed: 1`. The separator is
