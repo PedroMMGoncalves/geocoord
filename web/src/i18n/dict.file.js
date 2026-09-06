@@ -7,13 +7,11 @@ export default {
     pt: 'Converter um ficheiro',
     en: 'Convert a file',
   },
-  // The privacy claim used to live here as well as in the header. Saying it
-  // twice on one screen weakens it, so this line says what the step does and
-  // the header alone makes the promise.
   'file.intro': {
-    pt: 'Arraste uma folha de cálculo ou um CSV. As colunas das coordenadas são '
-      + 'encontradas automaticamente.',
-    en: 'Drop a spreadsheet or a CSV. The coordinate columns are found automatically.',
+    pt: 'Arraste uma folha de cálculo ou um CSV. O ficheiro é lido e convertido no seu '
+      + 'navegador — nada é enviado para nenhum servidor.',
+    en: 'Drop a spreadsheet or a CSV. The file is read and converted in your browser — '
+      + 'nothing is sent to any server.',
   },
 
   'file.step1': { pt: 'Ficheiro', en: 'File' },
