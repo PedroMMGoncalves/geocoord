@@ -580,7 +580,7 @@ export default function FileConvert() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+    <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
       <h1 className="text-xl font-semibold text-slate-100">{t('file.title')}</h1>
       <p className="mt-2 text-sm leading-relaxed text-slate-400">{t('file.intro')}</p>
 
@@ -936,12 +936,24 @@ export default function FileConvert() {
               </dl>
             )}
 
-            <div
-              className="mt-4 overflow-x-auto rounded border border-edge"
-              tabIndex={0}
-              role="region"
-              aria-label={t('file.tableRegion')}
-            >
+            {/* Two views of one answer, together. The map is the instrument
+                here: a point that landed in Sudan is obvious on it in a second
+                and invisible in a column of numbers. The table is for the
+                detail, which is the second question, not the first.
+
+                Side by side above lg, and on a narrow screen the map comes
+                first - order-1 - because that is the one worth seeing before
+                scrolling. The table keeps its own scrollbar at the map's
+                height so the two stay level instead of one running down the
+                page. */}
+            <div className="mt-4 grid gap-4 lg:grid-cols-5">
+              <div className="order-2 min-w-0 lg:order-1 lg:col-span-3">
+                <div
+                  className="max-h-[420px] overflow-auto rounded border border-edge"
+                  tabIndex={0}
+                  role="region"
+                  aria-label={t('file.tableRegion')}
+                >
               <table className="w-full min-w-max text-xs">
                 <caption className="sr-only">
                   {t('file.tableCaption', { shown: Math.min(PREVIEW_ROWS, final.rows.length), total: final.rows.length })}
@@ -989,37 +1001,43 @@ export default function FileConvert() {
                   ))}
                 </tbody>
               </table>
-            </div>
-            {final.rows.length > PREVIEW_ROWS && (
-              <p className="mt-2 text-xs text-slate-400">
-                {t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })}
-              </p>
-            )}
-          </Step>
-
-          <Step n={4} title={t('file.stepMap')}>
-            {showMap ? (
-              <PointsMap points={mapPoints} />
-            ) : (
-              <div>
-                <p className="text-sm text-slate-400">{t('map.optIn')}</p>
-                <button
-                  type="button"
-                  disabled={mapPoints.length === 0}
-                  onClick={() => setShowMap(true)}
-                  className="mt-2 rounded border border-accent/50 px-3 py-1.5 text-sm text-accent
-                             transition-colors hover:bg-accent hover:text-panel
-                             focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent
-                             disabled:cursor-not-allowed disabled:border-edge disabled:text-slate-600
-                             disabled:hover:bg-transparent"
-                >
-                  {mapPoints.length === 0 ? t('map.nothingToShow') : t('map.show', { n: mapPoints.length })}
-                </button>
+                </div>
+                {final.rows.length > PREVIEW_ROWS && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    {t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })}
+                  </p>
+                )}
               </div>
-            )}
+
+              <div className="order-1 min-w-0 lg:order-2 lg:col-span-2">
+                <h3 className="mb-2 text-sm font-medium text-slate-200">{t('file.stepMap')}</h3>
+                {showMap ? (
+                  <PointsMap points={mapPoints} />
+                ) : (
+                  <div className="rounded border border-dashed border-edge p-4">
+                    <p className="text-xs text-slate-400">{t('map.optIn')}</p>
+                    <button
+                      type="button"
+                      disabled={mapPoints.length === 0}
+                      onClick={() => setShowMap(true)}
+                      className="mt-3 rounded border border-accent/50 px-3 py-1.5 text-sm text-accent
+                                 transition-colors hover:bg-accent hover:text-panel
+                                 focus-visible:outline focus-visible:outline-2
+                                 focus-visible:outline-accent
+                                 disabled:cursor-not-allowed disabled:border-edge
+                                 disabled:text-slate-600 disabled:hover:bg-transparent"
+                    >
+                      {mapPoints.length === 0
+                        ? t('map.nothingToShow')
+                        : t('map.show', { n: mapPoints.length })}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </Step>
 
-          <Step n={5} title={t('file.step4')}>
+          <Step n={4} title={t('file.step4')}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <DownloadButton
                 label="CSV"

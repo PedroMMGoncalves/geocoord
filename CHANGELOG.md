@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The map sits beside the results table rather than below it, and above it on
+  a narrow screen. The map is the instrument: a point that landed in Sudan is
+  obvious on it in a second and invisible in a column of numbers, so it belongs
+  where it is seen without scrolling. It still opens on request. The page is
+  wider where there is room, and the table takes three fifths of the row, so
+  the converted columns - the ones the file was brought here for - are visible
+  without scrolling sideways.
 - An Excel (.xlsx) download on the web page, which the desktop application has
   had since the first release. It sits outside the parity contract for the same
   reason Excel reading does - openpyxl and SheetJS build different workbooks

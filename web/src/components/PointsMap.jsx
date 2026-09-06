@@ -13,11 +13,8 @@ import { useT } from '../i18n.jsx'
  * imagery under the same names. The default is dark here rather than light,
  * because this page is dark.
  *
- * The light and dark grounds are the exception, and no longer match
- * snap-wkt-generator: they were CARTO's until CARTO began watermarking every
- * tile it serves without an API key. Esri's canvas maps replace them - see
- * baseLayers. snap-wkt-generator still points at CARTO and will show the same
- * watermark until it is moved too.
+ * The light and dark grounds are Esri's canvas maps rather than CARTO's - see
+ * baseLayers for why.
  */
 
 const STORAGE_KEY = 'geocoord:basemap'
