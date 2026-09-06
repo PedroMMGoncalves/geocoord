@@ -51,6 +51,7 @@ export default {
   'map.baseSat': { pt: 'Satélite', en: 'Satellite' },
   'map.baseHybrid': { pt: 'Híbrido', en: 'Hybrid' },
   'map.baseOsm': { pt: 'OpenStreetMap', en: 'OpenStreetMap' },
+  'map.baseTopo': { pt: 'Topográfico', en: 'Topographic' },
 
   'file.dropHere': {
     pt: 'Arraste o ficheiro para aqui',
@@ -118,6 +119,13 @@ export default {
   'file.addDms': {
     pt: 'Acrescentar colunas em graus, minutos e segundos',
     en: 'Add degrees-minutes-seconds columns',
+  },
+
+  'file.applyRegionSign': {
+    pt: 'Dar o sinal de {region} a {n} valores sem hemisfério',
+    ptOne: 'Dar o sinal de {region} a um valor sem hemisfério',
+    en: 'Take the sign of {region} for {n} values with no hemisphere',
+    enOne: 'Take the sign of {region} for one value with no hemisphere',
   },
 
   'file.status.ok': { pt: 'convertidas', en: 'converted' },

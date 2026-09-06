@@ -166,6 +166,229 @@ export function hemisphereAxis(value) {
   return ['N', 'S'].includes(match[1].toUpperCase()) ? 'lat' : 'lon'
 }
 
+/** Column names that usually hold a latitude, in the order they are tried. */
+export const LAT_CANDIDATES = [
+  'latitude', 'lat', 'coordenadas x', 'latitude x', 'coord_lat',
+  'lat_dms', 'lat_gms', 'y', 'y_dd', 'lat_y',
+]
+
+/** Column names that usually hold a longitude, in the order they are tried. */
+export const LON_CANDIDATES = [
+  'longitude', 'lon', 'long', 'coordenadas y', 'longitude y', 'coord_lon',
+  'lon_dms', 'lon_gms', 'x', 'x_dd', 'lon_x',
+]
+
+// A column has to be mostly coordinates before it is taken for one, and have
+// enough values for that fraction to mean anything.
+const COLUMN_HIT_RATE = 0.6
+const COLUMN_MIN_VALUES = 3
+// Anything past this is not an angle in degrees, whichever axis it is.
+const MAX_PLAUSIBLE_DEGREES = 180.0
+// The marks that say "this is an angle, not a number": a degree sign, a prime,
+// a hemisphere letter. A column carrying them is a coordinate column, and a
+// column of quantities is not, however well its numbers happen to parse.
+const LOOKS_ANGULAR_RE = /[°º'"′″]|[NSEWOL]\b/i
+
+/** A cell with nothing in it, however the reader spelled that. */
+function blankCell(value) {
+  if (value === null || value === undefined) return true
+  if (typeof value === 'number') return Number.isNaN(value)
+  return ['', 'nan', 'None', '-'].includes(String(value).trim())
+}
+
+/**
+ * How much a column looks like coordinates, and its median magnitude.
+ *
+ * Parsing alone is not enough to go on: a column of row numbers parses
+ * perfectly, and on a real file it beat the actual coordinates because those
+ * had three blank rows. So the score also asks whether the values *look* like
+ * angles. Mirrors _column_score() in geocoord/converter.py.
+ */
+function columnScore(values) {
+  const seen = values.filter((v) => !blankCell(v))
+  if (seen.length < COLUMN_MIN_VALUES) return [0, null]
+  const good = seen.map(parseCoordinate).filter((p) => p !== null)
+  if (good.length === 0) return [0, null]
+
+  const rate = good.length / seen.length
+  if (rate < COLUMN_HIT_RATE) return [0, null]
+
+  const magnitudes = good.map(Math.abs).sort((a, b) => a - b)
+  const median = magnitudes[Math.floor(magnitudes.length / 2)]
+  let score = rate
+
+  if (seen.filter((v) => LOOKS_ANGULAR_RE.test(String(v))).length / seen.length > 0.5) {
+    score += 1.0
+  } else if (good.every((p) => Number.isInteger(p))) {
+    score -= 0.5
+  }
+  if (magnitudes[magnitudes.length - 1] > MAX_PLAUSIBLE_DEGREES) score -= 1.0
+
+  return [score, median]
+}
+
+/**
+ * The range of |value| a mask admits on one axis, as [low, high].
+ *
+ * Not min/max of the absolute bounds taken separately: for a longitude span of
+ * -9.6 to -6.1 that gives [9.6, 6.1], an interval containing nothing, and every
+ * test against it silently fails. A box straddling zero admits magnitudes from
+ * zero up. Mirrors _abs_span() in geocoord/converter.py.
+ */
+function absSpan(mask, axis) {
+  let low = null
+  let high = 0
+  for (const box of mask) {
+    const [lo, hi] = axis === 'lat' ? [box[0], box[1]] : [box[2], box[3]]
+    const boxLow = lo <= 0 && hi >= 0 ? 0 : Math.min(Math.abs(lo), Math.abs(hi))
+    const boxHigh = Math.max(Math.abs(lo), Math.abs(hi))
+    low = low === null ? boxLow : Math.min(low, boxLow)
+    high = Math.max(high, boxHigh)
+  }
+  return [low === null ? 0 : low, high]
+}
+
+function fitsRegion(median, mask) {
+  if (!mask || mask.length === 0 || median === null) return true
+  const [latLo, latHi] = absSpan(mask, 'lat')
+  const [lonLo, lonHi] = absSpan(mask, 'lon')
+  return (latLo <= median && median <= latHi) || (lonLo <= median && median <= lonHi)
+}
+
+function namedColumn(columns, candidates) {
+  const lowered = columns.map((c) => String(c).toLowerCase())
+  for (const candidate of candidates) {
+    const at = lowered.indexOf(candidate.toLowerCase())
+    if (at !== -1) return at
+  }
+  return null
+}
+
+/** Which of two scored columns is the latitude. */
+function orderByRegion(first, second, mask) {
+  const [iA, , medA] = first
+  const [iB, , medB] = second
+  if (mask && mask.length > 0) {
+    const [latLo, latHi] = absSpan(mask, 'lat')
+    const [lonLo, lonHi] = absSpan(mask, 'lon')
+    const aLat = latLo <= medA && medA <= latHi
+    const bLat = latLo <= medB && medB <= latHi
+    const aLon = lonLo <= medA && medA <= lonHi
+    const bLon = lonLo <= medB && medB <= lonHi
+    if (aLat && bLon && !(bLat && aLon)) return [iA, iB]
+    if (bLat && aLon && !(aLat && bLon)) return [iB, iA]
+  }
+  // No region, or one that cannot tell them apart: a magnitude over 90 can only
+  // be a longitude, and otherwise the left column is the latitude.
+  if (medA > 90 && medB <= 90) return [iB, iA]
+  return [iA, iB]
+}
+
+/**
+ * Which two columns hold the coordinates. Returns [latIndex, lonIndex].
+ *
+ * Names first, because a column called Latitude is not a guess. But names run
+ * out quickly on real files: a spreadsheet from Tete had its two columns
+ * labelled "Condenadas" - a misspelling of Coordenadas, spanning both - and
+ * "Unnamed: 2", and matching on names put the *village name* in the latitude
+ * slot and reported every one of its rows as unreadable. No list of candidate
+ * names would have saved it.
+ *
+ * So when the names give nothing, the values do - but parsing alone is not
+ * enough. On a second real file a column of row numbers parsed perfectly and
+ * beat the actual coordinates, which had three blank rows. What separates them
+ * is that a coordinate looks like an angle. See columnScore.
+ *
+ * Which of the two is the latitude is decided by the declared region when there
+ * is one - in Tete the magnitudes are 15 and 33, and only one of those is a
+ * latitude between 10 and 27 degrees - and otherwise by magnitude and column
+ * order. Falls back to the first two columns when neither names nor values
+ * are any use, which is what it did before.
+ *
+ * Mirrors guess_coordinate_columns() in geocoord/converter.py.
+ */
+export function guessCoordinateColumns(columns, rows, mask = null) {
+  const byNameLat = namedColumn(columns, LAT_CANDIDATES)
+  const byNameLon = namedColumn(columns, LON_CANDIDATES)
+  if (byNameLat !== null && byNameLon !== null && byNameLat !== byNameLon) {
+    return [byNameLat, byNameLon]
+  }
+
+  const measured = []
+  for (let i = 0; i < columns.length; i += 1) {
+    const [score, median] = columnScore(rows.map((row) => row[i] ?? null))
+    if (score > 0 && median !== null) measured.push([i, score, median])
+  }
+
+  let scored = measured.filter((m) => fitsRegion(m[2], mask))
+  let ordering = mask
+  // A region that fits nothing is the wrong region, not a reason to give up:
+  // the default is Portugal, and a file from Tete arrives with every column
+  // outside it. Falling through to the first two columns there put the village
+  // name in the latitude slot until the user noticed and changed the region.
+  if (scored.length < 2) {
+    scored = measured
+    ordering = null
+  }
+
+  if (scored.length >= 2) {
+    const best = [...scored].sort((a, b) => (b[1] - a[1]) || (a[0] - b[0])).slice(0, 2)
+    const ordered = [...best].sort((a, b) => a[0] - b[0])
+    return orderByRegion(ordered[0], ordered[1], ordering)
+  }
+
+  return [
+    byNameLat === null ? 0 : byNameLat,
+    byNameLon === null ? (columns.length > 1 ? 1 : 0) : byNameLon,
+  ]
+}
+
+/** The span of `mask` on one axis, as [low, high], or null for no mask. */
+function axisBounds(mask, axis) {
+  if (!mask || mask.length === 0) return null
+  return axis === 'lat'
+    ? [Math.min(...mask.map((b) => b[0])), Math.max(...mask.map((b) => b[1]))]
+    : [Math.min(...mask.map((b) => b[2])), Math.max(...mask.map((b) => b[3]))]
+}
+
+/**
+ * Rows whose magnitude only the declared region can put a sign on.
+ *
+ * A hard case that has nothing to do with parsing and everything to do with
+ * what the file leaves out. Field notebooks from the southern hemisphere are
+ * routinely written unsigned - `15 22 23` for a latitude in Tete, because
+ * everyone on the survey knew which side of the equator they were standing on
+ * - and nothing in the value says south. Read literally it is Sudan.
+ *
+ * A row qualifies when the raw value carries no hemisphere letter and no sign,
+ * its magnitude falls outside the region on that axis, and the negated
+ * magnitude falls inside. A value the file signed is never touched.
+ *
+ * Mirrors unsigned_outside_region() in geocoord/converter.py.
+ */
+export function unsignedOutsideRegion(values, axis, mask) {
+  const bounds = axisBounds(mask, axis)
+  return values.map((value) => {
+    if (bounds === null) return false
+    let magnitude
+    let signedAlready
+    if (typeof value === 'number') {
+      magnitude = Number.isFinite(value) ? value : null
+      signedAlready = magnitude !== null && magnitude < 0
+    } else {
+      const text = String(value ?? '')
+        .replace(STRIP_CHARS_RE, '')
+        .replace(ORDINAL_SIGNS_RE, '\u00b0')
+        .trim()
+      magnitude = parseCoordinate(value)
+      signedAlready = text.startsWith('-') || hemisphereAxis(value) !== null
+    }
+    if (magnitude === null || signedAlready) return false
+    const [low, high] = bounds
+    return !(low <= magnitude && magnitude <= high) && low <= -magnitude && -magnitude <= high
+  })
+}
+
 /**
  * Rows whose hemisphere letters contradict the columns they sit in.
  *

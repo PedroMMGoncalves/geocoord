@@ -10,7 +10,7 @@ import {
   buildResult,
   countByStatus,
   featuresInRange,
-  guessColumn,
+  guessCoordinateColumns,
   pointsSummary,
   toCsv,
   toExcelBytes,
@@ -66,6 +66,19 @@ const STATUS_STYLE = {
   swap_cluster: 'text-amber-400',
   out_of_range: 'text-red-400',
   missing: 'text-red-400',
+}
+
+// The status used to be in the row number alone, a coloured digit at the left
+// edge of a wide scrolling table - easy to miss, and gone entirely once the
+// table is scrolled sideways. The row now carries it: a tint across the whole
+// row, and the failures in red rather than in the ordinary text colour.
+const ROW_STYLE = {
+  ok: '',
+  swap_axis: 'bg-amber-500/10',
+  swap_range: 'bg-amber-500/10',
+  swap_cluster: 'bg-amber-500/10',
+  out_of_range: 'bg-red-500/10 text-red-300',
+  missing: 'bg-red-500/10 text-red-300',
 }
 
 /** Hand `bytes` to the browser as a file the user can save. */
@@ -212,6 +225,10 @@ export default function FileConvert() {
   const [region, setRegion] = useState('Portugal mainland')
   const [decimals, setDecimals] = useState(6)
   const [addDms, setAddDms] = useState(true)
+  // Whether to take the sign from the declared region where the file gives
+  // none. Set automatically the first time a file turns out to need it,
+  // because the people this is for do not know to look for the option.
+  const [applyRegionSign, setApplyRegionSign] = useState(true)
   const [accepted, setAccepted] = useState(() => new Set())
 
   // The coordinate systems. 'utm' and 'custom' are the two escape hatches: a
@@ -423,20 +440,22 @@ export default function FileConvert() {
   const columns = source?.table.columns ?? []
   const columnKey = JSON.stringify(columns)
   useEffect(() => {
-    if (columns.length === 0) return
+    if (columns.length === 0 || !source) return
+    // The guess reads the values, not only the names, and takes the region
+    // into account - which is why it re-runs when the region changes. On a
+    // file whose columns are called "Condenadas" and "Unnamed: 2" the names
+    // are no help at all, and the region is what says which of two magnitudes,
+    // 15 and 33, is the latitude.
+    const [a, b] = guessCoordinateColumns(
+      columns, source.table.rows, region === 'auto' ? null : REGION_MASKS[region],
+    )
     // The first selector is the latitude for a geographic system and the X -
-    // the easting - for a projected one, and the candidate lists have to swap
-    // with it. They already overlap on exactly this: "y" is in the latitude
-    // list because a northing is a latitude, and "x" is in the longitude list
-    // for the same reason. Left unswapped, a file with columns named X and Y
-    // put the northing in the X slot, and every coordinate came out
-    // transposed - which looks like a plausible place, some kilometres away.
-    const first = projectedInput ? LON_CANDIDATES : LAT_CANDIDATES
-    const second = projectedInput ? LAT_CANDIDATES : LON_CANDIDATES
-    setLatCol(columns[guessColumn(columns, first, 0)])
-    setLonCol(columns[guessColumn(columns, second, columns.length > 1 ? 1 : 0)])
+    // the easting - for a projected one, so for a projected file the pair is
+    // handed over the other way round.
+    setLatCol(columns[projectedInput ? b : a])
+    setLonCol(columns[projectedInput ? a : b])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnKey, projectedInput])
+  }, [columnKey, projectedInput, region])
 
   // Building is asynchronous now: a coordinate system may have to be fetched.
   // A selection changed while an earlier build is still running must not have
@@ -455,6 +474,8 @@ export default function FileConvert() {
       addDms,
       input: inputCrs,
       output: outputCrs,
+      regionMask: region === 'auto' ? null : REGION_MASKS[region],
+      applyRegionSign,
     }).then((result) => {
       if (cancelled) return
       setConverted(result)
@@ -467,7 +488,7 @@ export default function FileConvert() {
     return () => { cancelled = true }
     // inputCrs/outputCrs are rebuilt every render; their proj4 is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, latCol, lonCol, decimals, addDms,
+  }, [source, latCol, lonCol, decimals, addDms, region, applyRegionSign,
       inputCrs?.proj4, inputCrs?.kind, outputCrs?.proj4, outputCrs?.suffix])
 
   const detection = useMemo(() => {
@@ -480,6 +501,11 @@ export default function FileConvert() {
     const { detected } = regionCheck(converted.lats, converted.lons, labels, REGION_MASKS, { mask })
     return { labels, detected }
   }, [converted, region])
+
+  // The count survives the checkbox being unticked: buildResult reports how
+  // many rows the region *could* sign either way, so the offer does not
+  // vanish the moment it is declined.
+  const signable = converted?.signable ?? 0
 
   // The rows the user has agreed to invert, applied. Asynchronous for the same
   // reason as the build: the second system has to be recomputed.
@@ -785,6 +811,17 @@ export default function FileConvert() {
               />
               {t('file.addDms')}
             </label>
+            {signable > 0 && (
+              <label className="flex items-center gap-2 text-xs text-amber-300">
+                <input
+                  type="checkbox"
+                  checked={applyRegionSign}
+                  onChange={(e) => setApplyRegionSign(e.target.checked)}
+                  className="h-4 w-4 shrink-0 accent-accent"
+                />
+                {t('file.applyRegionSign', { n: signable, region })}
+              </label>
+            )}
           </div>
         </Step>
       )}
@@ -921,7 +958,11 @@ export default function FileConvert() {
                 </thead>
                 <tbody>
                   {final.rows.slice(0, PREVIEW_ROWS).map((row, i) => (
-                    <tr key={i} className="border-b border-edge/50 last:border-0">
+                    <tr
+                      key={i}
+                      className={`border-b border-edge/50 last:border-0
+                                  ${ROW_STYLE[displayLabel(i)] ?? ''}`}
+                    >
                       {/* The status was in the colour and nowhere else, so a
                           screen reader was told nothing and anyone who cannot
                           separate amber from green saw nothing either. The mark
@@ -940,7 +981,7 @@ export default function FileConvert() {
                         </span>
                       </th>
                       {row.map((v, c) => (
-                        <td key={c} className="whitespace-nowrap px-2 py-1 font-mono text-slate-300">
+                        <td key={c} className="whitespace-nowrap px-2 py-1 font-mono">
                           {v === null || v === undefined ? '' : String(v)}
                         </td>
                       ))}

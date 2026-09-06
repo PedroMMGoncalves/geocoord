@@ -4,6 +4,7 @@ import {
   axisMismatch,
   detectSwaps,
   formatDms,
+  guessCoordinateColumns,
   hemisphereAxis,
   identifyRegion,
   inRange,
@@ -14,6 +15,7 @@ import {
   pointInMask,
   regionCheck,
   tidyTable,
+  unsignedOutsideRegion,
 } from '../src/core/converter.js'
 
 describe('parity fixtures', () => {
@@ -89,6 +91,23 @@ describe('parseProjected', () => {
   // 532725.16 - what a person reading either would say.
   it.each(cases('parse_projected'))('%s', (_id, c) => {
     expect(parseProjected(c.input)).toBe(c.expected)
+  })
+})
+
+describe('guessCoordinateColumns', () => {
+  // Names first, then the values. The second half exists because on a real
+  // file the columns were called "Condenadas" and "Unnamed: 2", and matching
+  // on names put the village name in the latitude slot.
+  it.each(cases('guess_coordinate_columns'))('%s', (_id, c) => {
+    expect(guessCoordinateColumns(c.columns, c.rows, c.mask)).toEqual(c.expected)
+  })
+})
+
+describe('unsignedOutsideRegion', () => {
+  // The sign a southern-hemisphere file does not carry. Read literally, an
+  // unsigned latitude from Tete is in Sudan.
+  it.each(cases('unsigned_outside_region'))('%s', (_id, c) => {
+    expect(unsignedOutsideRegion(c.values, c.axis, c.mask)).toEqual(c.expected)
   })
 })
 

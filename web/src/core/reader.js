@@ -293,11 +293,17 @@ export async function readWorkbook(bytes, sheetName = null) {
   const sheet = book.Sheets[name]
   if (!sheet || !sheet['!ref']) return { columns: [], rows: [] }
 
+  // From A1, not from the sheet's first *used* cell. SheetJS sets !ref to the
+  // used range, so a workbook with three blank rows above its header starts at
+  // row four here and at row one in pandas - and the two readers then promote
+  // different rows and name the same column differently. The blank rows are
+  // dropped by tidyTable a moment later on both sides; what matters is that
+  // both sides see them.
   const range = XLSX.utils.decode_range(sheet['!ref'])
   const grid = []
-  for (let r = range.s.r; r <= range.e.r; r += 1) {
+  for (let r = 0; r <= range.e.r; r += 1) {
     const row = []
-    for (let c = range.s.c; c <= range.e.c; c += 1) {
+    for (let c = 0; c <= range.e.c; c += 1) {
       row.push(cellText(sheet[XLSX.utils.encode_cell({ r, c })]))
     }
     grid.push(row)

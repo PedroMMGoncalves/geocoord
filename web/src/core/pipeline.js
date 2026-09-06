@@ -11,12 +11,20 @@
  * and a value out.
  */
 import {
+  LAT_CANDIDATES,
+  LON_CANDIDATES,
   axisMismatch,
   formatDms,
   inRange,
   parseCoordinate,
   parseProjected,
+  unsignedOutsideRegion,
 } from './converter.js'
+
+// Re-exported so the interface and the tests have one import to reach for, and
+// so there is only ever one copy of the candidate lists.
+export { LAT_CANDIDATES, LON_CANDIDATES }
+export { guessCoordinateColumns } from './converter.js'
 import { WGS84_PROJ4, transformAll } from './crs.js'
 import { csvSafe } from './geoexport.js'
 import { loadSheetJs } from './reader.js'
@@ -41,18 +49,6 @@ export const REGION_MASKS = {
   Moçambique: [[-27.0, -10.4, 30.1, 41.0]],
   'São Tomé e Príncipe': [[-0.1, 1.8, 6.4, 7.6]],
 }
-
-/** Column names that usually hold a latitude, in the order they are tried. */
-export const LAT_CANDIDATES = [
-  'latitude', 'lat', 'coordenadas x', 'latitude x', 'coord_lat',
-  'lat_dms', 'lat_gms', 'y', 'y_dd', 'lat_y',
-]
-
-/** Column names that usually hold a longitude, in the order they are tried. */
-export const LON_CANDIDATES = [
-  'longitude', 'lon', 'long', 'coordenadas y', 'longitude y', 'coord_lon',
-  'lon_dms', 'lon_gms', 'x', 'x_dd', 'lon_x',
-]
 
 /**
  * Index of the first column whose name matches a candidate, else `fallback`
@@ -114,6 +110,8 @@ export async function buildResult(table, xCol, yCol, {
   addDms = true,
   input = null,
   output = null,
+  regionMask = null,
+  applyRegionSign = false,
 } = {}) {
   const keep = table.columns
     .map((c, i) => [c, i])
@@ -128,6 +126,16 @@ export async function buildResult(table, xCol, yCol, {
   const rawY = table.rows.map((row) => row[yAt])
 
   const projected = input !== null && input.kind === 'projected'
+
+  // A file from the southern hemisphere is routinely written unsigned - the
+  // survey knew which side of the equator it was on. The region the user
+  // declared is the only place that information can come from now.
+  const signable = projected || regionMask === null
+    ? { lat: rawX.map(() => false), lon: rawY.map(() => false) }
+    : {
+      lat: unsignedOutsideRegion(rawX, 'lat', regionMask),
+      lon: unsignedOutsideRegion(rawY, 'lon', regionMask),
+    }
   // A projected value is a number of metres and must not go through the
   // degrees parser: "532725 4555481" would be read as degrees, minutes and
   // seconds, and it would be read successfully, which is worse.
@@ -135,8 +143,9 @@ export async function buildResult(table, xCol, yCol, {
 
   // The chosen columns are (lat, lon) for a geographic system and (X, Y) - so
   // (lon-ish, lat-ish) - for a projected one. proj4 wants x first either way.
-  let firsts = rawX.map(read)
-  let seconds = rawY.map(read)
+  const flip = (v, yes) => (yes && v !== null ? -v : v)
+  let firsts = rawX.map((v, i) => flip(read(v), applyRegionSign && signable.lat[i]))
+  let seconds = rawY.map((v, i) => flip(read(v), applyRegionSign && signable.lon[i]))
   let lats
   let lons
   if (input === null || input.proj4 === WGS84_PROJ4) {
@@ -165,6 +174,9 @@ export async function buildResult(table, xCol, yCol, {
     ...withDerived({ columns, rows }, lats, lons, addDms, extra),
     axisMismatch: mismatch,
     output,
+    // How many rows the region could sign, whether or not it was asked to -
+    // the interface needs the count to know whether to offer at all.
+    signable: signable.lat.filter(Boolean).length + signable.lon.filter(Boolean).length,
   }
 }
 
@@ -233,6 +245,7 @@ export async function applySwaps(result, indices, { addDms = true } = {}) {
     ...withDerived(base, lats, lons, addDms, extra),
     axisMismatch: result.axisMismatch,
     output: result.output ?? null,
+    signable: result.signable ?? 0,
   }
 }
 

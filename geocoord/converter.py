@@ -49,6 +49,15 @@ LAT_RANGE = (-90.0, 90.0)
 LON_RANGE = (-180.0, 180.0)
 
 
+#: Column names that usually hold a latitude, in the order they are tried.
+LAT_CANDIDATES = ["latitude", "lat", "coordenadas x", "latitude x", "coord_lat",
+                  "lat_dms", "lat_gms", "y", "y_dd", "lat_y"]
+
+#: Column names that usually hold a longitude, in the order they are tried.
+LON_CANDIDATES = ["longitude", "lon", "long", "coordenadas y", "longitude y",
+                  "coord_lon", "lon_dms", "lon_gms", "x", "x_dd", "lon_x"]
+
+
 def parse_coordinate(value) -> Optional[float]:
     """Convert a value (DMS/DM/decimal) into decimal degrees.
 
@@ -179,6 +188,232 @@ def hemisphere_axis(value) -> Optional[str]:
         return None
     return "lat" if match.group(1).upper() in ("N", "S") else "lon"
 
+
+
+
+#: A column has to be mostly coordinates before it is taken for one.
+_COLUMN_HIT_RATE = 0.6
+#: ...and have enough values for that fraction to mean anything.
+_COLUMN_MIN_VALUES = 3
+#: Anything past this is not an angle in degrees, whichever axis it is.
+_MAX_PLAUSIBLE_DEGREES = 180.0
+
+# The marks that say "this is an angle, not a number": a degree sign, a prime,
+# a hemisphere letter. A column carrying them is a coordinate column and a
+# column of quantities is not, however well its numbers happen to parse.
+_LOOKS_ANGULAR_RE = re.compile(r"[°º'\"′″]|[NSEWOL]\b", re.IGNORECASE)
+
+
+def _blank(value) -> bool:
+    """A cell with nothing in it, however the reader spelled that."""
+    if value is None:
+        return True
+    if isinstance(value, float) and pd.isna(value):
+        return True
+    return str(value).strip() in ("", "nan", "None", "-")
+
+
+def _column_score(values):
+    """How much a column looks like coordinates, and its median magnitude.
+
+    Returns ``(score, median)``. Parsing alone is not enough to go on: a column
+    of row numbers parses perfectly, and on a real file it beat the actual
+    coordinates because those had three blank rows. So the score also asks
+    whether the values *look* like angles.
+    """
+    seen = [v for v in values if not _blank(v)]
+    if len(seen) < _COLUMN_MIN_VALUES:
+        return 0.0, None
+    parsed = [parse_coordinate(v) for v in seen]
+    good = [p for p in parsed if p is not None]
+    if not good:
+        return 0.0, None
+
+    rate = len(good) / len(seen)
+    if rate < _COLUMN_HIT_RATE:
+        return 0.0, None
+
+    magnitudes = sorted(abs(p) for p in good)
+    median = magnitudes[len(magnitudes) // 2]
+    score = rate
+
+    # Degree signs, primes and hemisphere letters settle it outright.
+    if sum(1 for v in seen if _LOOKS_ANGULAR_RE.search(str(v))) / len(seen) > 0.5:
+        score += 1.0
+    # A column of whole numbers is an identifier, a count or a year. A
+    # coordinate has a fraction, unless somebody sampled exactly on a degree.
+    elif all(float(p).is_integer() for p in good):
+        score -= 0.5
+    # And nothing past 180 degrees is an angle at all.
+    if magnitudes[-1] > _MAX_PLAUSIBLE_DEGREES:
+        score -= 1.0
+
+    return score, median
+
+
+def _abs_span(mask, axis: str):
+    """The range of |value| a mask admits on one axis, as (low, high).
+
+    Not min/max of the absolute bounds taken separately: for a longitude span
+    of -9.6 to -6.1 that gives (9.6, 6.1), an interval that contains nothing,
+    and every test against it silently fails. A box straddling zero admits
+    magnitudes from zero up.
+    """
+    low = None
+    high = 0.0
+    for box in mask:
+        lo, hi = (box[0], box[1]) if axis == "lat" else (box[2], box[3])
+        box_low = 0.0 if lo <= 0 <= hi else min(abs(lo), abs(hi))
+        box_high = max(abs(lo), abs(hi))
+        low = box_low if low is None else min(low, box_low)
+        high = max(high, box_high)
+    return (0.0 if low is None else low), high
+
+
+def _fits_region(median, mask):
+    """Whether a magnitude could be a latitude or a longitude in ``mask``."""
+    if not mask or median is None:
+        return True
+    lat_lo, lat_hi = _abs_span(mask, "lat")
+    lon_lo, lon_hi = _abs_span(mask, "lon")
+    return (lat_lo <= median <= lat_hi) or (lon_lo <= median <= lon_hi)
+
+
+def guess_coordinate_columns(columns, rows, mask=None):
+    """Which two columns hold the coordinates. Returns ``(lat_index, lon_index)``.
+
+    Names first, because a column called Latitude is not a guess. But names run
+    out quickly on real files: a spreadsheet from Tete had its two columns
+    labelled ``Condenadas`` - a misspelling of Coordenadas, spanning both - and
+    ``Unnamed: 2``, and matching on names put the *village name* in the latitude
+    slot and reported every one of its rows as unreadable. No list of candidate
+    names would have saved it.
+
+    So when the names give nothing, the values do - but parsing alone is not
+    enough to go on. On a second real file a column of row numbers parsed
+    perfectly and beat the actual coordinates, which had three blank rows. What
+    separates them is that a coordinate *looks* like an angle: a degree sign, a
+    prime, a hemisphere letter, or at least a fraction. See ``_column_score``.
+
+    Which of the two is the latitude is decided by the declared region when
+    there is one - in Tete the magnitudes are 15 and 33, and only one of those
+    is a latitude between 10 and 27 degrees - and otherwise by magnitude and
+    column order.
+
+    Falls back to the first two columns, which is what it did before, when
+    neither the names nor the values are any use.
+    """
+    by_name_lat = _named_column(columns, LAT_CANDIDATES)
+    by_name_lon = _named_column(columns, LON_CANDIDATES)
+    if by_name_lat is not None and by_name_lon is not None and by_name_lat != by_name_lon:
+        return by_name_lat, by_name_lon
+
+    measured = []
+    for i, _ in enumerate(columns):
+        score, median = _column_score([row[i] if i < len(row) else None for row in rows])
+        if score > 0.0 and median is not None:
+            measured.append((i, score, median))
+
+    scored = [m for m in measured if _fits_region(m[2], mask)]
+    # A region that fits nothing is the wrong region, not a reason to give up:
+    # the default is Portugal, and a file from Tete arrives with every column
+    # outside it. Falling through to the first two columns there put the
+    # village name in the latitude slot until the user noticed and changed the
+    # region. The values still know which columns they are.
+    if len(scored) < 2:
+        scored = measured
+        mask = None
+
+    if len(scored) >= 2:
+        best = sorted(scored, key=lambda s: (-s[1], s[0]))[:2]
+        first, second = sorted(best, key=lambda s: s[0])
+        return _order_by_region(first, second, mask)
+
+    fallback_lat = by_name_lat if by_name_lat is not None else 0
+    fallback_lon = by_name_lon if by_name_lon is not None else (1 if len(columns) > 1 else 0)
+    return fallback_lat, fallback_lon
+
+
+def _named_column(columns, candidates):
+    """Index of the first column whose name matches a candidate, or None."""
+    lowered = [str(c).lower() for c in columns]
+    for candidate in candidates:
+        if candidate.lower() in lowered:
+            return lowered.index(candidate.lower())
+    return None
+
+
+def _order_by_region(first, second, mask):
+    """Which of two scored columns is the latitude."""
+    (i_a, _, med_a), (i_b, _, med_b) = first, second
+    if mask:
+        lat_lo, lat_hi = _abs_span(mask, "lat")
+        lon_lo, lon_hi = _abs_span(mask, "lon")
+        a_lat, b_lat = lat_lo <= med_a <= lat_hi, lat_lo <= med_b <= lat_hi
+        a_lon, b_lon = lon_lo <= med_a <= lon_hi, lon_lo <= med_b <= lon_hi
+        if a_lat and b_lon and not (b_lat and a_lon):
+            return i_a, i_b
+        if b_lat and a_lon and not (a_lat and b_lon):
+            return i_b, i_a
+    # No region, or one that cannot tell them apart: a magnitude over 90 can
+    # only be a longitude, and otherwise the left column is the latitude.
+    if med_a > 90 >= med_b:
+        return i_b, i_a
+    return i_a, i_b
+
+
+def _axis_bounds(mask, axis: str):
+    """The span of ``mask`` on one axis, as (low, high)."""
+    if not mask:
+        return None
+    if axis == "lat":
+        return min(b[0] for b in mask), max(b[1] for b in mask)
+    return min(b[2] for b in mask), max(b[3] for b in mask)
+
+
+def unsigned_outside_region(values, axis: str, mask) -> list:
+    """Rows whose magnitude only the declared region can put a sign on.
+
+    A hard case that has nothing to do with parsing and everything to do with
+    what the file leaves out. Field notebooks from the southern hemisphere are
+    routinely written unsigned - ``15 22 23`` for a latitude in Tete, because
+    everyone on the survey knew which side of the equator they were standing on
+    - and nothing in the value says south. Read literally it is Sudan.
+
+    The region the user has already declared is the missing information, and
+    this is the only place it can come from. A row qualifies when all three
+    hold:
+
+    * the raw value carries no hemisphere letter and no sign, so the file is
+      not being contradicted, only completed;
+    * its magnitude falls outside the region on that axis, so there is
+      something to fix;
+    * the negated magnitude falls inside, so the fix is exactly a sign.
+
+    Anything else is left alone. A value the file signed is never touched -
+    that is data, and guessing over it would be the worst thing this tool
+    could do.
+    """
+    bounds = _axis_bounds(mask, axis)
+    out = []
+    for value in values:
+        if bounds is None:
+            out.append(False)
+            continue
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            text = ""
+            magnitude = float(value) if value == value else None
+            signed_already = magnitude is not None and magnitude < 0
+        else:
+            text = _STRIP_CHARS_RE.sub("", str(value)).translate(_ORDINAL_SIGNS).strip()
+            magnitude = parse_coordinate(value)
+            signed_already = text.lstrip().startswith("-") or hemisphere_axis(value) is not None
+        if magnitude is None or signed_already:
+            out.append(False)
+            continue
+        low, high = bounds
+        out.append(not (low <= magnitude <= high) and low <= -magnitude <= high)
+    return out
 
 def axis_mismatch(lat_values, lon_values) -> list:
     """Rows whose hemisphere letters contradict the columns they sit in.

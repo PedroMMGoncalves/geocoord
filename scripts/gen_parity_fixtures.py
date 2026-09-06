@@ -34,12 +34,14 @@ sys.path.insert(0, str(ROOT))
 from geocoord.converter import (
     axis_mismatch,
     detect_swaps,
+    guess_coordinate_columns,
     hemisphere_axis,
     format_dms,
     identify_region,
     in_range,
     parse_coordinate,
     parse_projected,
+    unsigned_outside_region,
     point_in_mask,
     region_check,
     tidy_table,
@@ -404,6 +406,74 @@ for _zone, _south, _lon, _lat, _where in [
         "x": _x,
         "y": _y,
     })
+
+# The sign a file from the southern hemisphere does not carry. Field notebooks
+# are routinely written unsigned - everyone on the survey knew which side of the
+# equator they were standing on - and read literally, Tete is in Sudan.
+UNSIGNED_REGION_INPUTS = [
+    ("unsigned_dms_outside_becomes_inside", ["15 22 23"], "lat", [MZ]),
+    ("unsigned_number_outside_becomes_inside", [15.373056], "lat", [MZ]),
+    ("already_inside_is_left_alone", [-15.37], "lat", [MZ]),
+    ("explicit_hemisphere_is_never_contradicted", ["15 22 23 N"], "lat", [MZ]),
+    ("explicit_minus_is_never_contradicted", ["-15 22 23"], "lat", [MZ]),
+    ("longitude_already_east_is_left_alone", ["33 53 11"], "lon", [MZ]),
+    ("portuguese_latitude_needs_nothing", ["38 42 30"], "lat", [PT]),
+    ("portuguese_longitude_is_west_and_unsigned", ["9 8 12"], "lon", [PT]),
+    ("outside_both_ways_is_left_alone", ["75 0 0"], "lat", [PT]),
+    ("unreadable_is_left_alone", ["texto"], "lat", [MZ]),
+    ("empty_is_left_alone", [""], "lat", [MZ]),
+    ("no_mask_means_no_inference", ["15 22 23"], "lat", []),
+    ("a_whole_column_at_once",
+     ["15 22 23", "15 22 23 S", "-15.5", "38.7", "texto"], "lat", [MZ]),
+]
+
+# Which two columns hold the coordinates. Names first, then the values - the
+# second half exists because on a real file from Tete the columns were called
+# "Condenadas" and "Unnamed: 2", and matching on names put the village name in
+# the latitude slot and called every row unreadable.
+GUESS_COLUMN_INPUTS = [
+    ("names_win_when_they_are_good",
+     ["nome", "Latitude", "Longitude"],
+     [["a", "38.7", "-9.1"]] * 4, []),
+    ("names_win_over_a_better_scoring_column",
+     ["Latitude", "Longitude", "altura"],
+     [["38.7", "-9.1", "120.5"]] * 4, []),
+    ("misspelled_and_unnamed_headers_fall_back_to_the_values",
+     ["povoado", "Condenadas", "Unnamed: 2", "minerais"],
+     [["Katsabola", "15 22 23", "33 53 11", "Ouro"],
+      ["Chivula", "15 03 47", "30 26 15", "Ouro"],
+      ["Catete", "15 15 55", "33 02 37", "Ouro"],
+      ["tambica", "15 25 31", "31 18 24", "Ouro"]], []),
+    ("the_region_says_which_magnitude_is_the_latitude",
+     ["povoado", "a", "b"],
+     [["Katsabola", "15 22 23", "33 53 11"],
+      ["Chivula", "15 03 47", "30 26 15"],
+      ["Catete", "15 15 55", "33 02 37"],
+      ["tambica", "15 25 31", "31 18 24"]], [MZ]),
+    ("a_column_of_row_numbers_must_not_win",
+     ["id", "a", "b"],
+     [[str(i), f"38\u00b0 4{i}' 30\" N", f"9\u00b0 {i}' 12\" W"] for i in range(1, 7)], []),
+    ("a_column_of_quantities_must_not_win",
+     ["area_ha", "a", "b"],
+     [[f"{50 + i}.45", f"38\u00b0 4{i}' 30\" N", f"9\u00b0 {i}' 12\" W"] for i in range(1, 7)], []),
+    ("a_magnitude_past_90_can_only_be_a_longitude",
+     ["A", "B"],
+     [["15.3", "133.8"], ["15.4", "133.9"], ["15.5", "134.0"], ["15.6", "134.1"]], []),
+    # The default region is Portugal and this file is from Tete: nothing fits,
+    # and the guess must still find the coordinates rather than take column one.
+    ("a_region_that_fits_nothing_is_set_aside",
+     ["povoado", "a", "b"],
+     [["Katsabola", "15 22 23", "33 53 11"],
+      ["Chivula", "15 03 47", "30 26 15"],
+      ["Catete", "15 15 55", "33 02 37"],
+      ["tambica", "15 25 31", "31 18 24"]], [PT]),
+    ("nothing_usable_falls_back_to_the_first_two",
+     ["a", "b", "c"], [["x", "y", "z"]] * 4, []),
+    ("a_single_column_does_not_go_out_of_bounds",
+     ["lat"], [["38.7"], ["38.8"], ["38.9"], ["39.0"]], []),
+    ("too_few_rows_to_judge_falls_back",
+     ["a", "b"], [["38.7", "-9.1"]], []),
+]
 
 REGION_CHECK_INPUTS = [
     {
@@ -841,6 +911,16 @@ def build():
             "tolerance_m": CRS_TOLERANCE_M,
             "cases": CRS_CASES,
         },
+        "guess_coordinate_columns": [
+            {"id": i, "columns": c, "rows": r, "mask": m,
+             "expected": list(guess_coordinate_columns(c, r, [tuple(b) for b in m]))}
+            for i, c, r, m in GUESS_COLUMN_INPUTS
+        ],
+        "unsigned_outside_region": [
+            {"id": i, "values": v, "axis": a, "mask": m,
+             "expected": unsigned_outside_region(v, a, [tuple(b) for b in m])}
+            for i, v, a, m in UNSIGNED_REGION_INPUTS
+        ],
         "hemisphere_axis": [
             {"id": i, "input": v, "expected": hemisphere_axis(v)}
             for i, v in HEMISPHERE_AXIS_INPUTS

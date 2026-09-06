@@ -6,6 +6,7 @@ import streamlit as st
 
 from geocoord.converter import (
     axis_mismatch,
+    guess_coordinate_columns,
     detect_swaps,
     format_dms,
     in_range,
@@ -446,10 +447,17 @@ with tab_file:
         _step("2. Choose the coordinate columns")
         cols = list(df.columns)
         c1, c2 = st.columns(2)
-        lat_col = c1.selectbox("Latitude column (DMS)", cols,
-                               index=guess_column(cols, LAT_CANDIDATES, 0))
-        lon_col = c2.selectbox("Longitude column (DMS)", cols,
-                               index=guess_column(cols, LON_CANDIDATES, 1 if len(cols) > 1 else 0))
+        # The guess reads the values as well as the names, and uses the
+        # declared region to tell a latitude from a longitude. On a file whose
+        # columns are called "Condenadas" and "Unnamed: 2" the names are no
+        # help at all.
+        # No mask here: in this interface the region is chosen further down,
+        # after the conversion, so at this point there is none to use. The
+        # values alone are enough on the files that need this most.
+        guess_lat, guess_lon = guess_coordinate_columns(
+            cols, df.astype(object).values.tolist())
+        lat_col = c1.selectbox("Latitude column (DMS)", cols, index=guess_lat)
+        lon_col = c2.selectbox("Longitude column (DMS)", cols, index=guess_lon)
 
         st.caption("Conversion preview (first rows):")
         if lat_col == lon_col:

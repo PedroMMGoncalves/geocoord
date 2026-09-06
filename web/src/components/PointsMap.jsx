@@ -64,6 +64,15 @@ function baseLayers(L) {
     ]),
     osm: () => L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }),
+    // Contours and relief, which is what you want when the question is where a
+    // sample sits on a slope rather than which road reaches it. Its own tiles
+    // stop at zoom 17, so the layer says so rather than serving blanks.
+    topo: () => L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+      {
+        maxZoom: 17,
+        attribution: 'Map data &copy; OpenStreetMap contributors, SRTM | '
+          + 'Style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+      }),
   }
 }
 
@@ -73,6 +82,7 @@ const BASE_LABELS = {
   sat: 'map.baseSat',
   hybrid: 'map.baseHybrid',
   osm: 'map.baseOsm',
+  topo: 'map.baseTopo',
 }
 
 export default function PointsMap({ points }) {

@@ -23,7 +23,9 @@ import pytest
 
 from geocoord.converter import (
     detect_swaps,
+    guess_coordinate_columns,
     hemisphere_axis,
+    unsigned_outside_region,
     format_dms,
     identify_region,
     in_range,
@@ -234,6 +236,25 @@ def test_to_shapefile_zip(case):
         case["features"], case["field_names"], base_name=case["base_name"]
     )
     assert _shapefile_components(data) == case["expected"]
+@pytest.mark.parametrize(
+    "case", FIXTURES["guess_coordinate_columns"],
+    ids=ids(FIXTURES["guess_coordinate_columns"]),
+)
+def test_guess_coordinate_columns(case):
+    mask = [tuple(b) for b in case["mask"]]
+    got = guess_coordinate_columns(case["columns"], case["rows"], mask)
+    assert list(got) == case["expected"]
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["unsigned_outside_region"],
+    ids=ids(FIXTURES["unsigned_outside_region"]),
+)
+def test_unsigned_outside_region(case):
+    mask = [tuple(b) for b in case["mask"]]
+    assert unsigned_outside_region(case["values"], case["axis"], mask) == case["expected"]
+
+
 @pytest.mark.parametrize(
     "case", FIXTURES["hemisphere_axis"], ids=ids(FIXTURES["hemisphere_axis"])
 )

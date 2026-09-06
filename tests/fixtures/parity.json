@@ -877,6 +877,637 @@
       }
     ]
   },
+  "guess_coordinate_columns": [
+    {
+      "id": "names_win_when_they_are_good",
+      "columns": [
+        "nome",
+        "Latitude",
+        "Longitude"
+      ],
+      "rows": [
+        [
+          "a",
+          "38.7",
+          "-9.1"
+        ],
+        [
+          "a",
+          "38.7",
+          "-9.1"
+        ],
+        [
+          "a",
+          "38.7",
+          "-9.1"
+        ],
+        [
+          "a",
+          "38.7",
+          "-9.1"
+        ]
+      ],
+      "mask": [],
+      "expected": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "names_win_over_a_better_scoring_column",
+      "columns": [
+        "Latitude",
+        "Longitude",
+        "altura"
+      ],
+      "rows": [
+        [
+          "38.7",
+          "-9.1",
+          "120.5"
+        ],
+        [
+          "38.7",
+          "-9.1",
+          "120.5"
+        ],
+        [
+          "38.7",
+          "-9.1",
+          "120.5"
+        ],
+        [
+          "38.7",
+          "-9.1",
+          "120.5"
+        ]
+      ],
+      "mask": [],
+      "expected": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "misspelled_and_unnamed_headers_fall_back_to_the_values",
+      "columns": [
+        "povoado",
+        "Condenadas",
+        "Unnamed: 2",
+        "minerais"
+      ],
+      "rows": [
+        [
+          "Katsabola",
+          "15 22 23",
+          "33 53 11",
+          "Ouro"
+        ],
+        [
+          "Chivula",
+          "15 03 47",
+          "30 26 15",
+          "Ouro"
+        ],
+        [
+          "Catete",
+          "15 15 55",
+          "33 02 37",
+          "Ouro"
+        ],
+        [
+          "tambica",
+          "15 25 31",
+          "31 18 24",
+          "Ouro"
+        ]
+      ],
+      "mask": [],
+      "expected": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "the_region_says_which_magnitude_is_the_latitude",
+      "columns": [
+        "povoado",
+        "a",
+        "b"
+      ],
+      "rows": [
+        [
+          "Katsabola",
+          "15 22 23",
+          "33 53 11"
+        ],
+        [
+          "Chivula",
+          "15 03 47",
+          "30 26 15"
+        ],
+        [
+          "Catete",
+          "15 15 55",
+          "33 02 37"
+        ],
+        [
+          "tambica",
+          "15 25 31",
+          "31 18 24"
+        ]
+      ],
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "a_column_of_row_numbers_must_not_win",
+      "columns": [
+        "id",
+        "a",
+        "b"
+      ],
+      "rows": [
+        [
+          "1",
+          "38° 41' 30\" N",
+          "9° 1' 12\" W"
+        ],
+        [
+          "2",
+          "38° 42' 30\" N",
+          "9° 2' 12\" W"
+        ],
+        [
+          "3",
+          "38° 43' 30\" N",
+          "9° 3' 12\" W"
+        ],
+        [
+          "4",
+          "38° 44' 30\" N",
+          "9° 4' 12\" W"
+        ],
+        [
+          "5",
+          "38° 45' 30\" N",
+          "9° 5' 12\" W"
+        ],
+        [
+          "6",
+          "38° 46' 30\" N",
+          "9° 6' 12\" W"
+        ]
+      ],
+      "mask": [],
+      "expected": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "a_column_of_quantities_must_not_win",
+      "columns": [
+        "area_ha",
+        "a",
+        "b"
+      ],
+      "rows": [
+        [
+          "51.45",
+          "38° 41' 30\" N",
+          "9° 1' 12\" W"
+        ],
+        [
+          "52.45",
+          "38° 42' 30\" N",
+          "9° 2' 12\" W"
+        ],
+        [
+          "53.45",
+          "38° 43' 30\" N",
+          "9° 3' 12\" W"
+        ],
+        [
+          "54.45",
+          "38° 44' 30\" N",
+          "9° 4' 12\" W"
+        ],
+        [
+          "55.45",
+          "38° 45' 30\" N",
+          "9° 5' 12\" W"
+        ],
+        [
+          "56.45",
+          "38° 46' 30\" N",
+          "9° 6' 12\" W"
+        ]
+      ],
+      "mask": [],
+      "expected": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "a_magnitude_past_90_can_only_be_a_longitude",
+      "columns": [
+        "A",
+        "B"
+      ],
+      "rows": [
+        [
+          "15.3",
+          "133.8"
+        ],
+        [
+          "15.4",
+          "133.9"
+        ],
+        [
+          "15.5",
+          "134.0"
+        ],
+        [
+          "15.6",
+          "134.1"
+        ]
+      ],
+      "mask": [],
+      "expected": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "a_region_that_fits_nothing_is_set_aside",
+      "columns": [
+        "povoado",
+        "a",
+        "b"
+      ],
+      "rows": [
+        [
+          "Katsabola",
+          "15 22 23",
+          "33 53 11"
+        ],
+        [
+          "Chivula",
+          "15 03 47",
+          "30 26 15"
+        ],
+        [
+          "Catete",
+          "15 15 55",
+          "33 02 37"
+        ],
+        [
+          "tambica",
+          "15 25 31",
+          "31 18 24"
+        ]
+      ],
+      "mask": [
+        [
+          36.8,
+          42.2,
+          -9.6,
+          -6.1
+        ]
+      ],
+      "expected": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "nothing_usable_falls_back_to_the_first_two",
+      "columns": [
+        "a",
+        "b",
+        "c"
+      ],
+      "rows": [
+        [
+          "x",
+          "y",
+          "z"
+        ],
+        [
+          "x",
+          "y",
+          "z"
+        ],
+        [
+          "x",
+          "y",
+          "z"
+        ],
+        [
+          "x",
+          "y",
+          "z"
+        ]
+      ],
+      "mask": [],
+      "expected": [
+        0,
+        1
+      ]
+    },
+    {
+      "id": "a_single_column_does_not_go_out_of_bounds",
+      "columns": [
+        "lat"
+      ],
+      "rows": [
+        [
+          "38.7"
+        ],
+        [
+          "38.8"
+        ],
+        [
+          "38.9"
+        ],
+        [
+          "39.0"
+        ]
+      ],
+      "mask": [],
+      "expected": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "too_few_rows_to_judge_falls_back",
+      "columns": [
+        "a",
+        "b"
+      ],
+      "rows": [
+        [
+          "38.7",
+          "-9.1"
+        ]
+      ],
+      "mask": [],
+      "expected": [
+        0,
+        1
+      ]
+    }
+  ],
+  "unsigned_outside_region": [
+    {
+      "id": "unsigned_dms_outside_becomes_inside",
+      "values": [
+        "15 22 23"
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        true
+      ]
+    },
+    {
+      "id": "unsigned_number_outside_becomes_inside",
+      "values": [
+        15.373056
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        true
+      ]
+    },
+    {
+      "id": "already_inside_is_left_alone",
+      "values": [
+        -15.37
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        false
+      ]
+    },
+    {
+      "id": "explicit_hemisphere_is_never_contradicted",
+      "values": [
+        "15 22 23 N"
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        false
+      ]
+    },
+    {
+      "id": "explicit_minus_is_never_contradicted",
+      "values": [
+        "-15 22 23"
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        false
+      ]
+    },
+    {
+      "id": "longitude_already_east_is_left_alone",
+      "values": [
+        "33 53 11"
+      ],
+      "axis": "lon",
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        false
+      ]
+    },
+    {
+      "id": "portuguese_latitude_needs_nothing",
+      "values": [
+        "38 42 30"
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          36.8,
+          42.2,
+          -9.6,
+          -6.1
+        ]
+      ],
+      "expected": [
+        false
+      ]
+    },
+    {
+      "id": "portuguese_longitude_is_west_and_unsigned",
+      "values": [
+        "9 8 12"
+      ],
+      "axis": "lon",
+      "mask": [
+        [
+          36.8,
+          42.2,
+          -9.6,
+          -6.1
+        ]
+      ],
+      "expected": [
+        true
+      ]
+    },
+    {
+      "id": "outside_both_ways_is_left_alone",
+      "values": [
+        "75 0 0"
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          36.8,
+          42.2,
+          -9.6,
+          -6.1
+        ]
+      ],
+      "expected": [
+        false
+      ]
+    },
+    {
+      "id": "unreadable_is_left_alone",
+      "values": [
+        "texto"
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        false
+      ]
+    },
+    {
+      "id": "empty_is_left_alone",
+      "values": [
+        ""
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        false
+      ]
+    },
+    {
+      "id": "no_mask_means_no_inference",
+      "values": [
+        "15 22 23"
+      ],
+      "axis": "lat",
+      "mask": [],
+      "expected": [
+        false
+      ]
+    },
+    {
+      "id": "a_whole_column_at_once",
+      "values": [
+        "15 22 23",
+        "15 22 23 S",
+        "-15.5",
+        "38.7",
+        "texto"
+      ],
+      "axis": "lat",
+      "mask": [
+        [
+          -27.0,
+          -10.4,
+          30.1,
+          41.0
+        ]
+      ],
+      "expected": [
+        true,
+        false,
+        false,
+        false,
+        false
+      ]
+    }
+  ],
   "hemisphere_axis": [
     {
       "id": "west_is_a_longitude",
