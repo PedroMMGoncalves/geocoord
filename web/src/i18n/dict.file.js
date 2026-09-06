@@ -21,10 +21,10 @@ export default {
   'file.step4': { pt: 'Descarregar', en: 'Download' },
 
   'map.optIn': {
-    pt: 'O mapa vai buscar imagens de fundo ao Esri, ao CARTO ou ao OpenStreetMap. '
+    pt: 'O mapa vai buscar imagens de fundo ao Esri ou ao OpenStreetMap. '
       + 'As suas coordenadas continuam a não sair daqui, mas a área que estiver a ver '
       + 'fica implícita nos pedidos das imagens — por isso o mapa só abre se o pedir.',
-    en: 'The map fetches background imagery from Esri, CARTO or OpenStreetMap. Your '
+    en: 'The map fetches background imagery from Esri or OpenStreetMap. Your '
       + 'coordinates still do not leave this machine, but the area you are looking at '
       + 'is implied by those requests — so the map only opens if you ask for it.',
   },

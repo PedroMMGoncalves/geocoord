@@ -349,8 +349,8 @@ Apache 2.0 terms. See [LICENSE](LICENSE).
 ## Acknowledgements
 
 Developed by Pedro Gonçalves at LNEG — Laboratório Nacional de Energia e
-Geologia. Basemaps by [Esri](https://www.esri.com), [CARTO](https://carto.com)
-and [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors;
+Geologia. Basemaps by [Esri](https://www.esri.com) and
+[OpenStreetMap](https://www.openstreetmap.org/copyright) contributors;
 coordinate transformations by [PROJ](https://proj.org) through
 [pyproj](https://pyproj4.github.io/pyproj/) and
 [proj4js](http://proj4js.org).

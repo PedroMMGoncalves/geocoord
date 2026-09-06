@@ -8,10 +8,16 @@ import { useT } from '../i18n.jsx'
  * map is one section of one tab, and a visitor converting a file to CSV never
  * has to pay for it.
  *
- * The basemaps are the same set as the sibling tools - snap-wkt-generator and
+ * The basemaps are the set the sibling tools use - snap-wkt-generator and
  * dji-mission-planner - so a colleague moving between them finds the same
  * imagery under the same names. The default is dark here rather than light,
  * because this page is dark.
+ *
+ * The light and dark grounds are the exception, and no longer match
+ * snap-wkt-generator: they were CARTO's until CARTO began watermarking every
+ * tile it serves without an API key. Esri's canvas maps replace them - see
+ * baseLayers. snap-wkt-generator still points at CARTO and will show the same
+ * watermark until it is moved too.
  */
 
 const STORAGE_KEY = 'geocoord:basemap'
@@ -21,18 +27,36 @@ const STORAGE_KEY = 'geocoord:basemap'
 const COLOR_OK = '#0072B2'
 const COLOR_SUSPECT = '#D55E00'
 
-const ESRI_IMAGERY = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-const ESRI_PLACES = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services'
+const ESRI_IMAGERY = `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`
+const ESRI_PLACES = `${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`
 const ESRI_ATTR = 'Tiles &copy; Esri'
-const CARTO_ATTR = '&copy; OpenStreetMap contributors, &copy; CARTO'
+// The canvas maps are two layers by design: a plain ground, and the place names
+// as a separate transparent overlay. That is the point of them - the labels sit
+// above whatever you draw, instead of underneath it.
+const ESRI_CANVAS_ATTR =
+  'Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'
 
-/** name -> a function building the layer, so nothing is created until chosen. */
+/**
+ * name -> a function building the layer, so nothing is created until chosen.
+ *
+ * The light and dark grounds were CARTO's until CARTO began watermarking the
+ * tiles it serves without an API key - "API KEY REQUIRED" written diagonally
+ * across every one of them, on both styles. Esri's canvas maps are the same
+ * idea from a host this page already uses for the imagery, they need no key,
+ * and a key would be the worse answer anyway: this page is a static file on
+ * GitHub Pages, so any key in it is a key published to everyone who opens it.
+ */
 function baseLayers(L) {
+  const canvas = (shade) => () => L.layerGroup([
+    L.tileLayer(`${ESRI}/Canvas/World_${shade}_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+      { maxZoom: 20, attribution: ESRI_CANVAS_ATTR }),
+    L.tileLayer(`${ESRI}/Canvas/World_${shade}_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
+      { maxZoom: 20, zIndex: 2 }),
+  ])
   return {
-    dark: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 20, attribution: CARTO_ATTR }),
-    light: () => L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      { maxZoom: 20, attribution: CARTO_ATTR }),
+    dark: canvas('Dark'),
+    light: canvas('Light'),
     sat: () => L.tileLayer(ESRI_IMAGERY, { maxZoom: 19, attribution: ESRI_ATTR }),
     hybrid: () => L.layerGroup([
       L.tileLayer(ESRI_IMAGERY, { maxZoom: 19, attribution: ESRI_ATTR }),

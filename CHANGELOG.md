@@ -59,10 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `+`, `-` or `@` is a formula to Excel, LibreOffice and Google Sheets, and a
   converted file is usually somebody else's data being opened on your machine.
   Numbers are never touched, so `-8,61` stays a coordinate.
-- A map of the converted points on the web page, on Leaflet, with the same
-  basemaps as the sibling tools (snap-wkt-generator, dji-mission-planner): Esri
-  imagery, Esri hybrid, CARTO light and dark, and OpenStreetMap, with the choice
-  remembered. Points are coloured with the same colour-blind-safe pair the
+- A map of the converted points on the web page, on Leaflet, with five
+  basemaps and the choice remembered: Esri imagery, Esri hybrid, Esri light and
+  dark canvas, and OpenStreetMap. None needs an API key, which keeps the page a
+  static file anybody can open. Points are coloured with the same colour-blind-safe pair the
   desktop map uses, a row suspected of being reversed is drawn where it would
   be if it were, and accepting the inversion recolours it and re-frames the map.
   It opens on request rather than on load: the basemap tiles come from third
