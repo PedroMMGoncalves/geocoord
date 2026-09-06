@@ -50,17 +50,27 @@ There is also a **desktop application** for offline use, and an importable
    straight out of Excel. CSV, TXT, XLSX, XLS, ODS, KML, KMZ, GeoJSON and GPX
    are read; the sheet and
    the separator can be changed after loading.
-3. **Check the columns.** They are guessed by name in Portuguese and English;
-   change them if the guess is wrong. Pick the region your data belongs to.
+3. **Check the columns.** They are guessed by name, in Portuguese and English,
+   and by their values when the names say nothing — a file whose columns are
+   called `Condenadas` and `Unnamed: 2` still finds them. Change them if the
+   guess is wrong. Pick the region your data belongs to.
 4. **Pick a coordinate system** if the file is not in WGS84 degrees — a
    projected file is read as metres, and a second system can be added to the
    output as extra columns.
 5. **Review the suspected swaps.** Rows where latitude and longitude look
-   reversed are listed one by one. Nothing is changed until you tick them.
-6. **Look at the map**, if it helps — it opens on request, so the page has
-   spoken to nobody until you ask for it.
-7. **Download**: CSV, Excel, GeoJSON, KML, Shapefile (zipped, with a `.prj`) or
-   GPX.
+   reversed are listed one by one. Nothing is changed until you say so — and
+   the downloads wait: they stay disabled until the question is answered,
+   either way.
+6. **Look at the map.** It draws itself with the result. Its tiles are the one
+   thing on the page that talks to a server, so if that matters for your data
+   the basemap *Sem fundo* / *No background* draws the points over nothing.
+7. **Download**: Excel, CSV, GeoJSON, KML, Shapefile (zipped, with a `.prj`) or
+   GPX. Each button names the file it will write.
+
+Each step is a card that folds to a one-line summary once it is done —
+`Latitude / Longitude · Moçambique · WGS 84 — EPSG:4326 · 6 casas decimais` —
+so a glance confirms every setting without opening anything. Click a summary to
+reopen its step.
 
 ---
 
@@ -222,10 +232,14 @@ are.
 
 Nothing to install: <https://pedrommgoncalves.github.io/geocoord/>
 
-Portuguese and English, chosen in the header and remembered. Keyboard-operable
-throughout, with a skip link, named landmarks and a results table a screen
-reader can navigate; every row carries its conversion status as a shape and as
-text as well as a colour.
+Portuguese and English, chosen in the header and remembered. The four steps
+are cards: each folds to a one-line summary as it is done, and the download
+step waits, disabled, until any suspected swap has been answered. Colour means
+one thing each — green is what you press, cyan is what you read, amber is a
+question, red is a failure — and every text pair meets WCAG AA. Keyboard-
+operable throughout, with a skip link, named landmarks and a results table a
+screen reader can navigate; every row carries its conversion status as a shape
+and as text as well as a colour.
 
 ### The desktop application
 
@@ -361,8 +375,13 @@ in the contract, so the desktop and the browser refuse the same files.
   coordinate, outside the valid range, or a suspected swap awaiting review.
 - **A sample code lost its leading zero.** It should not — every cell is read as
   text on both paths. If it happens, it is a bug worth reporting.
-- **The map is empty.** It opens on request; the tiles need a connection. The
-  conversion and the downloads do not depend on it.
+- **The map is empty.** The tiles need a connection; the points do not. Pick
+  *Sem fundo* / *No background* in the layer control to see the points without
+  tiles. The conversion and the downloads do not depend on the map either way.
+- **The download buttons are greyed out.** A row looks like its latitude and
+  longitude are swapped, and the question has not been answered. Open the
+  review panel in step 3 and choose — *Inverter todas*, *Não inverter
+  nenhuma*, or row by row. Either answer unlocks the downloads.
 - **`.xls` fails in the packaged desktop build.** That runtime bundles only
   pure-Python wheels. Convert to `.xlsx` or CSV, or use the web application.
 
