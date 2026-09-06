@@ -7,11 +7,13 @@ export default {
     pt: 'Converter um ficheiro',
     en: 'Convert a file',
   },
+  // The privacy claim used to live here as well as in the header. Saying it
+  // twice on one screen weakens it, so this line says what the step does and
+  // the header alone makes the promise.
   'file.intro': {
-    pt: 'Arraste uma folha de cálculo ou um CSV. O ficheiro é lido e convertido no seu '
-      + 'navegador — nada é enviado para nenhum servidor.',
-    en: 'Drop a spreadsheet or a CSV. The file is read and converted in your browser — '
-      + 'nothing is sent to any server.',
+    pt: 'Arraste uma folha de cálculo ou um CSV. As colunas das coordenadas são '
+      + 'encontradas automaticamente.',
+    en: 'Drop a spreadsheet or a CSV. The coordinate columns are found automatically.',
   },
 
   'file.step1': { pt: 'Ficheiro', en: 'File' },
@@ -20,27 +22,13 @@ export default {
   'file.stepMap': { pt: 'Mapa', en: 'Map' },
   'file.step4': { pt: 'Descarregar', en: 'Download' },
 
-  'map.optIn': {
-    pt: 'O mapa vai buscar imagens de fundo ao Esri ou ao OpenStreetMap. '
-      + 'As suas coordenadas continuam a não sair daqui, mas a área que estiver a ver '
-      + 'fica implícita nos pedidos das imagens — por isso o mapa só abre se o pedir.',
-    en: 'The map fetches background imagery from Esri or OpenStreetMap. Your '
-      + 'coordinates still do not leave this machine, but the area you are looking at '
-      + 'is implied by those requests — so the map only opens if you ask for it.',
-  },
-  'map.optInShort': {
-    pt: 'O mapa abre a pedido, para a página não falar com ninguém sem o pedires.',
-    en: 'The map opens on request, so the page speaks to nobody unasked.',
-  },
-  'map.show': {
-    pt: 'Mostrar os {n} pontos no mapa',
-    ptOne: 'Mostrar o ponto no mapa',
-    en: 'Show the {n} points on a map',
-    enOne: 'Show the point on a map',
-  },
   'map.nothingToShow': {
     pt: 'Nenhum ponto para mostrar',
     en: 'No points to show',
+  },
+  'map.emptyHint': {
+    pt: 'Os pontos aparecem aqui assim que houver coordenadas convertidas.',
+    en: 'Points appear here as soon as there are converted coordinates.',
   },
   'map.loading': { pt: 'A carregar o mapa…', en: 'Loading the map…' },
   'map.failed': {
@@ -56,6 +44,7 @@ export default {
   'map.baseHybrid': { pt: 'Híbrido', en: 'Hybrid' },
   'map.baseOsm': { pt: 'OpenStreetMap', en: 'OpenStreetMap' },
   'map.baseTopo': { pt: 'Topográfico', en: 'Topographic' },
+  'map.baseNone': { pt: 'Sem fundo', en: 'No background' },
 
   'file.dropHere': {
     pt: 'Arraste o ficheiro para aqui',

@@ -88,6 +88,11 @@ function AppInner({ lang, setLang }) {
                 <span className="text-xs text-slate-400">v{import.meta.env.APP_VERSION}</span>
               </div>
               <p className="text-sm text-slate-400">{t('app.subtitle')}</p>
+              {/* Stated once, here, as a property of the tool. It used to be
+                  said only in the map's opt-in box, which meant the one real
+                  guarantee this page offers was worded as an apology for a
+                  button and seen only by whoever scrolled to step three. */}
+              <p className="text-xs text-slate-500">{t('app.privacy')}</p>
             </div>
           </div>
 

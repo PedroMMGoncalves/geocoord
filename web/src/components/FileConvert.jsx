@@ -241,7 +241,6 @@ export default function FileConvert() {
   const [customProj4, setCustomProj4] = useState('')
   // The map is opened by hand. Until it is, the page has spoken to nobody,
   // and that is a promise worth keeping literally rather than nearly.
-  const [showMap, setShowMap] = useState(false)
 
   /**
    * Turn a selection into `{ proj4, kind, suffix, label, epsg }`, or null when
@@ -337,7 +336,6 @@ export default function FileConvert() {
     setConverted(null)
     setFinal(null)
     setAccepted(new Set())
-    setShowMap(false)
     setNotice(null)
   }, [])
 
@@ -1019,31 +1017,16 @@ export default function FileConvert() {
 
               <div className="order-1 flex min-w-0 flex-col lg:order-2 lg:col-span-2">
                 <h3 className="mb-2 text-sm font-medium text-slate-200">{t('file.stepMap')}</h3>
-                {showMap ? (
+                {mapPoints.length > 0 ? (
                   <PointsMap points={mapPoints} />
                 ) : (
                   <>
-                    {/* The line the legend occupies once the map is open, so
+                    {/* The line the legend occupies once the map is drawn, so
                         the two boxes start at the same height either way. */}
-                    <p className="mb-2 text-xs text-slate-400">{t('map.optInShort')}</p>
-                    <div className="flex min-h-[320px] flex-1 flex-col rounded border
-                                    border-dashed border-edge p-4">
-                    <p className="text-xs text-slate-400">{t('map.optIn')}</p>
-                    <button
-                      type="button"
-                      disabled={mapPoints.length === 0}
-                      onClick={() => setShowMap(true)}
-                      className="mt-3 rounded border border-accent/50 px-3 py-1.5 text-sm text-accent
-                                 transition-colors hover:bg-accent hover:text-panel
-                                 focus-visible:outline focus-visible:outline-2
-                                 focus-visible:outline-accent
-                                 disabled:cursor-not-allowed disabled:border-edge
-                                 disabled:text-slate-600 disabled:hover:bg-transparent"
-                    >
-                      {mapPoints.length === 0
-                        ? t('map.nothingToShow')
-                        : t('map.show', { n: mapPoints.length })}
-                    </button>
+                    <p className="mb-2 text-xs text-slate-400">{t('map.nothingToShow')}</p>
+                    <div className="flex min-h-[320px] flex-1 items-center justify-center
+                                    rounded border border-dashed border-edge p-4">
+                      <p className="text-center text-xs text-slate-500">{t('map.emptyHint')}</p>
                     </div>
                   </>
                 )}

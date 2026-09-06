@@ -14,7 +14,8 @@ import { useT } from '../i18n.jsx'
  * because this page is dark.
  *
  * The light and dark grounds are Esri's canvas maps rather than CARTO's - see
- * baseLayers for why.
+ * baseLayers for why. The last entry, "Sem fundo", is not imagery at all: it
+ * draws the points over nothing and contacts no one.
  */
 
 const STORAGE_KEY = 'geocoord:basemap'
@@ -70,6 +71,14 @@ function baseLayers(L) {
         attribution: 'Map data &copy; OpenStreetMap contributors, SRTM | '
           + 'Style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
       }),
+    // Nothing at all - and this one is not a curiosity. Every other ground
+    // here is fetched from Esri or OpenStreetMap, and a tile request carries
+    // the area being looked at even though it never carries the file. For work
+    // whose whereabouts are not to be disclosed, this is the answer: the
+    // points, the zoom and their positions relative to one another, with not a
+    // single request leaving the machine. It replaces a button that used to
+    // withhold the whole map for the same reason, which showed nothing at all.
+    none: () => L.layerGroup([]),
   }
 }
 
@@ -80,6 +89,7 @@ const BASE_LABELS = {
   hybrid: 'map.baseHybrid',
   osm: 'map.baseOsm',
   topo: 'map.baseTopo',
+  none: 'map.baseNone',
 }
 
 export default function PointsMap({ points }) {

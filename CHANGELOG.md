@@ -9,10 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The map draws itself with the result instead of waiting behind a button, and
+  the question the button was asking became a basemap called "Sem fundo" / "No
+  background" - the points and their positions relative to one another over
+  nothing at all, with no request leaving the machine. A gate has to cost less
+  than what it prevents, and this one did not: loading a tile discloses the
+  rectangle being looked at, to a tile server, which is what every map on the
+  web discloses, while the gate hid the most useful view of the result behind a
+  click and forty words for everybody, every time. It also gave the careful
+  reader nothing - the choice was tiles or no map, so somebody unwilling to talk
+  to Esri could not see their own points at all. Now they can.
+- The promise that files are converted on this computer and never uploaded is
+  stated once, in the header, where it belongs to the whole tool. It used to be
+  worded twice: as an apology attached to the map's button, in the third step,
+  seen only by whoever scrolled that far, and again in the file tab's opening
+  line.
 - The map sits beside the results table rather than below it, and above it on
   a narrow screen. The map is the instrument: a point that landed in Sudan is
   obvious on it in a second and invisible in a column of numbers, so it belongs
-  where it is seen without scrolling. It still opens on request. The page is
+  where it is seen without scrolling. The page is
   wider where there is room, and the table takes three fifths of the row, so
   the converted columns - the ones the file was brought here for - are visible
   without scrolling sideways.
