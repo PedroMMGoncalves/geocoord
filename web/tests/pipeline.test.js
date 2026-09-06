@@ -12,6 +12,7 @@ import {
   guessColumn,
   pointsSummary,
   toCsv,
+  toExcelBytes,
   toGpx,
 } from '../src/core/pipeline.js'
 import { get as crsGet } from '../src/core/crs.js'
@@ -432,5 +433,66 @@ describe('coordinate systems in the pipeline', () => {
       input: { proj4: TM06.proj4, kind: 'projected' },
     })
     expect(r.axisMismatch).toEqual([false])
+  })
+})
+
+describe('toExcelBytes', () => {
+  // Deliberately outside the parity contract, like Excel *reading*: openpyxl
+  // and SheetJS build different workbooks from the same data. What is pinned
+  // is the behaviour that matters rather than the bytes.
+  const TABLE_WITH_TRAPS = {
+    columns: ['nome', 'lat', 'lon'],
+    rows: [
+      ['=HYPERLINK("http://x","go")', '38.7223', '-9.1393'],
+      ['@SUM(A1:A9)', '41.1496', '-8.6110'],
+      ['0071', '38.5', '-9.0'],
+      ['São Tomé & Príncipe', '0.3365', '6.7273'],
+    ],
+  }
+
+  it('writes a workbook a reader can open', async () => {
+    const XLSX = await import('xlsx')
+    const bytes = await toExcelBytes(TABLE_WITH_TRAPS)
+    expect(bytes.length).toBeGreaterThan(1000)
+    const book = XLSX.read(bytes, { type: 'array' })
+    expect(book.SheetNames).toEqual(['converted'])
+    const grid = XLSX.utils.sheet_to_json(book.Sheets.converted, { header: 1, raw: false })
+    expect(grid[0]).toEqual(['nome', 'lat', 'lon'])
+    expect(grid.length).toBe(5)
+  })
+
+  it('writes a formula-looking cell as text, never as a formula', async () => {
+    // openpyxl needed talking out of this on the desktop side; SheetJS writes
+    // what it is given. The check is here so a version that changes its mind
+    // does not do it quietly.
+    const XLSX = await import('xlsx')
+    const book = XLSX.read(await toExcelBytes(TABLE_WITH_TRAPS), { type: 'array' })
+    const sheet = book.Sheets.converted
+    for (const ref of ['A2', 'A3']) {
+      expect(sheet[ref].t).toBe('s')
+      expect(sheet[ref].f).toBeUndefined()
+    }
+    expect(sheet.A2.v).toBe('=HYPERLINK("http://x","go")')
+  })
+
+  it('keeps a leading zero and an accent', async () => {
+    const XLSX = await import('xlsx')
+    const book = XLSX.read(await toExcelBytes(TABLE_WITH_TRAPS), { type: 'array' })
+    expect(book.Sheets.converted.A4.v).toBe('0071')
+    expect(book.Sheets.converted.A5.v).toBe('São Tomé & Príncipe')
+  })
+
+  it('drops the control characters the format does not admit', async () => {
+    const XLSX = await import('xlsx')
+    const table = { columns: ['nota'], rows: [[`a${String.fromCharCode(7)}b`]] }
+    const book = XLSX.read(await toExcelBytes(table), { type: 'array' })
+    expect(book.Sheets.converted.A2.v).toBe('ab')
+  })
+
+  it('carries a missing value as an empty cell, not as the word null', async () => {
+    const XLSX = await import('xlsx')
+    const table = { columns: ['a', 'b'], rows: [[null, 'x']] }
+    const book = XLSX.read(await toExcelBytes(table), { type: 'array' })
+    expect(book.Sheets.converted.A2?.v ?? '').toBe('')
   })
 })

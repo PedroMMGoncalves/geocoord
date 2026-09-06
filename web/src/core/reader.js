@@ -32,7 +32,7 @@ import Papa from 'papaparse'
  * workbook does not fetch it again.
  */
 let sheetjs = null
-function loadSheetJs() {
+export function loadSheetJs() {
   if (sheetjs === null) sheetjs = import('xlsx')
   return sheetjs
 }

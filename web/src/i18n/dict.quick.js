@@ -45,8 +45,9 @@ export default {
     pt: 'A conversão acontece no teu computador. Nada é enviado para lado nenhum.',
     en: 'The conversion happens on your computer. Nothing is sent anywhere.',
   },
-  'quick.fileSoon': {
-    pt: 'A conversão de ficheiros CSV e Excel chega a seguir.',
-    en: 'Converting CSV and Excel files is coming next.',
+  'quick.copyOf': { pt: 'Copiar {what}', en: 'Copy {what}' },
+  'quick.exampleN': {
+    pt: 'Exemplo {n}: {lat}, {lon}',
+    en: 'Example {n}: {lat}, {lon}',
   },
 }

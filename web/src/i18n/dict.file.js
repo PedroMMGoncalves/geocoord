@@ -207,6 +207,7 @@ export default {
     en: 'Showing the first {shown} of {total} rows. The downloaded file carries all of them.',
   },
 
+  'file.xlsxHint': { pt: 'todas as linhas', en: 'every row' },
   'file.csvHint': { pt: 'todas as linhas', en: 'every row' },
   'file.gisHint': { pt: 'só as válidas', en: 'valid rows only' },
   'file.kmlHint': { pt: 'Google Earth', en: 'Google Earth' },

@@ -19,6 +19,7 @@ import {
 } from './converter.js'
 import { WGS84_PROJ4, transformAll } from './crs.js'
 import { csvSafe } from './geoexport.js'
+import { loadSheetJs } from './reader.js'
 
 /**
  * Expected-region masks for swap detection: name -> list of bounding boxes,
@@ -329,6 +330,45 @@ export function pointsSummary(result) {
     latMean: lats.reduce((a, b) => a + b, 0) / lats.length,
     lonMean: lons.reduce((a, b) => a + b, 0) / lons.length,
   }
+}
+
+
+// The characters the XLSX format does not admit in a cell: the C0 controls,
+// less tab, newline and carriage return. Excel refuses a workbook containing
+// one, so they are dropped here as they are on the desktop side.
+const ILLEGAL_IN_XLSX_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g
+
+/**
+ * The result as an .xlsx.
+ *
+ * The desktop application has exported Excel since the first release and the
+ * page did not, which for this audience is the wrong way round: most of the
+ * people this is for live in Excel, and a CSV is a thing they have to import.
+ *
+ * Deliberately outside the parity contract, for the same reason Excel *reading*
+ * is: openpyxl and SheetJS build different workbooks from the same data - a
+ * different shared-string table, a different zip - and pinning the bytes would
+ * freeze the internals of two third-party libraries rather than any behaviour
+ * of GeoCoord's. What is pinned instead, by the tests on each side, is the
+ * behaviour that matters: text stays text, and nothing becomes a formula.
+ *
+ * That last one needs no work here, unlike on the desktop: openpyxl writes a
+ * cell beginning with "=" as a formula and had to be talked out of it, while
+ * SheetJS writes what it is given. The check is in the tests so that a future
+ * version changing its mind does not go unnoticed.
+ */
+export async function toExcelBytes(table) {
+  const XLSX = await loadSheetJs()
+  const clean = (v) => {
+    if (v === null || v === undefined) return ''
+    if (typeof v === 'number') return v
+    return String(v).replace(ILLEGAL_IN_XLSX_RE, '')
+  }
+  const aoa = [table.columns.map(clean), ...table.rows.map((row) => row.map(clean))]
+  const sheet = XLSX.utils.aoa_to_sheet(aoa)
+  const book = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(book, sheet, 'converted')
+  return new Uint8Array(XLSX.write(book, { type: 'array', bookType: 'xlsx' }))
 }
 
 /**

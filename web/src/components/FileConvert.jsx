@@ -13,6 +13,7 @@ import {
   guessColumn,
   pointsSummary,
   toCsv,
+  toExcelBytes,
   toGpx,
 } from '../core/pipeline.js'
 import * as crs from '../core/crs.js'
@@ -90,7 +91,10 @@ function CrsSelect({ id, label, value, onChange, includeNone = false, t }) {
   const geographic = crs.systems('geographic')
   const projected = crs.systems('projected')
   return (
-    <div className="min-w-0 flex-1">
+    // basis-full below the sm breakpoint: sharing a 390px row, the select
+    // showed a value cut off exactly where the EPSG code is, which is the part
+    // that tells one datum from the one next to it.
+    <div className="min-w-0 basis-full sm:flex-1">
       <label htmlFor={id} className="mb-1 block text-xs text-slate-400">{label}</label>
       <select
         id={id}
@@ -768,7 +772,7 @@ export default function FileConvert() {
                 max="8"
                 value={decimals}
                 onChange={(e) => setDecimals(Number(e.target.value))}
-                className="h-1 w-24 accent-accent"
+                className="h-6 w-24 accent-accent"
               />
               <span className="w-4 font-mono text-slate-300">{decimals}</span>
             </label>
@@ -975,7 +979,7 @@ export default function FileConvert() {
           </Step>
 
           <Step n={5} title={t('file.step4')}>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <DownloadButton
                 label="CSV"
                 hint={t('file.csvHint')}
@@ -985,6 +989,15 @@ export default function FileConvert() {
                   new TextEncoder().encode(`﻿${toCsv(final)}`),
                   `${baseName}_convertido.csv`,
                   'text/csv;charset=utf-8',
+                )}
+              />
+              <DownloadButton
+                label="Excel"
+                hint={t('file.xlsxHint')}
+                onClick={async () => download(
+                  await toExcelBytes(final),
+                  `${baseName}_convertido.xlsx`,
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 )}
               />
               <DownloadButton

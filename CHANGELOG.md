@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- An Excel (.xlsx) download on the web page, which the desktop application has
+  had since the first release. It sits outside the parity contract for the same
+  reason Excel reading does - openpyxl and SheetJS build different workbooks
+  from the same data - but the behaviour that matters is tested on both sides,
+  and the workbook the browser writes was checked by opening it in openpyxl:
+  leading zeros intact, accents intact, a cell beginning with `=` written as
+  text rather than as a formula, coordinates as real numbers.
 - Size limits, so a file that would take the machine down is refused with a
   message rather than losing the browser tab: a warning above 50,000 rows, a
   refusal above 2 million cells, and for a workbook a refusal above 150 MB of
@@ -137,6 +144,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The four Copy buttons on the single-coordinate tab were all called "Copiar",
+  so a screen reader could not tell which copied the latitude and which the
+  WKT - and pasting the wrong one into a GIS is a silent error. Each now says
+  what it copies. The three worked examples, named only "1", "2" and "3", now
+  say what they will fill in.
+- At phone width the two coordinate-system selects shared a row and the value
+  was cut off exactly where the EPSG code is, which is the part that tells one
+  datum from the one beside it. They take a full row on a narrow screen.
+- The decimal-places slider was a four-pixel-tall target.
 - The CSV export was corrupting the coordinates it exists to produce. csv_safe
   prefixed an apostrophe to anything starting with a minus that was not a bare
   number, which includes every DMS coordinate written with a leading minus -

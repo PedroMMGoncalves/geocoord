@@ -22,13 +22,18 @@ export function readField(text, axis) {
   return { value, outOfRange: !inRange(value, axis) }
 }
 
-function CopyButton({ text }) {
+function CopyButton({ text, what }) {
   const t = useT()
   const [done, setDone] = useState(false)
 
   return (
     <button
       type="button"
+      // Four of these sit in the results, all reading "Copiar". A screen
+      // reader's button list said "Copiar" four times with nothing to say
+      // which one copies the latitude and which the WKT, and pasting the
+      // wrong one into a GIS is a silent error.
+      aria-label={what ? t('quick.copyOf', { what }) : undefined}
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(text)
@@ -86,7 +91,7 @@ function Output({ label, value, mono = true }) {
       <span className={`min-w-0 flex-1 truncate text-right text-slate-100 ${mono ? 'font-mono' : ''}`}>
         {value}
       </span>
-      <CopyButton text={value} />
+      <CopyButton text={value} what={label} />
     </div>
   )
 }
@@ -160,6 +165,7 @@ export default function QuickConvert() {
               key={ex.lat}
               type="button"
               onClick={() => { setLat(ex.lat); setLon(ex.lon) }}
+              aria-label={t('quick.exampleN', { n: i + 1, lat: ex.lat, lon: ex.lon })}
               className="rounded border border-edge px-2 py-1 text-xs text-slate-400
                          transition-colors hover:border-accent hover:text-accent"
             >
