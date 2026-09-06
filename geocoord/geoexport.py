@@ -14,9 +14,8 @@ import unicodedata
 import zipfile
 
 import pandas as pd
-from xml.sax.saxutils import escape
-
 import shapefile  # pyshp (pure Python)
+from xml.sax.saxutils import escape  # pyshp (pure Python)
 
 # ESRI WKT for WGS84, written to the shapefile .prj sidecar.
 WGS84_ESRI_WKT = (
@@ -30,10 +29,25 @@ WGS84_ESRI_WKT = (
 # Google Sheets all treat a leading =, +, - or @ as the start of a formula, and
 # a leading tab or carriage return as an invitation to look at the next one.
 _FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
-# ...but a negative coordinate starts with a minus and must be left exactly as
-# it is, decimal comma included. Anything made only of digits and the characters
-# a number can contain is a number, not a formula.
-_NUMERIC_LIKE_RE = re.compile(r"^[-+]?[0-9.,eE+-]*$")
+
+# Two of those five are also how a coordinate legitimately begins, and this is
+# where the first attempt at this went wrong. It let a bare number through and
+# nothing else, so a raw DMS column written with a minus instead of a hemisphere
+# letter - which is how the southern hemisphere is normally written, and how
+# most PALOP data arrives - came out of the export as "'-25° 58' 9\"". Reading
+# that file back, the apostrophe stops the minus being leading, parse_coordinate
+# finds no sign, and the point moves to the northern hemisphere. Fifty degrees
+# of latitude, in silence, from a file the application itself had just written.
+#
+# So a whitelist rather than a pattern for numbers: every character a coordinate
+# can contain, and nothing else. A value made only of these is data whatever it
+# starts with; a value with anything else in it - a letter that is not a
+# hemisphere, a bracket, a pipe - is prefixed.
+_COORDINATE_CHARS = set(
+    "0123456789 .,-+eE"
+    "°ºª'\"′″ "   # degree marks, primes, nbsp
+    "NSEWOLnsewol"                                # the hemisphere letters
+)
 
 
 def csv_safe(value):
@@ -44,17 +58,18 @@ def csv_safe(value):
     ``@SUM(...)`` came through the export verbatim and ran there. Prefixing an
     apostrophe is the standard remedy and is invisible in the spreadsheet.
 
-    Numbers are never touched: ``-8.61`` and ``-8,61`` are coordinates, and a
-    tool that quietly turned them into text would break the thing it exists to
-    produce.
+    Coordinates are never touched, whatever they start with. See the note above
+    for why that is the hard half.
     """
     if not isinstance(value, str) or value == "":
         return value
     if not value.startswith(_FORMULA_START):
         return value
-    if _NUMERIC_LIKE_RE.match(value):
+    # "=" and "@" can only begin a formula; the others can begin a coordinate.
+    if value[0] not in ("=", "@") and set(value) <= _COORDINATE_CHARS:
         return value
     return "'" + value
+
 
 def _escape_attr(text: str) -> str:
     """Escape text going into an XML *attribute*, quotes included.
@@ -139,6 +154,7 @@ def to_excel_bytes(df):
     output.seek(0)
     return output.getvalue()
 
+
 def to_geojson(features) -> bytes:
     """GeoJSON FeatureCollection of points."""
     fc = {
@@ -186,19 +202,45 @@ def to_kml(features, name_key=None) -> bytes:
     return "".join(parts).encode("utf-8")
 
 
+def _truncate_bytes(text: str, limit: int = 10) -> str:
+    """Cut ``text`` to at most ``limit`` UTF-8 bytes, dropping whole characters.
+
+    The DBF format measures a field name in bytes, not in characters, and every
+    accented letter in Portuguese is two of them.
+    """
+    while text and len(text.encode("utf-8")) > limit:
+        text = text[:-1]
+    return text
+
+
 def _safe_field_names(names):
-    """Sanitise attribute names to valid, unique DBF field names (<= 10 chars)."""
+    """Sanitise attribute names to valid, unique DBF field names.
+
+    The limit is ten *bytes*, not ten characters, and that distinction was
+    silently losing columns. Truncating to ten characters, ``Descrição_Amostra``
+    and ``Descrição_Local`` became ``Descrição_`` and ``Descrição1`` - different,
+    so the uniqueness check was satisfied - and then pyshp, which measures in
+    bytes as the format requires, cut both to ``Descriçã``. The shapefile handed
+    to a partner institution had two fields with the same name; QGIS shows one
+    of them and the other column is simply gone.
+
+    Portuguese field data routinely has several columns sharing an accented
+    prefix, so this was not a corner case. De-duplicating on the byte-truncated
+    name is the fix: what the check compares is now what the file will hold.
+    """
     used = set()
     out = []
     for name in names:
-        base = "".join(c if (c.isalnum() or c == "_") else "_" for c in str(name))[:10]
+        base = _truncate_bytes(
+            "".join(c if (c.isalnum() or c == "_") else "_" for c in str(name))
+        )
         if not base:
             base = "field"
         candidate = base
         i = 1
         while candidate.upper() in used:
             suffix = str(i)
-            candidate = base[: 10 - len(suffix)] + suffix
+            candidate = _truncate_bytes(base, 10 - len(suffix)) + suffix
             i += 1
         used.add(candidate.upper())
         out.append(candidate)

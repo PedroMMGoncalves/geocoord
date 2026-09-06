@@ -35,6 +35,7 @@ import csv
 import datetime as _dt
 import io
 import sys
+import zipfile
 
 import pandas as pd
 
@@ -65,6 +66,67 @@ codecs.register_error(
     "geocoord_c1",
     lambda e: (e.object[e.start:e.end].decode("latin1"), e.end),
 )
+
+
+# ---------------------------------------------------------------------------
+# Size limits
+# ---------------------------------------------------------------------------
+# Reading has no natural stopping point: it reads whatever it is handed. That is
+# fine on a workstation and not fine in a browser tab, where the failure is not
+# a slow read but a page the user loses with no explanation. Measured on this
+# code: fifty thousand rows is 92 MB and about a second and a half; two hundred
+# thousand is 1.2 GB, which a phone does not have. And an .xlsx of 3.3 MB
+# expands to 299 MB of sheet XML, so the size on disk says nothing.
+#
+# Cells rather than rows, because a hundred columns cost the same as a hundred
+# rows and the format does not matter. The numbers are pinned in the parity
+# contract so the two implementations cannot drift apart on them.
+
+#: Past this many rows the file still opens, but the interface warns first.
+WARN_ROWS = 50_000
+
+#: Past this many cells the file is refused. Two million is a hundred thousand
+#: rows of twenty columns - far beyond any field campaign, and still inside what
+#: a modest machine can hold.
+MAX_CELLS = 2_000_000
+
+#: Past this much *decompressed* content an .xlsx is refused before it is opened
+#: at all. A zip declares the uncompressed size of each part in its directory,
+#: so this costs nothing to check and stops the expensive case before any of it
+#: happens.
+#:
+#: The number is measured rather than chosen. Building workbooks of each shape
+#: and reading the declared sizes back:
+#:
+#:     5k rows x 12 cols, short values          3 MB expanded  (24x)
+#:     50k x 20, short values                  56 MB           (26x)
+#:     50k x 20 with 80-character notes       129 MB           (54x)
+#:     60k x 20 of 200-character values       299 MB           (90x)
+#:     100k x 30 of 200-character values      746 MB           (91x)
+#:
+#: The third of those is a real file somebody might have; the fourth is the
+#: shape that takes a browser tab down. 150 MB sits between them. Note that the
+#: cell limit alone would not have caught the fourth - 1.2 million cells is
+#: inside it - which is why both guards exist: one bounds how many values there
+#: are and the other bounds how big they are.
+MAX_XLSX_BYTES = 150 * 1024 * 1024
+
+
+class FileTooLarge(Exception):
+    """A file past the limits above.
+
+    Carries the numbers rather than only a sentence, so an interface can say
+    what was too big and by how much in its own language.
+    """
+
+    def __init__(self, kind: str, actual: int, limit: int):
+        self.kind = kind          # "cells" or "expanded_bytes"
+        self.actual = actual
+        self.limit = limit
+        super().__init__(
+            f"the file is too large to open: {actual:,} {kind.replace('_', ' ')} "
+            f"against a limit of {limit:,}"
+        )
 
 
 def _rows(text: str, sep: str, limit: int | None = None) -> list[list[str]]:
@@ -162,6 +224,13 @@ def header_names(cells: list[str]) -> list[str]:
     return names
 
 
+
+def _check_cells(rows: int, columns: int) -> None:
+    """Refuse a table past :data:`MAX_CELLS`, before it is built."""
+    cells = max(rows, 0) * max(columns, 0)
+    if cells > MAX_CELLS:
+        raise FileTooLarge("cells", cells, MAX_CELLS)
+
 def read_csv_text(text: str, sep: str | None = None, decimal: str = ".") -> pd.DataFrame:
     """Parse CSV text into a dataframe of strings.
 
@@ -203,6 +272,7 @@ def read_csv_text(text: str, sep: str | None = None, decimal: str = ".") -> pd.D
         return pd.DataFrame()
 
     columns = header_names(rows[0])
+    _check_cells(len(rows) - 1, len(columns))
     body = [
         [row[i] if i < len(row) else "" for i in range(len(columns))]
         for row in rows[1:]
@@ -288,8 +358,27 @@ def _cell_text(value) -> str:
     return str(value)
 
 
+def check_workbook_size(data: bytes) -> None:
+    """Refuse a workbook whose parts expand past :data:`MAX_XLSX_BYTES`.
+
+    An .xlsx is a zip, and a zip's directory declares the uncompressed size of
+    every part, so this reads a few hundred bytes and decompresses nothing. It
+    is what stops a 3 MB upload from becoming 299 MB of sheet XML in a browser
+    tab. A file that is not a zip - a legacy .xls - passes through untouched and
+    is caught by the cell limit instead.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            expanded = sum(info.file_size for info in archive.infolist())
+    except zipfile.BadZipFile:
+        return
+    if expanded > MAX_XLSX_BYTES:
+        raise FileTooLarge("expanded_bytes", expanded, MAX_XLSX_BYTES)
+
+
 def workbook_sheets(data: bytes, name: str) -> list[str]:
     """The sheet names of a workbook, in book order."""
+    check_workbook_size(data)
     return pd.ExcelFile(io.BytesIO(data), engine=excel_engine(name)).sheet_names
 
 
@@ -316,9 +405,11 @@ def read_excel_bytes(data: bytes, name: str, sheet=0) -> pd.DataFrame:
     different intermediate representations of the same workbook - and only
     attribute columns are affected; the coordinates agree.
     """
+    check_workbook_size(data)
     frame = pd.ExcelFile(io.BytesIO(data), engine=excel_engine(name)).parse(
         sheet, dtype=object,
     )
+    _check_cells(len(frame), len(frame.columns))
     return pd.DataFrame(
         {col: [_cell_text(v) for v in frame[col]] for col in frame.columns},
         columns=frame.columns,

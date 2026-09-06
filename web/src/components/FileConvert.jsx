@@ -16,10 +16,24 @@ import {
   toGpx,
 } from '../core/pipeline.js'
 import * as crs from '../core/crs.js'
-import { SEPARATORS, readCsvBytes, readCsvText, readWorkbook, workbookSheets } from '../core/reader.js'
+import {
+  SEPARATORS,
+  WARN_ROWS,
+  readCsvBytes,
+  readCsvText,
+  readWorkbook,
+  workbookSheets,
+} from '../core/reader.js'
 import { useT } from '../i18n.jsx'
 
 const SPREADSHEET = /\.(xlsx|xlsm|xlsb|xls|ods)$/i
+
+/** A count for a message: cells plainly, bytes as megabytes. */
+function formatCount(n, kind) {
+  return kind === 'cells'
+    ? n.toLocaleString()
+    : `${Math.round(n / (1024 * 1024)).toLocaleString()} MB`
+}
 const PREVIEW_ROWS = 50
 
 const SEPARATOR_LABELS = [
@@ -182,6 +196,9 @@ export default function FileConvert() {
   const [sheet, setSheet] = useState('')
   const [sep, setSep] = useState('auto')
   const [error, setError] = useState(null)
+  // Something worth saying that is not a failure: an empty first sheet,
+  // a file large enough to be slow.
+  const [notice, setNotice] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [pasting, setPasting] = useState(false)
   const [pasted, setPasted] = useState('')
@@ -252,57 +269,128 @@ export default function FileConvert() {
   // The file's name, outside React state: the re-read effect needs it without
   // taking a dependency on the source it is about to replace.
   const nameRef = useRef('')
+  // setSheets does not land before loadFile looks at it, so the names are
+  // carried across the same tick in a ref as well.
+  const sheetsRef = useRef([])
 
   /** Read a table out of whatever is currently loaded, honouring the options.
    *  Asynchronous because SheetJS is fetched only when a workbook turns up. */
   const reread = useCallback(async (data, name, sheetName, separator) => {
     if (SPREADSHEET.test(name)) {
       const names = await workbookSheets(data)
+      sheetsRef.current = names
       setSheets(names)
       const chosen = names.includes(sheetName) ? sheetName : names[0]
       setSheet(chosen ?? '')
       return tidyTable(await readWorkbook(data, chosen))
     }
+    sheetsRef.current = []
     setSheets([])
     setSheet('')
     return tidyTable(readCsvBytes(data, { sep: separator === 'auto' ? null : separator }))
   }, [])
 
+  /**
+   * Everything loaded is thrown away first.
+   *
+   * It used to be thrown away only on success, so a file that failed to open
+   * left the previous one on screen - the table, the map, the downloads, all
+   * live and all belonging to the last job. A geologist finishing one survey
+   * and starting the next got the previous survey's points under the new
+   * name, with no error to say otherwise. That is the failure worth fearing:
+   * not a crash, a plausible wrong answer.
+   */
+  const clearLoaded = useCallback(({ keepSheets = false } = {}) => {
+    setSource(null)
+    setBytes(null)
+    if (!keepSheets) {
+      setSheets([])
+      setSheet('')
+    }
+    // The chosen columns are derived state too. Left behind, they made
+    // buildResult succeed on an empty table, so an unreadable file produced
+    // Result, Map and Download steps holding nothing - which reads as "your
+    // file converted to zero rows" rather than "your file could not be read".
+    setLatCol('')
+    setLonCol('')
+    setConverted(null)
+    setFinal(null)
+    setAccepted(new Set())
+    setShowMap(false)
+    setNotice(null)
+  }, [])
+
+  /** A read failure, said in the user's language rather than the exception's. */
+  const reportReadError = useCallback((e) => {
+    clearLoaded()
+    if (e?.code === 'too-large') {
+      setError(t('file.errTooLarge', {
+        kind: t(e.kind === 'cells' ? 'file.unitCells' : 'file.unitBytes'),
+        actual: formatCount(e.actual, e.kind),
+        limit: formatCount(e.limit, e.kind),
+      }))
+      return
+    }
+    setError(t('file.errRead', { message: e?.message ?? String(e) }))
+  }, [clearLoaded, t])
+
   const loadFile = useCallback(async (file) => {
     setError(null)
+    setNotice(null)
+    let data
+    let table
     try {
-      const data = new Uint8Array(await file.arrayBuffer())
-      const table = await reread(data, file.name, '', sep)
-      if (table.columns.length === 0) {
-        setError(t('file.errEmpty'))
-        return
-      }
-      nameRef.current = file.name
-      setBytes(data)
-      setSource({ name: file.name, table })
-      setAccepted(new Set())
+      data = new Uint8Array(await file.arrayBuffer())
+      table = await reread(data, file.name, '', sep)
     } catch (e) {
-      setError(t('file.errRead', { message: e?.message ?? String(e) }))
+      reportReadError(e)
+      return
     }
-  }, [reread, sep, t])
+    if (table.columns.length === 0) {
+      // An empty sheet is not a broken file when the workbook has others: a
+      // cover page or a README tab as sheet one is how institutional workbooks
+      // usually arrive. Keep the sheet names so the picker can offer the rest.
+      const hasOtherSheets = sheetsRef.current.length > 1
+      clearLoaded({ keepSheets: hasOtherSheets })
+      if (hasOtherSheets) {
+        nameRef.current = file.name
+        setBytes(data)
+        setNotice(t('file.noticeEmptySheet'))
+      } else {
+        setError(t('file.errEmpty'))
+      }
+      return
+    }
+    nameRef.current = file.name
+    setBytes(data)
+    setSource({ name: file.name, table })
+    setAccepted(new Set())
+    if (table.rows.length > WARN_ROWS) {
+      setNotice(t('file.noticeLarge', { n: table.rows.length.toLocaleString() }))
+    }
+  }, [clearLoaded, reportReadError, reread, sep, t])
 
   const loadPasted = useCallback(() => {
     setError(null)
+    setNotice(null)
+    let table
     try {
-      const table = tidyTable(readCsvText(pasted, { sep: null }))
-      if (table.columns.length === 0) {
-        setError(t('file.errEmpty'))
-        return
-      }
-      nameRef.current = 'colado.csv'
-      setBytes(null)
-      setSheets([])
-      setSource({ name: 'colado.csv', table })
-      setAccepted(new Set())
+      table = tidyTable(readCsvText(pasted, { sep: null }))
     } catch (e) {
-      setError(t('file.errRead', { message: e?.message ?? String(e) }))
+      reportReadError(e)
+      return
     }
-  }, [pasted, t])
+    if (table.columns.length === 0) {
+      clearLoaded()
+      setError(t('file.errEmpty'))
+      return
+    }
+    nameRef.current = 'colado.csv'
+    setBytes(null)
+    setSheets([])
+    setSource({ name: 'colado.csv', table })
+    setAccepted(new Set())
+  }, [clearLoaded, pasted, reportReadError, t])
 
   // Re-read when the sheet or the separator changes, which only applies to a
   // file that came from disk. The read is asynchronous, so a change made while
@@ -318,7 +406,7 @@ export default function FileConvert() {
         setSource((s) => (s === null ? s : { ...s, table }))
         setAccepted(new Set())
       } catch (e) {
-        if (!cancelled) setError(t('file.errRead', { message: e?.message ?? String(e) }))
+        if (!cancelled) reportReadError(e)
       }
     })()
     return () => { cancelled = true }
@@ -548,16 +636,26 @@ export default function FileConvert() {
           </p>
         )}
 
+        {sheets.length > 1 && (
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <Select id="sheet" label={t('file.sheet')} value={sheet} onChange={setSheet}>
+              {sheets.map((s) => <option key={s} value={s}>{s}</option>)}
+            </Select>
+          </div>
+        )}
+
+        {notice && (
+          <p className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+            {notice}
+          </p>
+        )}
+
         {source && (
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <p className="text-sm text-slate-400">
               {t('file.loaded', { name: source.name, n: source.table.rows.length, cols: columns.length })}
             </p>
-            {sheets.length > 1 && (
-              <Select id="sheet" label={t('file.sheet')} value={sheet} onChange={setSheet}>
-                {sheets.map((s) => <option key={s} value={s}>{s}</option>)}
-              </Select>
-            )}
+
             {sheets.length === 0 && bytes && (
               <Select id="sep" label={t('file.separator')} value={sep} onChange={setSep}>
                 {SEPARATOR_LABELS.filter((s) => s.value === 'auto' || SEPARATORS.includes(s.value))
@@ -693,13 +791,23 @@ export default function FileConvert() {
             {/* Converting a large file takes a second or two, and transforming
                 between coordinate systems is per-row work on top. A page that
                 sits still without saying anything is a page people reload. */}
+            {/* What goes in here has to *change* when the result changes, or a
+                screen reader is told nothing after the first load. It used to
+                say only the row count, which is the one number that does not
+                move when the column mapping or the coordinate system does -
+                the two settings most likely to be wrong. */}
             <p
               aria-live="polite"
               className={`mb-2 text-xs ${converting ? 'text-slate-400' : 'sr-only'}`}
             >
               {converting
                 ? t('crs.converting')
-                : t('file.done', { n: final.rows.length })}
+                : t('file.doneCounts', {
+                  n: final.rows.length,
+                  ok: counts.get('ok') ?? 0,
+                  swap: suspects.length,
+                  bad: (counts.get('out_of_range') ?? 0) + (counts.get('missing') ?? 0),
+                })}
             </p>
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
               {['ok', 'swap_axis', 'swap_range', 'swap_cluster', 'out_of_range', 'missing'].map((s) => (

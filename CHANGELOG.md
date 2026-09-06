@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Size limits, so a file that would take the machine down is refused with a
+  message rather than losing the browser tab: a warning above 50,000 rows, a
+  refusal above 2 million cells, and for a workbook a refusal above 150 MB of
+  decompressed content - read from the zip directory, so nothing is expanded to
+  find out. The thresholds are measured, not chosen: a real 50k x 20 file with
+  long notes expands to 129 MB while the shape that takes a tab down expands to
+  299 MB. The numbers are pinned in the parity contract so the desktop and the
+  browser refuse the same files.
 - Accessibility work on the web page, measured before and after rather than
   guessed at: a skip link to the content, a `main` landmark, a caption and
   column and row scopes on the results table, a live region that says the
@@ -129,6 +137,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The CSV export was corrupting the coordinates it exists to produce. csv_safe
+  prefixed an apostrophe to anything starting with a minus that was not a bare
+  number, which includes every DMS coordinate written with a leading minus -
+  how the southern hemisphere is normally written, and how most PALOP data
+  arrives. Reading that file back, the apostrophe stopped the minus being
+  leading and the point crossed the equator: 50 degrees of latitude, in silence,
+  from a file the application had just written. A whitelist of the characters a
+  coordinate can contain replaces the pattern for numbers.
+- The browser wrote shapefile archives without compression while the desktop
+  deflated them, so the same survey downloaded at 9 MB instead of 0.2 MB.
+- Shapefile attribute columns no longer collide. Field names were truncated to
+  ten characters and checked for uniqueness, then written truncated to ten
+  *bytes* as the format requires - so  and 
+  both became , and two columns of a Portuguese dataset became
+  unreachable in QGIS.
+- A file that fails to open no longer leaves the previous one on screen. The
+  table, the map and the downloads stayed live and belonged to the last job, so
+  a geologist starting the next survey could download the previous one under
+  the new name with nothing to say so.
+- A workbook whose first sheet holds no data - a cover page, a README tab -
+  offers the sheet picker instead of a dead end.
+- A single-column table no longer dead-ends the desktop application with a
+  traceback. Choosing the same column for both axes now says so.
+- The live region announces the status counts rather than only the row count,
+  so a screen reader hears the result change when the column mapping or the
+  coordinate system does - the two settings most likely to be wrong.
 - The page never set a text colour. `<body>` carried the background and
   nothing carried the ink, so every element without an explicit `text-*` class
   inherited the browser default - near-black on a near-black ground, measured

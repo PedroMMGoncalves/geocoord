@@ -45,6 +45,7 @@ from geocoord.converter import (
     tidy_table,
 )
 from geocoord import crs
+from geocoord import reader as _reader
 from geocoord.reader import read_csv_text
 from geocoord.geoexport import (
     sanitize_filename,
@@ -350,6 +351,21 @@ CSV_SAFE_INPUTS = [
     ("exponent_untouched", "-1e-05"),
     ("ordinary_text_untouched", "texto"),
     ("empty_untouched", ""),
+    # The half that matters, and the half the first attempt got wrong. A DMS
+    # coordinate written with a minus rather than a hemisphere letter - which
+    # is how the southern hemisphere is normally written, and how most PALOP
+    # data arrives - was being prefixed. Reading that file back, the apostrophe
+    # stops the minus being leading and the point crosses the equator.
+    ("negative_dms_untouched", "-8\u00b0 36' 38\""),
+    ("negative_dms_southern_untouched", "-25\u00b0 58' 9\""),
+    ("negative_dms_with_hemisphere_untouched", "-9\u00b0 8' 12\" O"),
+    ("negative_decimal_minutes_untouched", "-8\u00b0 36.6'"),
+    ("plus_prefixed_dms_untouched", "+38\u00b0 42' 30\" N"),
+    ("thousands_space_untouched", "-532 725,16"),
+    # ...while these still cannot be anything but a formula.
+    ("minus_prefixed_function_is_a_formula", "-HYPERLINK(\"http://x\")"),
+    ("plus_prefixed_dde_is_a_formula", "+cmd|' /C calc'!A0"),
+    ("minus_prefixed_word_is_a_formula", "-SUM(A1:A9)"),
 ]
 
 # Coordinate systems. Every registry entry, at its own control points, plus the
@@ -813,6 +829,14 @@ def build():
             {"id": i, "value": v, "axis": a, "expected": format_dms(v, a)}
             for i, v, a in FORMAT_DMS_INPUTS
         ],
+        # The sizes past which a file is refused. Two implementations, one set
+        # of numbers: a file the desktop opens and the browser refuses, or the
+        # other way round, would be its own kind of surprise.
+        "limits": {
+            "warn_rows": _reader.WARN_ROWS,
+            "max_cells": _reader.MAX_CELLS,
+            "max_xlsx_bytes": _reader.MAX_XLSX_BYTES,
+        },
         "crs_transform": {
             "tolerance_m": CRS_TOLERANCE_M,
             "cases": CRS_CASES,

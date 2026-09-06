@@ -119,10 +119,22 @@ function escapeXml(s) {
 // and Google Sheets all treat a leading =, +, - or @ as the start of a formula,
 // and a leading tab or carriage return as an invitation to look at the next one.
 const FORMULA_START = ['=', '+', '-', '@', '\t', '\r']
-// ...but a negative coordinate starts with a minus and must be left exactly as
-// it is, decimal comma included. Anything made only of digits and the
-// characters a number can contain is a number, not a formula.
-const NUMERIC_LIKE_RE = /^[-+]?[0-9.,eE+-]*$/
+
+// Two of those five are also how a coordinate legitimately begins, and this is
+// where the first attempt at this went wrong. It let a bare number through and
+// nothing else, so a raw DMS column written with a minus instead of a
+// hemisphere letter - which is how the southern hemisphere is normally written,
+// and how most PALOP data arrives - came out of the export as `'-25° 58' 9"`.
+// Reading that file back, the apostrophe stops the minus being leading,
+// parseCoordinate finds no sign, and the point moves to the northern
+// hemisphere. Fifty degrees of latitude, in silence, from a file the
+// application itself had just written.
+//
+// So a whitelist rather than a pattern for numbers: every character a
+// coordinate can contain, and nothing else.
+const COORDINATE_CHARS = new Set(
+  `0123456789 .,-+eE°ºª'"′″\u00a0NSEWOLnsewol`,
+)
 
 /**
  * A cell that a spreadsheet will display rather than execute.
@@ -132,14 +144,17 @@ const NUMERIC_LIKE_RE = /^[-+]?[0-9.,eE+-]*$/
  * came through the export verbatim and ran there. Prefixing an apostrophe is
  * the standard remedy and is invisible in the spreadsheet.
  *
- * Numbers are never touched: `-8.61` and `-8,61` are coordinates, and a tool
- * that quietly turned them into text would break the thing it exists to
- * produce. Mirrors csv_safe() in geocoord/geoexport.py.
+ * Coordinates are never touched, whatever they start with. See the note above
+ * for why that is the hard half. Mirrors csv_safe() in geocoord/geoexport.py.
  */
 export function csvSafe(value) {
   if (typeof value !== 'string' || value === '') return value
   if (!FORMULA_START.includes(value[0])) return value
-  if (NUMERIC_LIKE_RE.test(value)) return value
+  // "=" and "@" can only begin a formula; the others can begin a coordinate.
+  if (value[0] !== '=' && value[0] !== '@'
+      && [...value].every((c) => COORDINATE_CHARS.has(c))) {
+    return value
+  }
   return `'${value}`
 }
 
@@ -229,6 +244,26 @@ function isFieldNameChar(ch) {
 }
 
 /**
+ * Cut `text` to at most `limit` UTF-8 bytes, dropping whole characters.
+ *
+ * The DBF format measures a field name in bytes, not in characters, and every
+ * accented letter in Portuguese is two of them. Truncating to ten characters,
+ * "Descrição_Amostra" and "Descrição_Local" became "Descrição_" and
+ * "Descrição1" - different, so the uniqueness check was satisfied - and then
+ * the writer, which measures in bytes as the format requires, cut both to
+ * "Descriçã". The file ended up with two fields of the same name and a column
+ * a GIS cannot reach. Mirrors _truncate_bytes() in geocoord/geoexport.py.
+ */
+function truncateBytes(text, limit = 10) {
+  const encoder = new TextEncoder()
+  let out = text
+  while (out.length > 0 && encoder.encode(out).length > limit) {
+    out = Array.from(out).slice(0, -1).join('')
+  }
+  return out
+}
+
+/**
  * Sanitise attribute names to valid, unique DBF field names (<= 10 chars).
  * Mirrors _safe_field_names() in geocoord/geoexport.py.
  *
@@ -242,16 +277,17 @@ export function safeFieldNames(names) {
   const used = new Set()
   const out = []
   for (const name of names) {
-    let base = Array.from(String(name))
-      .map((ch) => (isFieldNameChar(ch) ? ch : '_'))
-      .slice(0, 10)
-      .join('')
-    if (!base) base = 'field'
+    let base = truncateBytes(
+      Array.from(String(name))
+        .map((ch) => (isFieldNameChar(ch) ? ch : '_'))
+        .join(''),
+    )
+    if (base === '') base = 'field'
     let candidate = base
     let i = 1
     while (used.has(candidate.toUpperCase())) {
       const suffix = String(i)
-      candidate = base.slice(0, 10 - suffix.length) + suffix
+      candidate = truncateBytes(base, 10 - suffix.length) + suffix
       i += 1
     }
     used.add(candidate.toUpperCase())
@@ -308,5 +344,10 @@ export async function toShapefileZip(features, fieldNames, baseName = 'coordinat
   zip.file(`${layer}.shx`, writeShx(points))
   zip.file(`${layer}.dbf`, writeDbf(dbfNames, records))
   zip.file(`${layer}.prj`, prj)
-  return zip.generateAsync({ type: 'uint8array' })
+  // DEFLATE, matching the Python side, which has always passed ZIP_DEFLATED.
+  // Without it the archive was merely a container: a five-thousand-point survey
+  // came out at 9 MB where the desktop wrote 0.07 MB, and the whole thing was
+  // held as a blob in the browser first. For partner institutions on a metered
+  // connection that is the difference between a download and a lost afternoon.
+  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' })
 }

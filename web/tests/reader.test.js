@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { cases } from './fixtures.js'
 import { tidyTable } from '../src/core/converter.js'
-import { headerNames, readCsvBytes, readCsvText, sniffSeparator } from '../src/core/reader.js'
+import {
+  MAX_CELLS,
+  MAX_XLSX_BYTES,
+  WARN_ROWS,
+  headerNames,
+  readCsvBytes,
+  readCsvText,
+  sniffSeparator,
+} from '../src/core/reader.js'
+import fixtures from '../../tests/fixtures/parity.json' with { type: 'json' }
 
 describe('readCsvText', () => {
   // The contract's expected value is the table after tidyTable, which is the
@@ -63,5 +72,37 @@ describe('readCsvBytes', () => {
   it('falls back when the bytes are not valid utf-8', () => {
     const bytes = encode('nome,lat\nSão Tomé,0.18\n', 'latin1')
     expect(readCsvBytes(bytes, { sep: ',' }).rows[0][0]).toBe('São Tomé')
+  })
+})
+
+
+describe('size limits', () => {
+  // The two implementations must refuse the same files: a size a colleague's
+  // desktop opens and their browser refuses would be its own kind of surprise.
+  it('match the contract', () => {
+    expect(WARN_ROWS).toBe(fixtures.limits.warn_rows)
+    expect(MAX_CELLS).toBe(fixtures.limits.max_cells)
+    expect(MAX_XLSX_BYTES).toBe(fixtures.limits.max_xlsx_bytes)
+  })
+
+  it('let a large but ordinary file through', () => {
+    const text = `a,b,c\n${'1,2,3\n'.repeat(50000)}`
+    expect(readCsvText(text).rows.length).toBe(50000)
+  })
+
+  it('refuse a table past the cell limit, saying by how much', () => {
+    const cols = 25
+    const rows = Math.ceil(MAX_CELLS / cols) + 1000
+    const header = Array.from({ length: cols }, (_, i) => `c${i}`).join(',')
+    const line = `${Array.from({ length: cols }, () => '1').join(',')}\n`
+    try {
+      readCsvText(`${header}\n${line.repeat(rows)}`)
+      throw new Error('it was not refused')
+    } catch (e) {
+      expect(e.code).toBe('too-large')
+      expect(e.kind).toBe('cells')
+      expect(e.actual).toBeGreaterThan(MAX_CELLS)
+      expect(e.limit).toBe(MAX_CELLS)
+    }
   })
 })

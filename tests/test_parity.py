@@ -244,3 +244,18 @@ def test_hemisphere_axis(case):
 @pytest.mark.parametrize("case", FIXTURES["csv_safe"], ids=ids(FIXTURES["csv_safe"]))
 def test_csv_safe(case):
     assert csv_safe(case["input"]) == case["expected"]
+
+
+def test_limits_match_the_contract():
+    """The two implementations must refuse the same files.
+
+    A size a colleague's desktop opens and their browser refuses - or the other
+    way round - would be its own kind of surprise, and the numbers are easy to
+    change on one side only.
+    """
+    from geocoord import reader
+
+    limits = FIXTURES["limits"]
+    assert reader.WARN_ROWS == limits["warn_rows"]
+    assert reader.MAX_CELLS == limits["max_cells"]
+    assert reader.MAX_XLSX_BYTES == limits["max_xlsx_bytes"]

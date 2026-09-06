@@ -44,6 +44,78 @@ export const SEPARATORS = [',', ';', '\t', '|']
 // part of the first column's name.
 const BOM = '﻿'
 
+// ---------------------------------------------------------------------------
+// Size limits
+// ---------------------------------------------------------------------------
+// Reading has no natural stopping point: it reads whatever it is handed. In a
+// browser tab the failure is not a slow read but a page the user loses with no
+// explanation. Measured on this code: fifty thousand rows is 92 MB of heap and
+// about a second and a half; two hundred thousand is 1.2 GB, which a phone does
+// not have. The numbers are pinned in the parity contract so the two
+// implementations cannot drift apart on them.
+
+/** Past this many rows the file still opens, but the interface warns first. */
+export const WARN_ROWS = 50000
+
+/**
+ * Past this many cells the file is refused. Two million is a hundred thousand
+ * rows of twenty columns - beyond any field campaign, and still inside what a
+ * modest machine can hold.
+ */
+export const MAX_CELLS = 2000000
+
+/**
+ * Past this much *decompressed* content a workbook is refused before it is
+ * opened at all. Measured rather than chosen: a real 50k x 20 file with long
+ * notes expands to 129 MB, while the shape that takes a tab down expands to
+ * 299 MB. 150 MB sits between them. The cell limit alone would not catch the
+ * second - 1.2 million cells is inside it - which is why both guards exist: one
+ * bounds how many values there are, the other how big they are.
+ */
+export const MAX_XLSX_BYTES = 150 * 1024 * 1024
+
+/** Thrown for a file past those limits, carrying the numbers for the interface. */
+export class FileTooLarge extends Error {
+  constructor(kind, actual, limit) {
+    super(`the file is too large to open: ${actual} ${kind} against a limit of ${limit}`)
+    this.name = 'FileTooLarge'
+    this.code = 'too-large'
+    this.kind = kind
+    this.actual = actual
+    this.limit = limit
+  }
+}
+
+function checkCells(rows, columns) {
+  const cells = Math.max(rows, 0) * Math.max(columns, 0)
+  if (cells > MAX_CELLS) throw new FileTooLarge('cells', cells, MAX_CELLS)
+}
+
+/**
+ * Refuse a workbook whose parts expand past MAX_XLSX_BYTES.
+ *
+ * An .xlsx is a zip, and a zip's directory declares the uncompressed size of
+ * every part, so this reads the directory and decompresses nothing. A file that
+ * is not a zip - a legacy .xls - passes through and is caught by the cell limit
+ * instead. Mirrors check_workbook_size() in geocoord/reader.py.
+ */
+export async function checkWorkbookSize(bytes) {
+  let zip
+  try {
+    const JSZip = (await import('jszip')).default
+    zip = await JSZip.loadAsync(bytes)
+  } catch {
+    return // not a zip; the cell limit still applies
+  }
+  let expanded = 0
+  zip.forEach((_path, file) => {
+    if (!file.dir) expanded += file._data?.uncompressedSize ?? 0
+  })
+  if (expanded > MAX_XLSX_BYTES) {
+    throw new FileTooLarge('expanded bytes', expanded, MAX_XLSX_BYTES)
+  }
+}
+
 /**
  * Column names the way pandas builds them from a header row.
  *
@@ -112,6 +184,7 @@ export function readCsvText(text, { sep = null, decimal = '.' } = {}) {
   if (data.length === 0) return { columns: [], rows: [] }
 
   const columns = headerNames(data[0])
+  checkCells(data.length - 1, columns.length)
   // Short rows are padded and long ones truncated, matching read_csv with
   // index_col=False: a stray extra field is dropped rather than promoted to a
   // row index, which would shift every label off its data.
@@ -168,6 +241,7 @@ export function readCsvBytes(bytes, options = {}) {
  * Accepts the bytes of an .xlsx, .xls or any other format SheetJS reads.
  */
 export async function workbookSheets(bytes) {
+  await checkWorkbookSize(bytes)
   const XLSX = await loadSheetJs()
   return XLSX.read(bytes, { type: 'array', bookSheets: true }).SheetNames
 }
@@ -212,6 +286,7 @@ function cellText(cell) {
  * Asynchronous because SheetJS is fetched on demand; see loadSheetJs.
  */
 export async function readWorkbook(bytes, sheetName = null) {
+  await checkWorkbookSize(bytes)
   const XLSX = await loadSheetJs()
   const book = XLSX.read(bytes, { type: 'array', cellDates: true, cellNF: true })
   const name = sheetName ?? book.SheetNames[0]
@@ -232,6 +307,7 @@ export async function readWorkbook(bytes, sheetName = null) {
   if (grid.length === 0) return { columns: [], rows: [] }
 
   const columns = headerNames(grid[0])
+  checkCells(grid.length - 1, columns.length)
   const rows = grid.slice(1).map((row) => columns.map((_, i) => String(row[i] ?? '')))
   return { columns, rows }
 }

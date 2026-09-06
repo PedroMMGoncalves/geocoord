@@ -86,6 +86,22 @@ export default {
     pt: 'O ficheiro não tem colunas legíveis. Confirme o separador ou a folha escolhida.',
     en: 'The file has no readable columns. Check the separator or the chosen sheet.',
   },
+  'file.errTooLarge': {
+    pt: 'O ficheiro é grande demais para abrir no navegador: {actual} {kind}, '
+      + 'contra um limite de {limit}. Divida-o e converta por partes.',
+    en: 'The file is too large to open in the browser: {actual} {kind}, against '
+      + 'a limit of {limit}. Split it and convert it in parts.',
+  },
+  'file.unitCells': { pt: 'células', en: 'cells' },
+  'file.unitBytes': { pt: 'depois de descomprimido', en: 'once decompressed' },
+  'file.noticeEmptySheet': {
+    pt: 'Esta folha não tem dados. Escolha outra folha acima.',
+    en: 'This sheet has no data. Choose another sheet above.',
+  },
+  'file.noticeLarge': {
+    pt: '{n} linhas — a conversão pode demorar alguns segundos e usar bastante memória.',
+    en: '{n} rows — converting may take a few seconds and a good deal of memory.',
+  },
   'file.errRead': {
     pt: 'Não foi possível ler o ficheiro: {message}',
     en: 'The file could not be read: {message}',
@@ -225,11 +241,11 @@ export default {
     en: 'The coordinates could not be transformed: {message}',
   },
   'crs.converting': { pt: 'A converter…', en: 'Converting…' },
-  'file.done': {
-    pt: 'Conversão terminada: {n} linhas.',
-    ptOne: 'Conversão terminada: uma linha.',
-    en: 'Conversion finished: {n} rows.',
-    enOne: 'Conversion finished: one row.',
+  'file.doneCounts': {
+    pt: 'Conversão terminada: {n} linhas, {ok} convertidas, '
+      + '{swap} a rever, {bad} sem coordenada válida.',
+    en: 'Conversion finished: {n} rows, {ok} converted, '
+      + '{swap} to review, {bad} with no valid coordinate.',
   },
 
   'file.tabFile': { pt: 'Ficheiro', en: 'File' },

@@ -452,6 +452,17 @@ with tab_file:
                                index=guess_column(cols, LON_CANDIDATES, 1 if len(cols) > 1 else 0))
 
         st.caption("Conversion preview (first rows):")
+        if lat_col == lon_col:
+            # df[[c, c]] gives a frame with two identical columns, and assigning
+            # the derived column into it raises. A file with a single column -
+            # which is what a wrongly guessed separator produces - lands here
+            # every time, and the user got Streamlit's red English traceback
+            # with no way back.
+            st.warning("Choose two different columns for latitude and longitude. "
+                       "If the file appears to have only one column, the separator "
+                       "is probably wrong - set it under Read options above.")
+            st.stop()
+
         preview = df[[lat_col, lon_col]].head(5).copy()
         preview["-> Latitude_DD"] = [parse_coordinate(v) for v in preview[lat_col]]
         preview["-> Longitude_DD"] = [parse_coordinate(v) for v in preview[lon_col]]
