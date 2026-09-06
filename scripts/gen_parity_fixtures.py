@@ -48,6 +48,7 @@ from geocoord.converter import (
 )
 from geocoord import crs
 from geocoord import reader as _reader
+from geocoord.georead import read_geospatial_bytes
 from geocoord.reader import read_csv_text
 from geocoord.geoexport import (
     sanitize_filename,
@@ -539,6 +540,140 @@ POINT_IN_MASK_INPUTS = [
 #
 # Encoding recovery is not here. The input travels as a JSON string, already
 # decoded, so utf-8-then-latin1 has nothing to bite on; each side tests its own.
+# read_geospatial: KML, GeoJSON and GPX, which unlike Excel are plain text and
+# so can be pinned across the two ports directly. KMZ cannot - it is a zip, and
+# the contract only carries JSON-representable inputs - so each side builds an
+# archive in its own tests and what is pinned here is the KML text inside one.
+#
+# What is compared is the RAW reader output, before tidy_table, which is the
+# opposite of read_csv above and deliberate: the whole point of these readers is
+# the columns they DECLARE and the notes they return, and tidying drops an
+# all-empty column before either can be seen. The tidy step has its own section.
+#
+# Every dialect here is one a real tool writes. A reader that handles the one
+# its author tested against returns empty columns for the other two.
+READ_GEO_INPUTS = [
+    # Google Earth: a folder, a name, no structured attributes at all, and a
+    # LineString that has no row and must be counted rather than reduced.
+    ("kml_google_earth", "a.kml",
+     '<?xml version="1.0" encoding="UTF-8"?>'
+     '<kml xmlns="http://www.opengis.net/kml/2.2"><Document><Folder>'
+     '<name>Campanha</name>'
+     '<Placemark><name>P-001</name><description>Granito</description>'
+     '<Point><coordinates>33.5921,-16.1564,214</coordinates></Point></Placemark>'
+     '<Placemark><name>Percurso</name>'
+     '<LineString><coordinates>33.59,-16.15 33.60,-16.14</coordinates>'
+     '</LineString></Placemark>'
+     '</Folder></Document></kml>'),
+    # QGIS and ogr2ogr: SimpleData inside SchemaData, and no name element.
+    ("kml_qgis_schemadata", "a.kml",
+     '<?xml version="1.0" encoding="UTF-8"?>'
+     '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
+     '<Placemark><ExtendedData><SchemaData schemaUrl="#minas">'
+     '<SimpleData name="Nr_int">1</SimpleData>'
+     '<SimpleData name="Designacao">Panasqueira</SimpleData>'
+     '</SchemaData></ExtendedData>'
+     '<Point><coordinates>-7.756,40.1717</coordinates></Point></Placemark>'
+     '</Document></kml>'),
+    # ArcGIS: Data/value with a displayName, and a Point inside a MultiGeometry.
+    ("kml_arcgis_multigeometry", "a.kml",
+     '<?xml version="1.0" encoding="UTF-8"?>'
+     '<kml xmlns="http://earth.google.com/kml/2.0"><Document>'
+     '<Placemark><name>Sondagem</name><ExtendedData>'
+     '<Data name="prof"><displayName>Profundidade</displayName>'
+     '<value>124.5</value></Data></ExtendedData>'
+     '<MultiGeometry><Point><coordinates>-8.6104,41.1496,0</coordinates></Point>'
+     '</MultiGeometry></Placemark></Document></kml>'),
+    # The property set is ragged, and a property is called Latitude.
+    ("kml_ragged_and_colliding", "a.kml",
+     '<?xml version="1.0" encoding="UTF-8"?>'
+     '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
+     '<Placemark><ExtendedData>'
+     '<Data name="Latitude"><value>uma propriedade</value></Data>'
+     '<Data name="a"><value>1</value></Data></ExtendedData>'
+     '<Point><coordinates>1,1</coordinates></Point></Placemark>'
+     '<Placemark><ExtendedData><Data name="b"><value>2</value></Data>'
+     '</ExtendedData>'
+     '<Point><coordinates>2,2</coordinates></Point></Placemark>'
+     '</Document></kml>'),
+    # Entities and CDATA, which the two parsers must resolve identically.
+    ("kml_entities_and_cdata", "a.kml",
+     '<?xml version="1.0" encoding="UTF-8"?>'
+     '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
+     '<Placemark><name>A &amp; B &lt;C&gt; &#233;</name>'
+     '<description><![CDATA[<b>Granito</b> alterado]]></description>'
+     '<Point><coordinates>\n   -8.6104,41.1496\n  </coordinates></Point>'
+     '</Placemark></Document></kml>'),
+    # A receiver's day of walking: a track and not one waypoint.
+    ("gpx_track_only", "a.gpx",
+     '<?xml version="1.0" encoding="UTF-8"?>'
+     '<gpx version="1.1" creator="Garmin" '
+     'xmlns="http://www.topografix.com/GPX/1/1">'
+     '<trk><name>Percurso</name><trkseg>'
+     '<trkpt lat="40.171700" lon="-7.756000"><ele>612.4</ele>'
+     '<time>2024-03-07T09:14:02Z</time></trkpt>'
+     '<trkpt lat="40.172210" lon="-7.755120"><ele>615.9</ele></trkpt>'
+     '</trkseg></trk></gpx>'),
+    # Waypoints and a track together: the waypoints win, the track is reported.
+    ("gpx_waypoints_win", "a.gpx",
+     '<?xml version="1.0" encoding="UTF-8"?>'
+     '<gpx version="1.1" creator="Garmin" '
+     'xmlns="http://www.topografix.com/GPX/1/1">'
+     '<wpt lat="41.1496" lon="-8.6104"><ele>104</ele><name>001</name>'
+     '<cmt>afloramento</cmt><sym>Flag, Blue</sym></wpt>'
+     '<wpt lat="41.1502" lon="-8.6099"><name>002</name></wpt>'
+     '<trk><trkseg><trkpt lat="1" lon="1"/><trkpt lat="2" lon="2"/>'
+     '</trkseg></trk></gpx>'),
+    # GPX 1.0 with the attribute columns ogr2ogr hides inside extensions.
+    ("gpx_ogr_extensions", "a.gpx",
+     '<?xml version="1.0" encoding="UTF-8"?>'
+     '<gpx version="1.0" creator="GDAL" '
+     'xmlns="http://www.topografix.com/GPX/1/0" '
+     'xmlns:ogr="http://osgeo.org/gdal">'
+     '<wpt lat="37.8781" lon="-8.1653"><name>Aljustrel</name><extensions>'
+     '<ogr:Nr_int>2</ogr:Nr_int><ogr:Situacao>Abandonada</ogr:Situacao>'
+     '</extensions></wpt></gpx>'),
+    ("gpx_route_only", "a.gpx",
+     '<?xml version="1.0" encoding="UTF-8"?>'
+     '<gpx version="1.1" creator="t" xmlns="http://www.topografix.com/GPX/1/1">'
+     '<rte><name>Rota</name>'
+     '<rtept lat="41.1" lon="-8.6"><name>R1</name></rtept>'
+     '<rtept lat="41.2" lon="-8.7"><name>R2</name></rtept></rte></gpx>'),
+    ("geojson_collection", "a.geojson",
+     '{"type":"FeatureCollection","features":[{"type":"Feature","id":"A1",'
+     '"properties":{"nome":"Katsabola","tipo":"Ouro"},'
+     '"geometry":{"type":"Point","coordinates":[33.5921,-16.1564,214]}}]}'),
+    # Every way a number can be written, which is where the two languages part
+    # company if nothing is done about it.
+    ("geojson_numbers", "a.geojson",
+     '{"type":"Feature","properties":{"inteiro":7,"com_ponto":7.0,"meio":0.5,'
+     '"negativo":-0.0,"pequeno":0.000001,"muito_pequeno":1e-7,"texto":"007",'
+     '"verdade":true,"nada":null},'
+     '"geometry":{"type":"Point","coordinates":[-8.0,39.5]}}'),
+    # A projected system declared: the columns must say X and Y, not latitude.
+    ("geojson_projected_crs", "a.geojson",
+     '{"type":"FeatureCollection","crs":{"type":"name","properties":'
+     '{"name":"urn:ogc:def:crs:EPSG::3763"}},"features":[{"type":"Feature",'
+     '"properties":{"nome":"Panasqueira"},'
+     '"geometry":{"type":"Point","coordinates":[19167.28,68811.71]}}]}'),
+    # WGS84 under the name QGIS writes for it is not worth reporting.
+    ("geojson_crs84_is_silent", "a.geojson",
+     '{"type":"FeatureCollection","crs":{"type":"name","properties":'
+     '{"name":"urn:ogc:def:crs:OGC:1.3:CRS84"}},"features":[{"type":"Feature",'
+     '"properties":{},"geometry":{"type":"Point","coordinates":[1,2]}}]}'),
+    # A polygon, a null geometry and a MultiPoint in one file.
+    ("geojson_mixed_geometries", "a.geojson",
+     '{"type":"FeatureCollection","features":['
+     '{"type":"Feature","properties":{"n":"area"},"geometry":'
+     '{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,0]]]}},'
+     '{"type":"Feature","properties":{"n":"vazio"},"geometry":null},'
+     '{"type":"Feature","properties":{"n":"multi","extra":{"a":1,"b":[2,3]}},'
+     '"geometry":{"type":"MultiPoint","coordinates":'
+     '[[31.3067,-15.4254],[31.4,-15.5]]}}]}'),
+    ("geojson_bare_geometry", "a.json",
+     '{"type":"Point","coordinates":[-8.1653,37.8781]}'),
+]
+
 READ_CSV_INPUTS = [
     # The real case this application exists for: a blank first line, a leading
     # empty index column, and decimal commas inside quoted fields.
@@ -986,6 +1121,7 @@ def build():
         "detect_swaps": [],
         "region_check": [],
         "read_csv": [],
+        "read_geospatial": [],
         "tidy_table": [],
     }
 
@@ -1029,6 +1165,19 @@ def build():
             "sep": sep,
             "decimal": decimal,
             "expected": df_to_table(tidy),
+        })
+
+    for case_id, name, source in READ_GEO_INPUTS:
+        read = read_geospatial_bytes(source.encode("utf-8"), name)
+        data["read_geospatial"].append({
+            "id": case_id,
+            "name": name,
+            "text": source,
+            "expected": {
+                **df_to_table(read.table),
+                "notes": read.notes,
+                "crs": read.crs,
+            },
         })
 
     for case in TIDY_INPUTS:

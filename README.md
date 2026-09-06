@@ -20,7 +20,8 @@
 
 A single-page web application, 100% client-side (no backend, no account, no API
 keys), that takes a spreadsheet of field coordinates and gives back something a
-GIS can open. It reads CSV and Excel, understands the formats a field notebook
+GIS can open. It reads CSV, Excel, and the geospatial formats it also writes -
+KML, KMZ, GeoJSON and GPX - understands the coordinate formats a field notebook
 actually contains, flags the rows where latitude and longitude look swapped
 before anything is changed, transforms between seventeen coordinate reference
 systems plus any UTM zone, and exports to six formats.
@@ -37,7 +38,7 @@ There is also a **desktop application** for offline use, and an importable
 
 ## Contents
 
-[Quick start](#quick-start) - [Input formats](#input-formats) - [Coordinate systems](#coordinate-systems) - [Swapped coordinates](#swapped-coordinates) - [Exports](#exports) - [Usage](#usage) - [Two implementations, one contract](#two-implementations-one-contract) - [Development](#development) - [Limits](#limits) - [Troubleshooting](#troubleshooting) - [Citation](#citation) - [License](#license)
+[Quick start](#quick-start) - [Input formats](#input-formats) - [File formats](#file-formats) - [Coordinate systems](#coordinate-systems) - [Swapped coordinates](#swapped-coordinates) - [Exports](#exports) - [Usage](#usage) - [Two implementations, one contract](#two-implementations-one-contract) - [Development](#development) - [Limits](#limits) - [Troubleshooting](#troubleshooting) - [Citation](#citation) - [License](#license)
 
 ---
 
@@ -46,7 +47,8 @@ There is also a **desktop application** for offline use, and an importable
 1. **Open the app** at <https://pedrommgoncalves.github.io/geocoord/> — nothing
    to install.
 2. **Drop your file** on the page, or click *Choose file*, or paste cells
-   straight out of Excel. CSV, TXT, XLSX, XLS and ODS are read; the sheet and
+   straight out of Excel. CSV, TXT, XLSX, XLS, ODS, KML, KMZ, GeoJSON and GPX
+   are read; the sheet and
    the separator can be changed after loading.
 3. **Check the columns.** They are guessed by name in Portuguese and English;
    change them if the guess is wrong. Pick the region your data belongs to.
@@ -81,6 +83,40 @@ Minutes and seconds must be below sixty. `41° 60' 00"` is not a coordinate, it
 is a typo for `42°00'` or `41°06'`, and it is rejected rather than quietly
 carried — the digit transpositions commonest in hand-copied notebooks used to
 produce a well-formed coordinate up to 111 km from where it belonged.
+
+### File formats
+
+Two kinds of file go in. A **table** - CSV, TXT, XLSX, XLS, ODS - where the
+coordinates are in columns the application finds for itself. Or a **geospatial
+file** - KML, KMZ, GeoJSON, GPX - where they are already coordinates, and what
+is read is the point list and its attributes.
+
+The geospatial readers are the mirror of the exporters, so a file this
+application wrote comes back the way it left. They also read what other tools
+write, which is not the same thing:
+
+| Written by | What it looks like | Read |
+| --- | --- | --- |
+| Google Earth | KML/KMZ, folders, `<name>`, attributes in an HTML `<description>` | yes |
+| QGIS, ogr2ogr | KML with `<SchemaData>`/`<SimpleData>`; GPX with fields in `<extensions>` | yes |
+| ArcGIS | KML with `<Data><value>` and a `<displayName>` | yes |
+| A GPS receiver | GPX holding a track and no waypoints at all | yes |
+
+A GPX is read for its waypoints; a file with none is read for its routes, and
+one with neither for its tracks — a day's walk off a receiver is a track and
+nothing else, and a reader that only understood `<wpt>` would return nothing
+from the commonest file there is. When both are present the waypoints win and
+the track is reported rather than silently appended.
+
+**A row is a point.** A KML holding polygons, a GeoJSON holding a MultiPolygon:
+the points come through and the rest is counted and named in a notice, not
+folded into a centroid nobody asked for.
+
+A GeoJSON that declares a projected system in the 2008 `crs` member — which is
+what QGIS still writes — is recognised, its columns are called X and Y rather
+than latitude and longitude, and that system is chosen as the input if this
+build knows it. Without that, a file in ETRS89/PT-TM06 is a page of metres read
+as degrees and rejected row by row with nothing to explain why.
 
 ## Coordinate systems
 
@@ -234,8 +270,8 @@ application, and in JavaScript, for the browser. That is a translation, not a
 rewrite, and translations drift.
 
 So both are held to one frozen file,
-[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 224 cases across
-19 sections, read by pytest and by vitest alike. A divergence on any pinned
+[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 263 cases across
+23 sections, read by pytest and by vitest alike. A divergence on any pinned
 case fails both suites, and CI additionally fails if the committed contract and
 its generator disagree.
 
@@ -258,9 +294,9 @@ pyproj and proj4js are different implementations of the same definitions.
 ## Development
 
 ```bash
-python -m pytest                 # 445 tests
+python -m pytest                 # 523 tests
 cd web && npm install
-npm test                         # 395 tests
+npm test                         # 486 tests
 npm run dev                      # http://localhost:5173
 npm run build                    # production bundle into web/dist/
 ```

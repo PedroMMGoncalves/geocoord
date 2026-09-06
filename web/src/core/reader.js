@@ -86,7 +86,9 @@ export class FileTooLarge extends Error {
   }
 }
 
-function checkCells(rows, columns) {
+// Exported so the geospatial readers in georead.js bound their tables by the
+// same rule, rather than carrying a second copy of the limit.
+export function checkCells(rows, columns) {
   const cells = Math.max(rows, 0) * Math.max(columns, 0)
   if (cells > MAX_CELLS) throw new FileTooLarge('cells', cells, MAX_CELLS)
 }

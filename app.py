@@ -22,6 +22,7 @@ from geocoord.geoexport import (
     to_kml,
     to_shapefile_zip,
 )
+from geocoord.georead import is_geospatial, read_geospatial_bytes
 from geocoord.reader import read_csv_bytes, read_excel_bytes, workbook_sheets
 
 APP_NAME = "GeoCoord"
@@ -400,21 +401,36 @@ tab_file, tab_quick = st.tabs(["File conversion", "Quick conversion"])
 
 with tab_file:
     _step("1. Load a file")
-    uploaded = st.file_uploader("Choose a file", type=["xlsx", "xls", "csv"],
-                                help="Supports Excel (.xlsx/.xls) and CSV",
-                                label_visibility="collapsed")
+    uploaded = st.file_uploader(
+        "Choose a file",
+        type=["xlsx", "xls", "csv", "kml", "kmz", "geojson", "json", "gpx"],
+        help="Excel (.xlsx/.xls), CSV, and the geospatial formats this "
+             "application also writes: KML, KMZ, GeoJSON and GPX",
+        label_visibility="collapsed")
 
     if uploaded is None:
         st.session_state.pop("result", None)
-        st.info("Load a CSV or Excel file to begin.")
+        st.info("Load a CSV, an Excel workbook, or a KML, KMZ, GeoJSON or GPX "
+                "file to begin.")
     else:
         if st.session_state.get("file_name") != uploaded.name:
             st.session_state.file_name = uploaded.name
             st.session_state.pop("result", None)
 
         name = uploaded.name.lower()
+        notes: list[dict] = []
+        declared_crs = None
         try:
-            if name.endswith(".csv"):
+            # KML, KMZ, GeoJSON and GPX: the formats this application already
+            # writes, read back. These come with more than a table - a GPX whose
+            # points came from a track rather than from waypoints has not
+            # failed, and a GeoJSON that names its own system has answered a
+            # question the user would otherwise answer by hand.
+            if is_geospatial(name):
+                uploaded.seek(0)
+                read = read_geospatial_bytes(uploaded.read(), name)
+                df, notes, declared_crs = read.table, read.notes, read.crs
+            elif name.endswith(".csv"):
                 with st.expander("Read options (CSV)"):
                     sep_label = st.selectbox(
                         "Separator", ["auto", ", (comma)", "; (semicolon)", "tab", "| (pipe)"])
@@ -434,6 +450,26 @@ with tab_file:
         except Exception as e:
             st.error(f"Could not read the file: {e}")
             st.stop()
+
+        for note in notes:
+            code = note["code"]
+            if code == "geo_skipped_non_points":
+                st.info(f"{note['count']} element(s) in the file are not points "
+                        f"(lines, polygons) and were not read.")
+            elif code == "gpx_from_track":
+                st.info(f"The file has no marked waypoints, so its "
+                        f"{note['count']} track point(s) were read.")
+            elif code == "gpx_from_route":
+                st.info(f"The file has no marked waypoints, so its "
+                        f"{note['count']} route point(s) were read.")
+            elif code == "gpx_ignored_tracks":
+                st.info(f"The marked waypoints were read. The file also holds "
+                        f"{note['count']} track or route point(s), which were not.")
+            elif code == "geojson_crs":
+                st.warning(f"The file declares the {note['crs']} system, so its "
+                           f"coordinates are metres rather than degrees. Choose "
+                           f"that system as the input below.")
+        del declared_crs   # surfaced above; the picker below stays the user's
 
         df = tidy_table(df)
         if df.empty:

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- KML, KMZ, GeoJSON and GPX are read, not only written. The exporters have
+  always produced them; now a file that arrives in one opens. A colleague's
+  Google Earth pins, a day of waypoints off a receiver, a layer somebody
+  exported from QGIS: each becomes the same table a spreadsheet becomes, and
+  goes through the same column guessing, swap detection, region check and
+  exports. What is read is what real tools write, which is not the same as what
+  the specifications say: attributes live in `<Data>` for ArcGIS, in
+  `<SimpleData>` for QGIS, and nowhere at all for Google Earth, which puts them
+  in an HTML table inside `<description>`; a GPX off a receiver holds a track
+  and not one waypoint. A row is a point, so a polygon is counted and named in a
+  notice rather than folded into a centroid. A GeoJSON that declares a projected
+  system - which QGIS still does - has its columns called X and Y and that
+  system chosen for it, instead of being a page of metres read as degrees.
 - The map draws itself with the result instead of waiting behind a button, and
   the question the button was asking became a basemap called "Sem fundo" / "No
   background" - the points and their positions relative to one another over

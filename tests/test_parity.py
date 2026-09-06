@@ -35,6 +35,7 @@ from geocoord.converter import (
     region_check,
     tidy_table,
 )
+from geocoord.georead import read_geospatial_bytes
 from geocoord.reader import read_csv_text
 from geocoord.geoexport import (
     sanitize_filename,
@@ -141,6 +142,27 @@ def test_region_check(case):
     )
     assert out_idx == case["expected"]["out_idx"]
     assert [[k, v] for k, v in detected.items()] == case["expected"]["detected"]
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["read_geospatial"], ids=ids(FIXTURES["read_geospatial"])
+)
+def test_read_geospatial(case):
+    # KML, GeoJSON and GPX are plain text, so unlike Excel they can be pinned
+    # across the two ports directly. What is compared is the raw reader output
+    # rather than the tidied table: the point of these readers is the columns
+    # they declare and the notes they return, and tidying drops an all-empty
+    # column before either can be seen.
+    read = read_geospatial_bytes(case["text"].encode("utf-8"), case["name"])
+    table = read.table
+    assert [str(c) for c in table.columns] == case["expected"]["columns"]
+    rows = [
+        [None if v is None or (isinstance(v, float) and v != v) else v for v in row]
+        for row in table.astype(object).where(table.notna(), None).values.tolist()
+    ]
+    assert rows == case["expected"]["rows"]
+    assert read.notes == case["expected"]["notes"]
+    assert read.crs == case["expected"]["crs"]
 
 
 @pytest.mark.parametrize(

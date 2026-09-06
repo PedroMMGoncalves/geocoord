@@ -17,6 +17,7 @@ import {
   toGpx,
 } from '../core/pipeline.js'
 import * as crs from '../core/crs.js'
+import { isGeospatial, readGeospatialBytes } from '../core/georead.js'
 import {
   SEPARATORS,
   WARN_ROWS,
@@ -28,6 +29,17 @@ import {
 import { useT } from '../i18n.jsx'
 
 const SPREADSHEET = /\.(xlsx|xlsm|xlsb|xls|ods)$/i
+
+// What a reader learned while reading, and the string that says it. A reader
+// returns codes rather than sentences so each interface writes them in its own
+// language; these are the ones georead.js can return.
+const NOTE_KEYS = {
+  geo_skipped_non_points: 'file.noticeSkipped',
+  gpx_from_track: 'file.noticeGpxTrack',
+  gpx_from_route: 'file.noticeGpxRoute',
+  gpx_ignored_tracks: 'file.noticeGpxIgnored',
+  geojson_crs: 'file.noticeGeoCrs',
+}
 
 /** A count for a message: cells plainly, bytes as megabytes. */
 function formatCount(n, kind) {
@@ -302,12 +314,24 @@ export default function FileConvert() {
       setSheets(names)
       const chosen = names.includes(sheetName) ? sheetName : names[0]
       setSheet(chosen ?? '')
-      return tidyTable(await readWorkbook(data, chosen))
+      return { table: tidyTable(await readWorkbook(data, chosen)), notes: [], crs: null }
     }
     sheetsRef.current = []
     setSheets([])
     setSheet('')
-    return tidyTable(readCsvBytes(data, { sep: separator === 'auto' ? null : separator }))
+    // KML, KMZ, GeoJSON and GPX. These come back with more than a table: a GPX
+    // whose points came from a track rather than from waypoints has not failed,
+    // and a GeoJSON that declares its own coordinate system has just answered a
+    // question the user would otherwise have had to answer themselves.
+    if (isGeospatial(name)) {
+      const read = await readGeospatialBytes(data, name)
+      return { table: tidyTable(read.table), notes: read.notes, crs: read.crs }
+    }
+    return {
+      table: tidyTable(readCsvBytes(data, { sep: separator === 'auto' ? null : separator })),
+      notes: [],
+      crs: null,
+    }
   }, [])
 
   /**
@@ -358,9 +382,14 @@ export default function FileConvert() {
     setNotice(null)
     let data
     let table
+    let notes = []
+    let declaredCrs = null
     try {
       data = new Uint8Array(await file.arrayBuffer())
-      table = await reread(data, file.name, '', sep)
+      const read = await reread(data, file.name, '', sep)
+      table = read.table
+      notes = read.notes
+      declaredCrs = read.crs
     } catch (e) {
       reportReadError(e)
       return
@@ -384,9 +413,26 @@ export default function FileConvert() {
     setBytes(data)
     setSource({ name: file.name, table })
     setAccepted(new Set())
+
+    // A file that names its own coordinate system has answered the question
+    // step two asks. Taking it is only right when it is a system this build
+    // knows; otherwise the note says what the file claimed and the choice stays
+    // with the user.
+    const known = declaredCrs && crs.REGISTRY[String(declaredCrs).replace(/^EPSG:/i, '')]
+    if (known) setInputSel(String(declaredCrs).replace(/^EPSG:/i, ''))
+
+    // `n` as well as `count`: the plural rule in translate() keys on a variable
+    // named n, while the note carries the readable name it is written with on
+    // both sides of the port.
+    const messages = notes
+      .map((note) => (NOTE_KEYS[note.code]
+        ? t(NOTE_KEYS[note.code], { ...note, n: note.count })
+        : null))
+      .filter(Boolean)
     if (table.rows.length > WARN_ROWS) {
-      setNotice(t('file.noticeLarge', { n: table.rows.length.toLocaleString() }))
+      messages.push(t('file.noticeLarge', { n: table.rows.length.toLocaleString() }))
     }
+    setNotice(messages.length > 0 ? messages.join(' ') : null)
   }, [clearLoaded, reportReadError, reread, sep, t])
 
   const loadPasted = useCallback(() => {
@@ -420,7 +466,7 @@ export default function FileConvert() {
     let cancelled = false
     ;(async () => {
       try {
-        const table = await reread(bytes, nameRef.current, sheet, sep)
+        const { table } = await reread(bytes, nameRef.current, sheet, sep)
         if (cancelled) return
         setSource((s) => (s === null ? s : { ...s, table }))
         setAccepted(new Set())
@@ -615,7 +661,7 @@ export default function FileConvert() {
           <input
             ref={inputRef}
             type="file"
-            accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xlsb,.xls,.ods"
+            accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xlsb,.xls,.ods,.kml,.kmz,.geojson,.json,.gpx"
             // The visible button above is the control; this input is opened by
             // it. Left in the tab order it was a stop with no name at all.
             tabIndex={-1}
@@ -684,7 +730,7 @@ export default function FileConvert() {
               {t('file.loaded', { name: source.name, n: source.table.rows.length, cols: columns.length })}
             </p>
 
-            {sheets.length === 0 && bytes && (
+            {sheets.length === 0 && bytes && !isGeospatial(source.name) && (
               <Select id="sep" label={t('file.separator')} value={sep} onChange={setSep}>
                 {SEPARATOR_LABELS.filter((s) => s.value === 'auto' || SEPARATORS.includes(s.value))
                   .map((s) => <option key={s.value} value={s.value}>{t(s.key)}</option>)}

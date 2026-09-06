@@ -49,8 +49,46 @@ export default {
     en: 'Drag the file here',
   },
   'file.formats': {
-    pt: 'CSV, TXT, XLSX, XLS, ODS',
-    en: 'CSV, TXT, XLSX, XLS, ODS',
+    pt: 'CSV, TXT, XLSX, XLS, ODS, KML, KMZ, GeoJSON, GPX',
+    en: 'CSV, TXT, XLSX, XLS, ODS, KML, KMZ, GeoJSON, GPX',
+  },
+  'file.noticeSkipped': {
+    pt: '{count} elementos do ficheiro não são pontos (linhas, polígonos) e não '
+      + 'foram lidos.',
+    ptOne: 'Um elemento do ficheiro não é um ponto e não foi lido.',
+    en: '{count} elements in the file are not points (lines, polygons) and were '
+      + 'not read.',
+    enOne: 'One element in the file is not a point and was not read.',
+  },
+  'file.noticeGpxTrack': {
+    pt: 'O ficheiro não tem pontos marcados, por isso foram lidos os {count} '
+      + 'pontos do trilho.',
+    ptOne: 'O ficheiro não tem pontos marcados, por isso foi lido o único ponto do trilho.',
+    en: 'The file has no marked waypoints, so its {count} track points were read.',
+    enOne: 'The file has no marked waypoints, so its one track point was read.',
+  },
+  'file.noticeGpxRoute': {
+    pt: 'O ficheiro não tem pontos marcados, por isso foram lidos os {count} '
+      + 'pontos da rota.',
+    ptOne: 'O ficheiro não tem pontos marcados, por isso foi lido o único ponto da rota.',
+    en: 'The file has no marked waypoints, so its {count} route points were read.',
+    enOne: 'The file has no marked waypoints, so its one route point was read.',
+  },
+  'file.noticeGpxIgnored': {
+    pt: 'Foram lidos os pontos marcados. O ficheiro tem também {count} pontos de '
+      + 'trilho ou rota, que não foram lidos.',
+    ptOne: 'Foram lidos os pontos marcados. O ficheiro tem também um ponto de '
+      + 'trilho ou rota, que não foi lido.',
+    en: 'The marked waypoints were read. The file also holds {count} track or '
+      + 'route points, which were not.',
+    enOne: 'The marked waypoints were read. The file also holds one track or '
+      + 'route point, which was not.',
+  },
+  'file.noticeGeoCrs': {
+    pt: 'O ficheiro declara o sistema {crs}, por isso as suas coordenadas são '
+      + 'metros e não graus.',
+    en: 'The file declares the {crs} system, so its coordinates are metres '
+      + 'rather than degrees.',
   },
   'file.choose': { pt: 'Escolher ficheiro', en: 'Choose file' },
   'file.paste': { pt: 'Colar do Excel', en: 'Paste from Excel' },
