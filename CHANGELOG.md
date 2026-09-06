@@ -149,8 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deflated them, so the same survey downloaded at 9 MB instead of 0.2 MB.
 - Shapefile attribute columns no longer collide. Field names were truncated to
   ten characters and checked for uniqueness, then written truncated to ten
-  *bytes* as the format requires - so  and 
-  both became , and two columns of a Portuguese dataset became
+  *bytes* as the format requires — so `Descrição_Amostra` and `Descrição_Local`
+  both became `Descriçã`, and two columns of a Portuguese dataset became
   unreachable in QGIS.
 - A file that fails to open no longer leaves the previous one on screen. The
   table, the map and the downloads stayed live and belonged to the last job, so
