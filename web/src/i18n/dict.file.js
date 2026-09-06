@@ -28,6 +28,10 @@ export default {
       + 'coordinates still do not leave this machine, but the area you are looking at '
       + 'is implied by those requests — so the map only opens if you ask for it.',
   },
+  'map.optInShort': {
+    pt: 'O mapa abre a pedido, para a página não falar com ninguém sem o pedires.',
+    en: 'The map opens on request, so the page speaks to nobody unasked.',
+  },
   'map.show': {
     pt: 'Mostrar os {n} pontos no mapa',
     ptOne: 'Mostrar o ponto no mapa',
@@ -209,6 +213,13 @@ export default {
       + 'A primeira coluna de cada linha diz o estado da conversão.',
     en: 'Conversion results: showing {shown} of {total} rows. The first column '
       + 'of each row gives the conversion status.',
+  },
+  'file.tableHeading': { pt: 'Tabela', en: 'Table' },
+  'file.previewAll': {
+    pt: 'A mostrar as {n} linhas. O ficheiro descarregado leva as mesmas.',
+    ptOne: 'Uma linha.',
+    en: 'Showing all {n} rows. The downloaded file carries the same.',
+    enOne: 'One row.',
   },
   'file.previewNote': {
     pt: 'A mostrar as primeiras {shown} de {total} linhas. O ficheiro descarregado leva todas.',

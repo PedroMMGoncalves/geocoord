@@ -946,10 +946,23 @@ export default function FileConvert() {
                 scrolling. The table keeps its own scrollbar at the map's
                 height so the two stay level instead of one running down the
                 page. */}
-            <div className="mt-4 grid gap-4 lg:grid-cols-5">
-              <div className="order-2 min-w-0 lg:order-1 lg:col-span-3">
+            {/* Both columns are built the same way - a heading, one line of
+                small text, then a box that takes the rest - so the two boxes
+                start and end at the same height whatever is in them. The map's
+                legend and the table's row count are that line of small text on
+                each side. */}
+            <div className="mt-4 grid items-stretch gap-4 lg:grid-cols-5">
+              <div className="order-2 flex min-w-0 flex-col lg:order-1 lg:col-span-3">
+                <h3 className="mb-2 text-sm font-medium text-slate-200">
+                  {t('file.tableHeading')}
+                </h3>
+                <p className="mb-2 text-xs text-slate-400">
+                  {final.rows.length > PREVIEW_ROWS
+                    ? t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })
+                    : t('file.previewAll', { n: final.rows.length })}
+                </p>
                 <div
-                  className="max-h-[420px] overflow-auto rounded border border-edge"
+                  className="min-h-[320px] flex-1 overflow-auto rounded border border-edge"
                   tabIndex={0}
                   role="region"
                   aria-label={t('file.tableRegion')}
@@ -1002,19 +1015,19 @@ export default function FileConvert() {
                 </tbody>
               </table>
                 </div>
-                {final.rows.length > PREVIEW_ROWS && (
-                  <p className="mt-2 text-xs text-slate-400">
-                    {t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })}
-                  </p>
-                )}
               </div>
 
-              <div className="order-1 min-w-0 lg:order-2 lg:col-span-2">
+              <div className="order-1 flex min-w-0 flex-col lg:order-2 lg:col-span-2">
                 <h3 className="mb-2 text-sm font-medium text-slate-200">{t('file.stepMap')}</h3>
                 {showMap ? (
                   <PointsMap points={mapPoints} />
                 ) : (
-                  <div className="rounded border border-dashed border-edge p-4">
+                  <>
+                    {/* The line the legend occupies once the map is open, so
+                        the two boxes start at the same height either way. */}
+                    <p className="mb-2 text-xs text-slate-400">{t('map.optInShort')}</p>
+                    <div className="flex min-h-[320px] flex-1 flex-col rounded border
+                                    border-dashed border-edge p-4">
                     <p className="text-xs text-slate-400">{t('map.optIn')}</p>
                     <button
                       type="button"
@@ -1031,7 +1044,8 @@ export default function FileConvert() {
                         ? t('map.nothingToShow')
                         : t('map.show', { n: mapPoints.length })}
                     </button>
-                  </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>

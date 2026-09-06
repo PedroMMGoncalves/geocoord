@@ -189,7 +189,10 @@ export default function PointsMap({ points }) {
   }
 
   return (
-    <div>
+    // A flex column that fills the height it is handed, rather than fixing its
+    // own: beside the results table, the two boxes have to end level, and the
+    // map cannot know how tall the table is.
+    <div className="flex h-full flex-col">
       <div className="mb-2 flex flex-wrap items-center gap-4 text-xs">
         <span className="flex items-center gap-1.5 text-slate-300">
           <span className="inline-block h-3 w-3 rounded-full border border-white/70"
@@ -206,7 +209,7 @@ export default function PointsMap({ points }) {
         ref={containerRef}
         role="application"
         aria-label={t('map.label')}
-        className="h-[420px] w-full rounded border border-edge bg-panel"
+        className="min-h-[320px] w-full flex-1 rounded border border-edge bg-panel"
       />
       {!lib && (
         <p className="mt-2 text-xs text-slate-500">{t('map.loading')}</p>
