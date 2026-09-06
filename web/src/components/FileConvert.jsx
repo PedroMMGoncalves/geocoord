@@ -774,9 +774,11 @@ export default function FileConvert() {
   return (
     <div
       className="wb"
-      // A file dropped anywhere on the page is a file to open: the drop zone
-      // sits inside a card that folds away once there is a file, and a second
-      // survey should not have to hunt for it.
+      // One column: the two input cards share a row when closed, the result
+      // takes the full width below them. A file dropped anywhere on the page
+      // is a file to open - the drop zone sits inside a card that folds away
+      // once there is a file, and a second survey should not have to hunt for
+      // it.
       onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false) }}
       onDrop={onDrop}
@@ -792,64 +794,79 @@ export default function FileConvert() {
           open={openCards[1]}
           onToggle={() => toggleCard(1)}
         >
-          {source && (
-            <div className="filerow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
-                   strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 3h8l4 4v14H6z" />
-                <path d="M14 3v4h4M9 12h6M9 16h6" />
-              </svg>
-              <div className="min-w-0">
-                <b>{source.name}</b>
-                <span>{t('file.rowsCols', { n: source.table.rows.length, cols: columns.length })}</span>
-              </div>
-            </div>
-          )}
-
-          <div className={`drop ${source ? '' : 'is-empty'} ${dragging ? 'is-dragging' : ''}`}>
-            <Reticle className="reticle" />
-            <p className="h">{t('file.dropHere')}</p>
-            <p className="s">
-              {formats.slice(0, 5).map((f, i) => (
-                <span key={f}>{i > 0 && <i>·</i>}{f}</span>
-              ))}
-              <br />
-              {formats.slice(5).map((f, i) => (
-                <span key={f}>{i > 0 && <i>·</i>}{f}</span>
-              ))}
-            </p>
-            <div className="b">
-              <button type="button" onClick={() => inputRef.current?.click()} className="btn primary">
-                {t('file.choose')}
-              </button>
-              <button type="button" onClick={() => setPasting((v) => !v)} className="btn">
-                {t('file.paste')}
-              </button>
-            </div>
-            {!source && demoLat !== null && demoLon !== null && (
-              <div className="demo" aria-hidden="true">
-                <span className="in">{DEMO.lat}&nbsp;&nbsp;{DEMO.lon}</span>
-                <span>
-                  <span className="arr">→</span>
-                  <span className="out">{demoLat.toFixed(6)}, {demoLon.toFixed(6)}</span>
-                </span>
+          <div className={`c1 ${source ? 'has-file' : ''}`}>
+            {source && (
+              <div className="stack">
+                <div className="filerow">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+                       strokeLinejoin="round" aria-hidden="true">
+                    <path d="M6 3h8l4 4v14H6z" />
+                    <path d="M14 3v4h4M9 12h6M9 16h6" />
+                  </svg>
+                  <div className="min-w-0">
+                    <b>{source.name}</b>
+                    <span>{t('file.rowsCols', { n: source.table.rows.length, cols: columns.length })}</span>
+                  </div>
+                </div>
+                {sheets.length > 1 && (
+                  <Select id="sheet" label={t('file.sheet')} value={sheet} onChange={setSheet}>
+                    {sheets.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </Select>
+                )}
+                {sheets.length === 0 && bytes && !isGeospatial(source.name) && (
+                  <Select id="sep" label={t('file.separator')} value={sep} onChange={setSep}>
+                    {SEPARATOR_LABELS.filter((s) => s.value === 'auto' || SEPARATORS.includes(s.value))
+                      .map((s) => <option key={s.value} value={s.value}>{t(s.key)}</option>)}
+                  </Select>
+                )}
               </div>
             )}
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xlsb,.xls,.ods,.kml,.kmz,.geojson,.json,.gpx"
-              // The visible button above is the control; this input is opened by
-              // it. Left in the tab order it was a stop with no name at all.
-              tabIndex={-1}
-              aria-hidden="true"
-              className="sr-only"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) loadFile(file)
-                e.target.value = ''
-              }}
-            />
+
+            <div className={`drop ${source ? '' : 'is-empty'} ${dragging ? 'is-dragging' : ''}`}>
+              <Reticle className="reticle" />
+              <p className="h">{t('file.dropHere')}</p>
+              <p className="s">
+                {formats.slice(0, 5).map((f, i) => (
+                  <span key={f}>{i > 0 && <i>·</i>}{f}</span>
+                ))}
+                <br />
+                {formats.slice(5).map((f, i) => (
+                  <span key={f}>{i > 0 && <i>·</i>}{f}</span>
+                ))}
+              </p>
+              <div className="b">
+                <button type="button" onClick={() => inputRef.current?.click()} className="btn primary">
+                  {t('file.choose')}
+                </button>
+                <button type="button" onClick={() => setPasting((v) => !v)} className="btn">
+                  {t('file.paste')}
+                </button>
+              </div>
+              {!source && demoLat !== null && demoLon !== null && (
+                <div className="demo" aria-hidden="true">
+                  <span className="in">{DEMO.lat}&nbsp;&nbsp;{DEMO.lon}</span>
+                  <span>
+                    <span className="arr">→</span>
+                    <span className="out">{demoLat.toFixed(6)}, {demoLon.toFixed(6)}</span>
+                  </span>
+                </div>
+              )}
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xlsb,.xls,.ods,.kml,.kmz,.geojson,.json,.gpx"
+                // The visible button above is the control; this input is opened by
+                // it. Left in the tab order it was a stop with no name at all.
+                tabIndex={-1}
+                aria-hidden="true"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) loadFile(file)
+                  e.target.value = ''
+                }}
+              />
+            </div>
           </div>
 
           {pasting && (
@@ -873,28 +890,7 @@ export default function FileConvert() {
               </button>
             </div>
           )}
-
-          {(sheets.length > 1 || (sheets.length === 0 && bytes && source && !isGeospatial(source.name))) && (
-            <div className="stack mt-3">
-              {sheets.length > 1 && (
-                <Select id="sheet" label={t('file.sheet')} value={sheet} onChange={setSheet}>
-                  {sheets.map((s) => <option key={s} value={s}>{s}</option>)}
-                </Select>
-              )}
-              {sheets.length === 0 && bytes && source && !isGeospatial(source.name) && (
-                <Select id="sep" label={t('file.separator')} value={sep} onChange={setSep}>
-                  {SEPARATOR_LABELS.filter((s) => s.value === 'auto' || SEPARATORS.includes(s.value))
-                    .map((s) => <option key={s.value} value={s.value}>{t(s.key)}</option>)}
-                </Select>
-              )}
-            </div>
-          )}
         </Card>
-
-        {/* Outside the card, so a fold-away step cannot hide a thing that
-            went wrong or a thing worth knowing. */}
-        {error && <p role="alert" className="notice error">{error}</p>}
-        {notice && <p className="notice">{notice}</p>}
 
         {source && columns.length > 0 && (
           <Card
@@ -905,7 +901,7 @@ export default function FileConvert() {
             open={openCards[2]}
             onToggle={() => toggleCard(2)}
           >
-            <div className="stack">
+            <div className="fields3">
               <Select
                 id="lat-col"
                 label={projectedInput ? t('crs.xColumn') : t('file.latColumn')}
@@ -1016,15 +1012,22 @@ export default function FileConvert() {
             </div>
           </Card>
         )}
+
+        {/* Below both input cards, spanning the row, so a fold-away step
+            cannot hide a thing that went wrong or a thing worth knowing. */}
+        {error && <p role="alert" className="notice error">{error}</p>}
+        {notice && <p className="notice">{notice}</p>}
       </aside>
 
       <div className="res">
         {!final || !detection ? (
-          <div className="pane-empty">
-            <Reticle />
-            <b>{source ? t('crs.converting') : t('map.nothingToShow')}</b>
-            <span>{t('map.emptyHint')}</span>
-          </div>
+          // Without a file the page is the drop zone and needs nothing under
+          // it. With one, the result is a moment away and the space says so.
+          source && (
+            <div className="pane-empty" style={{ minHeight: '160px' }}>
+              <b>{t('crs.converting')}</b>
+            </div>
+          )
         ) : (
           <>
             <Card

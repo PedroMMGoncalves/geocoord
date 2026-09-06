@@ -182,6 +182,7 @@
   .tab {
     position: relative; display: flex; align-items: center; padding: 0 12px;
     color: var(--fg-2); font-weight: 500; background: none; border: 0; cursor: pointer;
+    white-space: nowrap;
   }
   .tab:hover { color: var(--fg-1); }
   .tab.is-active { color: var(--fg-1); }
@@ -193,6 +194,7 @@
   .util { margin-left: auto; display: flex; align-items: center; gap: 14px; }
   .badge {
     display: inline-flex; align-items: center; gap: 7px; color: var(--fg-2); font-size: 12px;
+    white-space: nowrap;
     padding: 5px 11px 5px 9px; border: 1px solid var(--line-1); border-radius: 999px;
     background: var(--bg-0); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .4);
   }
@@ -214,22 +216,42 @@
   .sel:hover { border-color: #3b4858; background-color: var(--bg-3); }
   .lang .sel { padding: 5px 28px 5px 9px; font-size: 12px; background-position: right 9px center; }
 
-  /* ---------------- the two panes ---------------- */
+  /* ---------------- one column ----------------
+     The steps sat in a sidebar for one version. A sidebar wants persistent
+     content, and a card that folds to a summary exists to get out of the way;
+     together they made a column that was two lines of summary and then
+     nothing, to the bottom of the page, taking a fifth of the width from the
+     table that needed it. So: one column. The two input cards share a row
+     when both are closed - two summaries, side by side, above the answer -
+     and an open one takes the whole row so its fields lay out in rows. */
   .wb {
-    display: grid;
-    grid-template-columns: var(--side) minmax(0, 1fr);
-    min-height: calc(100vh - var(--top));
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 16px 20px 32px;
   }
   .wb > aside {
-    border-right: 1px solid var(--line-1);
-    background: var(--bg-0);
-    padding: 16px 16px 24px;
-    position: sticky;
-    top: var(--top);
-    height: calc(100vh - var(--top));
-    overflow: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
   }
-  .res { padding: 16px 20px 32px; min-width: 0; }
+  .wb > aside > .card { margin-bottom: 0; }
+  /* Alone, or with any card open, everything takes the full row; the two-up
+     arrangement is only for two closed summaries. */
+  .wb > aside > .card:only-of-type,
+  .wb > aside:has(.card-h button[aria-expanded="true"]) > .card,
+  .wb > aside > .notice { grid-column: 1 / -1; }
+  .wb > aside > .notice { margin-top: 0; }
+  .res { min-width: 0; }
+
+  /* 01 with a file: the file and its options beside a compact drop zone.
+     Without one, the drop zone alone, centred: the page is the drop zone. */
+  .c1 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .c1:not(.has-file) { display: block; }
+  .c1:not(.has-file) .drop { max-width: 560px; margin: 0 auto; }
+  .c1:not(.has-file) .drop .b { flex-direction: row; justify-content: center; }
+  /* 02 open: the five selects in rows of three, the options in one line. */
+  .fields3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; }
 
   /* ---------------- the card that closes to a summary ---------------- */
   .card {
@@ -313,7 +335,8 @@
   .field .txt::placeholder { color: var(--fg-3); }
   .stack { display: flex; flex-direction: column; gap: 11px; }
   .opts {
-    display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 12px;
+    display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px 24px;
+    margin-top: 14px; padding-top: 12px;
     border-top: 1px solid var(--line-1); color: var(--fg-2); font-size: 12.5px;
   }
   .opts label { display: flex; align-items: flex-start; gap: 9px; line-height: 1.35; }
@@ -347,7 +370,7 @@
   .filerow {
     display: flex; align-items: center; gap: 10px; padding: 9px 11px;
     border: 1px solid var(--line-1); border-radius: 8px; background: var(--well);
-    box-shadow: var(--well-shadow); margin-bottom: 10px;
+    box-shadow: var(--well-shadow);
   }
   .filerow svg { width: 18px; height: 18px; color: var(--coord); flex: none; }
   .filerow b {
@@ -557,21 +580,26 @@
 
   /* ---------------- narrow: one column, the sidebar becomes two closed lines ---------------- */
   @media (max-width: 1024px) {
-    .wb { grid-template-columns: minmax(0, 1fr); min-height: 0; }
-    .wb > aside {
-      position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line-1);
-      padding: 12px 14px 4px;
-    }
-    .res { padding: 12px 14px 24px; }
+    .wb { padding: 12px 14px 24px; }
+    .wb > aside { grid-template-columns: minmax(0, 1fr); }
+    .c1 { display: block; }
+    .c1 > .stack { margin-bottom: 10px; }
+    .fields3 { grid-template-columns: minmax(0, 1fr); }
+    .opts { flex-direction: column; align-items: flex-start; }
     .readout { padding: 12px 14px; }
     .readout .sum { gap: 8px 24px; }
+  }
+  /* The header row holds brand, tabs, badge and language down to about 940px;
+     below that the badge gives way first, being the one thing that is not a
+     control. */
+  @media (max-width: 960px) {
+    .badge { display: none; }
   }
   @media (max-width: 640px) {
     .top { height: auto; flex-wrap: wrap; gap: 0 12px; padding: 8px 12px 0; }
     .tabs { order: 3; width: 100%; height: 40px; margin: 4px 0 0; }
     .tab { padding: 0 10px; }
     .util { gap: 8px; }
-    .badge { display: none; }
     .lang span { display: none; }
     .brand .ver { display: none; }
     .stat { padding-right: 16px; margin-right: 0; }

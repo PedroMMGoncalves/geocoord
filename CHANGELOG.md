@@ -23,13 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   system - which QGIS still does - has its columns called X and Y and that
   system chosen for it, instead of being a page of metres read as degrees.
 - The page is redesigned around what it is for: getting from a file to the
-  answer with as little in the way as possible. The file and its settings live
-  in a sidebar; the answer takes the rest of the width. Each step is a card
+  answer with as little in the way as possible. Each step is a card
   that **closes to a summary** once it is done - `01 Ficheiro` folds to
   `amostras.xlsx — 23 linhas, 4 colunas`, `02` to `Latitude / Longitude ·
   Moçambique · WGS 84 — EPSG:4326 · 6 casas decimais` - so a glance confirms
   every setting without opening anything and the page compresses as the work
-  progresses. A card the user has opened stays as they left it.
+  progresses. A card the user has opened stays as they left it. Closed, the
+  two input cards share one row above the answer, which takes the full width
+  below them - the file and its settings were in a sidebar for one version,
+  and once they had folded to their summaries the sidebar was a column of
+  nothing taking a fifth of the width from the table that needed it.
 - Downloads wait for the swap question. While any row is flagged as possibly
   swapped, step `04` is closed, marked, its summary line *is* the question, and
   its buttons are disabled; answering - either button, or a row's own box - is
