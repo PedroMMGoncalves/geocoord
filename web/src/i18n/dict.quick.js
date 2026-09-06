@@ -41,10 +41,6 @@ export default {
       + 'leading minus sign works too.',
   },
   'quick.examples': { pt: 'Experimentar um exemplo', en: 'Try an example' },
-  'quick.privacy': {
-    pt: 'A conversão acontece no teu computador. Nada é enviado para lado nenhum.',
-    en: 'The conversion happens on your computer. Nothing is sent anywhere.',
-  },
   'quick.copyOf': { pt: 'Copiar {what}', en: 'Copy {what}' },
   'quick.exampleN': {
     pt: 'Exemplo {n}: {lat}, {lon}',

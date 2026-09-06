@@ -43,10 +43,7 @@ function CopyButton({ text, what }) {
           /* clipboard blocked: the value is on screen to select by hand */
         }
       }}
-      className="rounded border border-edge px-2 py-1 text-xs text-slate-400
-                 transition-colors hover:border-accent hover:text-accent
-                 focus-visible:outline focus-visible:outline-2
-                 focus-visible:outline-accent"
+      className="btn sm"
     >
       {done ? t('quick.copied') : t('quick.copy')}
     </button>
@@ -57,10 +54,8 @@ function Field({ id, label, value, onChange, placeholder, state, rangeMessage })
   const t = useT()
   const bad = state.unreadable || state.outOfRange
   return (
-    <div className="flex-1">
-      <label htmlFor={id} className="mb-1 block text-sm text-slate-300">
-        {label}
-      </label>
+    <div className="field flex-1">
+      <label htmlFor={id}>{label}</label>
       <input
         id={id}
         type="text"
@@ -71,12 +66,9 @@ function Field({ id, label, value, onChange, placeholder, state, rangeMessage })
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-invalid={bad || undefined}
-        className={`w-full rounded border bg-panel px-3 py-2 font-mono text-slate-100
-                    placeholder:text-slate-600 focus:outline-none focus:ring-2
-                    ${bad ? 'border-amber-500 focus:ring-amber-500/40'
-                          : 'border-edge focus:border-accent focus:ring-accent/30'}`}
+        className={`txt font-mono ${bad ? 'border-review' : ''}`}
       />
-      <p className="mt-1 min-h-[1.25rem] text-xs text-amber-400">
+      <p className="min-h-[1.25rem] text-xs text-review">
         {state.unreadable ? t('quick.unreadable') : state.outOfRange ? rangeMessage : ''}
       </p>
     </div>
@@ -84,13 +76,11 @@ function Field({ id, label, value, onChange, placeholder, state, rangeMessage })
 }
 
 /** One labelled output row with its own copy button. */
-function Output({ label, value, mono = true }) {
+function Output({ label, value }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-edge py-2.5">
-      <span className="shrink-0 text-sm text-slate-400">{label}</span>
-      <span className={`min-w-0 flex-1 truncate text-right text-slate-100 ${mono ? 'font-mono' : ''}`}>
-        {value}
-      </span>
+    <div className="out-row">
+      <span className="k">{label}</span>
+      <span className="v">{value}</span>
       <CopyButton text={value} what={label} />
     </div>
   )
@@ -131,79 +121,83 @@ export default function QuickConvert() {
   const lonDd = ready ? lonState.value.toFixed(decimals) : null
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
-      <h1 className="text-xl font-semibold text-slate-100">{t('quick.title')}</h1>
-      <p className="mt-2 text-sm leading-relaxed text-slate-400">{t('quick.intro')}</p>
+    <section className="quick">
+      <div className="card">
+        <div className="card-b">
+          <h1 className="text-sm font-semibold text-ink">{t('quick.title')}</h1>
+          <p className="mt-1 text-xs leading-relaxed text-ink-2">{t('quick.intro')}</p>
 
-      <div className="mt-6 flex flex-col gap-4 sm:flex-row">
-        <Field
-          id="lat"
-          label={t('quick.latitude')}
-          value={lat}
-          onChange={setLat}
-          placeholder={'38° 42\' 30" N'}
-          state={latState}
-          rangeMessage={t('quick.outOfRangeLat')}
-        />
-        <Field
-          id="lon"
-          label={t('quick.longitude')}
-          value={lon}
-          onChange={setLon}
-          placeholder={'9° 8\' 12" W'}
-          state={lonState}
-          rangeMessage={t('quick.outOfRangeLon')}
-        />
-      </div>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <Field
+              id="lat"
+              label={t('quick.latitude')}
+              value={lat}
+              onChange={setLat}
+              placeholder={'38° 42\' 30" N'}
+              state={latState}
+              rangeMessage={t('quick.outOfRangeLat')}
+            />
+            <Field
+              id="lon"
+              label={t('quick.longitude')}
+              value={lon}
+              onChange={setLon}
+              placeholder={'9° 8\' 12" W'}
+              state={lonState}
+              rangeMessage={t('quick.outOfRangeLon')}
+            />
+          </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-slate-500">{t('quick.hemisphereHint')}</p>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500">{t('quick.examples')}:</span>
-          {EXAMPLES.map((ex, i) => (
-            <button
-              key={ex.lat}
-              type="button"
-              onClick={() => { setLat(ex.lat); setLon(ex.lon) }}
-              aria-label={t('quick.exampleN', { n: i + 1, lat: ex.lat, lon: ex.lon })}
-              className="rounded border border-edge px-2 py-1 text-xs text-slate-400
-                         transition-colors hover:border-accent hover:text-accent"
-            >
-              {i + 1}
-            </button>
-          ))}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-ink-3">{t('quick.hemisphereHint')}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-ink-3">{t('quick.examples')}:</span>
+              {EXAMPLES.map((ex, i) => (
+                <button
+                  key={ex.lat}
+                  type="button"
+                  onClick={() => { setLat(ex.lat); setLon(ex.lon) }}
+                  aria-label={t('quick.exampleN', { n: i + 1, lat: ex.lat, lon: ex.lon })}
+                  className="btn sm font-mono"
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
       {ready && (
-        <div className="mt-6 rounded-lg border border-edge bg-surface px-4 pb-2 pt-3">
-          <div className="mb-1 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-accent">{t('quick.result')}</h2>
-            <label className="flex items-center gap-2 text-xs text-slate-500">
-              {t('quick.decimals')}
-              <input
-                type="range"
-                min="2"
-                max="10"
-                value={decimals}
-                onChange={(e) => setDecimals(Number(e.target.value))}
-                className="h-1 w-24 accent-accent"
-              />
-              <span className="w-4 font-mono text-slate-400">{decimals}</span>
-            </label>
-          </div>
+        <div className="card">
+          <div className="card-b">
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-ink">{t('quick.result')}</h2>
+              <label className="range text-xs text-ink-2">
+                <span>{t('quick.decimals')}</span>
+                <input
+                  type="range"
+                  min="2"
+                  max="10"
+                  value={decimals}
+                  onChange={(e) => setDecimals(Number(e.target.value))}
+                  className="w-24"
+                  aria-label={t('quick.decimals')}
+                />
+                <span className="v">{decimals}</span>
+              </label>
+            </div>
 
-          <Output label={t('quick.latitude')} value={latDd} />
-          <Output label={t('quick.longitude')} value={lonDd} />
-          <Output label={t('quick.wkt')} value={`POINT (${lonDd} ${latDd})`} />
-          <Output
-            label={t('quick.dms')}
-            value={`${formatDms(latState.value, 'lat')}, ${formatDms(lonState.value, 'lon')}`}
-          />
+            <Output label={t('quick.latitude')} value={latDd} />
+            <Output label={t('quick.longitude')} value={lonDd} />
+            <Output label={t('quick.wkt')} value={`POINT (${lonDd} ${latDd})`} />
+            <Output
+              label={t('quick.dms')}
+              value={`${formatDms(latState.value, 'lat')}, ${formatDms(lonState.value, 'lon')}`}
+            />
+          </div>
         </div>
       )}
-
-      <p className="mt-8 text-xs text-slate-600">{t('quick.privacy')}</p>
     </section>
   )
 }

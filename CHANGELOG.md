@@ -22,28 +22,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   notice rather than folded into a centroid. A GeoJSON that declares a projected
   system - which QGIS still does - has its columns called X and Y and that
   system chosen for it, instead of being a page of metres read as degrees.
-- The map draws itself with the result instead of waiting behind a button, and
-  the question the button was asking became a basemap called "Sem fundo" / "No
-  background" - the points and their positions relative to one another over
-  nothing at all, with no request leaving the machine. A gate has to cost less
-  than what it prevents, and this one did not: loading a tile discloses the
-  rectangle being looked at, to a tile server, which is what every map on the
-  web discloses, while the gate hid the most useful view of the result behind a
-  click and forty words for everybody, every time. It also gave the careful
-  reader nothing - the choice was tiles or no map, so somebody unwilling to talk
-  to Esri could not see their own points at all. Now they can.
-- The promise that files are converted on this computer and never uploaded is
-  stated once, in the header, where it belongs to the whole tool. It used to be
-  worded twice: as an apology attached to the map's button, in the third step,
-  seen only by whoever scrolled that far, and again in the file tab's opening
-  line.
-- The map sits beside the results table rather than below it, and above it on
-  a narrow screen. The map is the instrument: a point that landed in Sudan is
-  obvious on it in a second and invisible in a column of numbers, so it belongs
-  where it is seen without scrolling. The page is
-  wider where there is room, and the table takes three fifths of the row, so
-  the converted columns - the ones the file was brought here for - are visible
-  without scrolling sideways.
+- The page is redesigned around what it is for: getting from a file to the
+  answer with as little in the way as possible. The file and its settings live
+  in a sidebar; the answer takes the rest of the width. Each step is a card
+  that **closes to a summary** once it is done - `01 Ficheiro` folds to
+  `amostras.xlsx — 23 linhas, 4 colunas`, `02` to `Latitude / Longitude ·
+  Moçambique · WGS 84 — EPSG:4326 · 6 casas decimais` - so a glance confirms
+  every setting without opening anything and the page compresses as the work
+  progresses. A card the user has opened stays as they left it.
+- Downloads wait for the swap question. While any row is flagged as possibly
+  swapped, step `04` is closed, marked, its summary line *is* the question, and
+  its buttons are disabled; answering - either button, or a row's own box - is
+  what opens it. The one promise this application makes about the data is that
+  nothing is changed without confirmation, and a download button above an
+  unanswered question was an invitation to take the file without deciding.
+- Colour now means one thing each. Green is what you press, cyan is what you
+  read (the coordinate readouts), amber is a question, red is a failure. A
+  converted row is neutral - it used to be green too, along with the tabs, the
+  badges and the focus ring, which left green meaning nothing. Every text pair
+  meets WCAG AA; the tightest is 5.1:1.
+- The answer is the biggest thing on the screen. `22 convertidas` was
+  `text-sm`; it is thirty pixels now, with the rows to review and the failures
+  beside it in their own colours and marks.
+- The map draws itself with the result, at the full width of the pane, with a
+  scale bar and the tile controls restyled to match the page. It still opens on
+  nothing if the user picks "Sem fundo", the seventh basemap, which asks the
+  network for not one thing.
+- The download buttons name the file they will write, Excel first and filled:
+  for the people this is for, Excel is the answer.
+- Inter and JetBrains Mono, packaged with the page rather than fetched from a
+  font service, so the page keeps talking to nobody. JetBrains Mono for every
+  number: a slashed zero, and the same glyph widths on every operating system,
+  where Consolas, Menlo and DejaVu are three different faces.
+- The empty drop zone shows a worked example - `38° 42' 30" N  9° 8' 12" W →
+  38.708333, -9.136667` - converted by the same code, so the first thing a
+  visitor sees is what the tool does.
+- The promise that nothing is sent anywhere is a badge in the header, once,
+  visible on either tab as the page opens. It used to be a sentence at the top
+  of each tab, in two different registers.
 - An Excel (.xlsx) download on the web page, which the desktop application has
   had since the first release. It sits outside the parity contract for the same
   reason Excel reading does - openpyxl and SheetJS build different workbooks

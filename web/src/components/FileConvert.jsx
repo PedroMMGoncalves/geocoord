@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import PointsMap from './PointsMap.jsx'
-import { detectSwaps, inRange, regionCheck, tidyTable } from '../core/converter.js'
+import PointsMap, { COLOR_OK, COLOR_SUSPECT } from './PointsMap.jsx'
+import { detectSwaps, inRange, parseCoordinate, regionCheck, tidyTable } from '../core/converter.js'
 import { sanitizeFilename, toGeoJSON, toKML, toShapefileZip } from '../core/geoexport.js'
 import {
-  LAT_CANDIDATES,
-  LON_CANDIDATES,
   REGION_MASKS,
   applySwaps,
   buildResult,
@@ -57,41 +55,36 @@ const SEPARATOR_LABELS = [
   { value: '|', key: 'file.sepPipe' },
 ]
 
-// The statuses detectSwaps can return, and the colour each gets. Amber for the
-// two swap kinds because they are a question for the user, not a verdict;
-// red only for what could not be used at all.
+// The statuses detectSwaps can return, in the order the readout shows them.
+const STATUSES = ['ok', 'swap_axis', 'swap_range', 'swap_cluster', 'out_of_range', 'missing']
+
 // A shape as well as a colour. Amber against green is a common pair to lose,
 // and a table of numbers in two colours says nothing to a screen reader at all.
 const STATUS_MARK = {
   ok: '',
-  swap_axis: '\u25b2\u00a0',
-  swap_range: '\u25b2\u00a0',
-  swap_cluster: '\u25b2\u00a0',
-  out_of_range: '\u2715\u00a0',
-  missing: '\u2715\u00a0',
+  swap_axis: '▲ ',
+  swap_range: '▲ ',
+  swap_cluster: '▲ ',
+  out_of_range: '✕ ',
+  missing: '✕ ',
 }
 
-const STATUS_STYLE = {
-  ok: 'text-accent',
-  swap_axis: 'text-amber-400',
-  swap_range: 'text-amber-400',
-  swap_cluster: 'text-amber-400',
-  out_of_range: 'text-red-400',
-  missing: 'text-red-400',
-}
-
-// The status used to be in the row number alone, a coloured digit at the left
-// edge of a wide scrolling table - easy to miss, and gone entirely once the
-// table is scrolled sideways. The row now carries it: a tint across the whole
-// row, and the failures in red rather than in the ordinary text colour.
-const ROW_STYLE = {
+// Colour marks exceptions only. A converted row is neutral; amber is a question
+// for the user, not a verdict; red is what could not be used at all. It used
+// to be green for the converted rows too, which left green meaning nothing.
+const STATUS_TONE = {
   ok: '',
-  swap_axis: 'bg-amber-500/10',
-  swap_range: 'bg-amber-500/10',
-  swap_cluster: 'bg-amber-500/10',
-  out_of_range: 'bg-red-500/10 text-red-300',
-  missing: 'bg-red-500/10 text-red-300',
+  swap_axis: 'review',
+  swap_range: 'review',
+  swap_cluster: 'review',
+  out_of_range: 'fail',
+  missing: 'fail',
 }
+
+// The worked example on the empty drop zone: the single-coordinate tab's first
+// example, converted here rather than typed in, so it cannot drift from what
+// the converter actually does.
+const DEMO = { lat: '38° 42\' 30" N', lon: '9° 8\' 12" W' }
 
 /** Hand `bytes` to the browser as a file the user can save. */
 function download(bytes, filename, mime) {
@@ -107,6 +100,75 @@ function download(bytes, filename, mime) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+function Chevron() {
+  return (
+    <svg className="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+         strokeWidth="1.6" aria-hidden="true">
+      <path d="M4 6l4 4 4-4" />
+    </svg>
+  )
+}
+
+/** The reticle: coordinates are a grid, and this is where the grid points. */
+function Reticle({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 44 44" fill="none" stroke="currentColor"
+         strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+      <circle cx="22" cy="22" r="13" />
+      <circle cx="22" cy="22" r="2" fill="currentColor" stroke="none" />
+      <path d="M22 3v8M22 33v8M3 22h8M33 22h8" />
+      <path d="M22 16v2M22 26v2M16 22h2M26 22h2" strokeOpacity=".6" />
+    </svg>
+  )
+}
+
+/**
+ * A step, as a card that closes to a summary.
+ *
+ * Closed, a card is not hidden, it is summarised: a second line under the
+ * title says what the step is set to, so a glance confirms every setting
+ * without opening anything, and the page compresses as the work progresses.
+ * The header is a real disclosure button, so it is a stop in the tab order
+ * with a name and a state, and the panel keeps its contents mounted so a
+ * select does not forget its value by being folded away.
+ *
+ * The numeral is decoration - read out, "01" ran straight into the title -
+ * and the hidden text carries the ordinal instead. The state disc is the
+ * same: a mark for the eye, with the summary line saying it in words.
+ */
+function Card({ n, title, state, summary, open, onToggle, className = '', children }) {
+  const t = useT()
+  const id = `card-${n}`
+  return (
+    <section className={`card ${className}`} aria-labelledby={`${id}-h`}>
+      <h2 className="card-h">
+        <button
+          type="button"
+          id={`${id}-h`}
+          aria-expanded={open}
+          aria-controls={`${id}-b`}
+          onClick={onToggle}
+        >
+          <span className="num" aria-hidden="true">{String(n).padStart(2, '0')}</span>
+          <span className="sep" aria-hidden="true" />
+          <span className="ttl">
+            <span className="sr-only">{t('file.stepLabel', { n, title })}</span>
+            <span aria-hidden="true">{title}</span>
+          </span>
+          <span className={`st ${state ?? ''}`} aria-hidden="true">
+            {state === 'ok' ? '✓' : state === 'warn' ? '▲' : ''}
+          </span>
+          <Chevron />
+          {summary && <span className="sum">{summary}</span>}
+        </button>
+      </h2>
+      <div className="card-b" id={`${id}-b`} hidden={!open}>
+        {children}
+      </div>
+    </section>
+  )
+}
+
 /**
  * A coordinate-system chooser: the registry grouped by kind, then the two
  * escape hatches. The deprecated ones are marked rather than hidden - somebody
@@ -116,18 +178,9 @@ function CrsSelect({ id, label, value, onChange, includeNone = false, t }) {
   const geographic = crs.systems('geographic')
   const projected = crs.systems('projected')
   return (
-    // basis-full below the sm breakpoint: sharing a 390px row, the select
-    // showed a value cut off exactly where the EPSG code is, which is the part
-    // that tells one datum from the one next to it.
-    <div className="min-w-0 basis-full sm:flex-1">
-      <label htmlFor={id} className="mb-1 block text-xs text-slate-400">{label}</label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded border border-edge bg-panel px-2 py-1.5 text-sm text-slate-100
-                   focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-      >
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className="sel">
         {includeNone && <option value="none">{t('crs.none')}</option>}
         <optgroup label={t('crs.geographic')}>
           {geographic.map((s) => (
@@ -150,47 +203,23 @@ function CrsSelect({ id, label, value, onChange, includeNone = false, t }) {
   )
 }
 
-function Step({ n, title, children }) {
-  const t = useT()
-  return (
-    <section className="mt-6 rounded-lg border border-edge bg-surface p-4"
-             aria-label={t('file.stepLabel', { n, title })}>
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-200">
-        {/* The badge is decoration: read out, the number ran straight into the
-            title and the heading list said "1Ficheiro". */}
-        <span
-          aria-hidden="true"
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full
-                     bg-accent/15 text-xs font-semibold text-accent"
-        >
-          {n}
-        </span>
-        <span className="sr-only">{t('file.stepLabel', { n, title })}</span>
-        <span aria-hidden="true">{title}</span>
-      </h2>
-      {children}
-    </section>
-  )
-}
-
 function Select({ id, label, value, onChange, children }) {
   return (
-    <div className="min-w-0 flex-1">
-      <label htmlFor={id} className="mb-1 block text-xs text-slate-400">{label}</label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded border border-edge bg-panel px-2 py-1.5 text-sm text-slate-100
-                   focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-      >
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className="sel">
         {children}
       </select>
     </div>
   )
 }
 
-function DownloadButton({ label, hint, onClick, disabled }) {
+/**
+ * One download. It names the file it will write, because "Excel" is a format
+ * and `amostras_tete_convertido.xlsx` is the thing that will appear in the
+ * downloads folder, and the second is what somebody looks for afterwards.
+ */
+function DownloadButton({ label, hint, file, primary = false, onClick, disabled }) {
   const [busy, setBusy] = useState(false)
   return (
     <button
@@ -204,15 +233,31 @@ function DownloadButton({ label, hint, onClick, disabled }) {
           setBusy(false)
         }
       }}
-      className="flex flex-col items-start rounded border border-accent/50 px-3 py-2 text-left
-                 transition-colors hover:bg-accent hover:text-panel
-                 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent
-                 disabled:cursor-not-allowed disabled:border-edge disabled:text-slate-600
-                 disabled:hover:bg-transparent"
+      className={`btn ${primary ? 'primary' : ''}`}
     >
-      <span className="text-sm font-medium">{label}</span>
-      <span className="text-xs opacity-70">{hint}</span>
+      <span className="r1">
+        <span className="fmt">{label}</span>
+        <span className="hint">{hint}</span>
+      </span>
+      <span className="file">{file}</span>
     </button>
+  )
+}
+
+/**
+ * A converted value in the table, its integer part bright and its fraction
+ * dimmer, so a column of decimals lines up and the eye lands on the degrees
+ * before the millionths. Anything that is not a plain decimal is left alone.
+ */
+function Cell({ value }) {
+  const s = value === null || value === undefined ? '' : String(value)
+  const m = /^(-?\d+\.)(\d+)$/.exec(s)
+  if (!m) return s
+  return (
+    <>
+      <span className="i">{m[1]}</span>
+      <span className="f">{m[2]}</span>
+    </>
   )
 }
 
@@ -251,8 +296,27 @@ export default function FileConvert() {
   const [utmZone, setUtmZone] = useState('29')
   const [utmSouth, setUtmSouth] = useState(false)
   const [customProj4, setCustomProj4] = useState('')
-  // The map is opened by hand. Until it is, the page has spoken to nobody,
-  // and that is a promise worth keeping literally rather than nearly.
+
+  // Which cards are open. A card opens until its step is satisfied and then
+  // closes on its own; one the user has touched stays as they left it, until
+  // the next file starts the sequence again.
+  const [openCards, setOpenCards] = useState({ 1: true, 2: true, 3: true, 4: true })
+  const touched = useRef(new Set())
+  const setOpen = useCallback((n, open) => {
+    setOpenCards((s) => (s[n] === open ? s : { ...s, [n]: open }))
+  }, [])
+  const toggleCard = useCallback((n) => {
+    touched.current.add(n)
+    setOpenCards((s) => ({ ...s, [n]: !s[n] }))
+  }, [])
+
+  // Whether the swap question has been answered. Downloads wait for it: the
+  // one promise this application makes about the data is that nothing is
+  // changed without the user's confirmation, and a download button above an
+  // unanswered question is an invitation to take the file without deciding.
+  const [reviewed, setReviewed] = useState(false)
+  const [rvOpen, setRvOpen] = useState(true)
+  const rvTouched = useRef(false)
 
   /**
    * Turn a selection into `{ proj4, kind, suffix, label, epsg }`, or null when
@@ -361,6 +425,8 @@ export default function FileConvert() {
     setFinal(null)
     setAccepted(new Set())
     setNotice(null)
+    touched.current = new Set()
+    setOpenCards({ 1: true, 2: true, 3: true, 4: true })
   }, [])
 
   /** A read failure, said in the user's language rather than the exception's. */
@@ -413,6 +479,12 @@ export default function FileConvert() {
     setBytes(data)
     setSource({ name: file.name, table })
     setAccepted(new Set())
+    setPasting(false)
+    // A new file starts the sequence over: the file card folds to its
+    // summary and the rest open as they are reached.
+    touched.current = new Set()
+    rvTouched.current = false
+    setOpenCards({ 1: false, 2: true, 3: true, 4: true })
 
     // A file that names its own coordinate system has answered the question
     // step two asks. Taking it is only right when it is a system this build
@@ -455,6 +527,10 @@ export default function FileConvert() {
     setSheets([])
     setSource({ name: 'colado.csv', table })
     setAccepted(new Set())
+    setPasting(false)
+    touched.current = new Set()
+    rvTouched.current = false
+    setOpenCards({ 1: false, 2: true, 3: true, 4: true })
   }, [clearLoaded, pasted, reportReadError, t])
 
   // Re-read when the sheet or the separator changes, which only applies to a
@@ -578,7 +654,46 @@ export default function FileConvert() {
         || label === 'swap_axis')
   }, [detection])
 
-  const counts = detection ? countByStatus(detection.labels) : new Map()
+  // The question is asked once per set of suspect rows. Changing the decimal
+  // places rebuilds the result but not the rows in doubt, and an answer already
+  // given must not be taken back for that.
+  const suspectsKey = suspects.map((s) => s.i).join(',')
+  useEffect(() => {
+    setReviewed(false)
+    setRvOpen(true)
+    rvTouched.current = false
+  }, [suspectsKey])
+  const reviewPending = suspects.length > 0 && !reviewed
+
+  /** The three ways of answering, and what each does to the panel. */
+  const answer = useCallback((next) => {
+    setAccepted(next)
+    setReviewed(true)
+    if (!rvTouched.current) setRvOpen(false)
+  }, [])
+
+  // The cards follow the work. Each closes on its own once its step is done,
+  // unless the user has taken it in hand.
+  const hasSource = source !== null
+  useEffect(() => {
+    if (!touched.current.has(1)) setOpen(1, !hasSource)
+  }, [hasSource, setOpen])
+  useEffect(() => {
+    if (!touched.current.has(2)) setOpen(2, final === null)
+  }, [final, setOpen])
+  useEffect(() => {
+    if (!touched.current.has(4)) setOpen(4, !reviewPending)
+  }, [reviewPending, final, setOpen])
+
+  // The status to show for a row, as opposed to the status detection gave it.
+  // Detection runs on the data as it was read, so that unticking a row brings
+  // its suggestion back; but once the user has accepted an inversion the row is
+  // no longer pending review, and colouring it as suspect would say otherwise.
+  const displayLabels = useMemo(() => {
+    if (!detection) return []
+    return detection.labels.map((label, i) => (accepted.has(i) ? 'ok' : label))
+  }, [accepted, detection])
+  const counts = useMemo(() => countByStatus(displayLabels), [displayLabels])
   const summary = final ? pointsSummary(final) : null
   const baseName = sanitizeFilename((source?.name ?? 'coordinates').replace(/\.[^.]+$/, ''), 'coordinates')
 
@@ -587,15 +702,6 @@ export default function FileConvert() {
     const { features, fieldNames } = featuresInRange(final)
     return { features, fieldNames }
   }, [final])
-
-  // The status to show for a row, as opposed to the status detection gave it.
-  // Detection runs on the data as it was read, so that unticking a row brings
-  // its suggestion back; but once the user has accepted an inversion the row is
-  // no longer pending review, and colouring it as suspect would say otherwise.
-  const displayLabel = useCallback(
-    (i) => (accepted.has(i) ? 'ok' : detection?.labels[i]),
-    [accepted, detection],
-  )
 
   // What to draw. A row flagged swap_range is drawn where it would be if the
   // columns were the other way round, which is the only place it could be: as
@@ -616,6 +722,12 @@ export default function FileConvert() {
     return out
   }, [final, detection, accepted])
 
+  // Which columns the pipeline added, as opposed to the file's own. They get
+  // the accent rule in the header and the split cells, because they are what
+  // the file was brought here for.
+  const inputColumns = useMemo(() => new Set(source?.table.columns ?? []), [source])
+  const firstOut = final ? final.columns.findIndex((c) => !inputColumns.has(c)) : -1
+
   function onDrop(e) {
     e.preventDefault()
     setDragging(false)
@@ -623,535 +735,602 @@ export default function FileConvert() {
     if (file) loadFile(file)
   }
 
+  const okCount = counts.get('ok') ?? 0
+  const badCount = (counts.get('out_of_range') ?? 0) + (counts.get('missing') ?? 0)
+  const pendingCount = suspects.filter(({ i }) => !accepted.has(i)).length
+
+  // The summaries the closed cards show.
+  const summary1 = source
+    ? t('file.loaded', { name: source.name, n: source.table.rows.length, cols: columns.length })
+    : null
+  const summary2 = source && latCol && lonCol
+    ? [
+      `${latCol} / ${lonCol}`,
+      region === 'auto' ? t('file.regionAuto') : region,
+      inputCrs ? `${inputCrs.label}${inputCrs.epsg ? ` — EPSG:${inputCrs.epsg}` : ''}` : null,
+      outputCrs ? `+ ${outputCrs.label}` : null,
+      `${decimals} ${t('file.decimals').toLowerCase()}`,
+    ].filter(Boolean).join(' · ')
+    : null
+  const summary3 = final && detection ? (
+    <>
+      {okCount} {t('file.status.ok')}
+      {pendingCount > 0 && (
+        <> · <span className="m-review">▲ {pendingCount} {t('file.toReview')}</span></>
+      )}
+      {badCount > 0 && (
+        <> · <span className="m-fail">✕ {badCount} {t('file.status.missing')}</span></>
+      )}
+    </>
+  ) : null
+  const summary4 = reviewPending
+    ? <span className="m-review">{t('file.swapsHint')}</span>
+    : 'Excel · CSV · GeoJSON · KML · Shapefile · GPX'
+
+  const formats = t('file.formats').split(',').map((s) => s.trim())
+  const demoLat = parseCoordinate(DEMO.lat)
+  const demoLon = parseCoordinate(DEMO.lon)
+
   return (
-    <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
-      <h1 className="text-xl font-semibold text-slate-100">{t('file.title')}</h1>
-      <p className="mt-2 text-sm leading-relaxed text-slate-400">{t('file.intro')}</p>
+    <div
+      className="wb"
+      // A file dropped anywhere on the page is a file to open: the drop zone
+      // sits inside a card that folds away once there is a file, and a second
+      // survey should not have to hunt for it.
+      onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false) }}
+      onDrop={onDrop}
+    >
+      <h1 className="sr-only">{t('file.title')}</h1>
 
-      <Step n={1} title={t('file.step1')}>
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          className={`rounded-lg border-2 border-dashed p-6 text-center transition-colors
-                      ${dragging ? 'border-accent bg-accent/5' : 'border-edge'}`}
+      <aside aria-label={t('file.sidebarLabel')}>
+        <Card
+          n={1}
+          title={t('file.step1')}
+          state={source ? 'ok' : null}
+          summary={summary1}
+          open={openCards[1]}
+          onToggle={() => toggleCard(1)}
         >
-          <p className="text-sm text-slate-300">{t('file.dropHere')}</p>
-          <p className="mt-1 text-xs text-slate-400">{t('file.formats')}</p>
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="rounded border border-accent/50 px-3 py-1.5 text-sm text-accent
-                         transition-colors hover:bg-accent hover:text-panel
-                         focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-            >
-              {t('file.choose')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPasting((v) => !v)}
-              className="rounded border border-edge px-3 py-1.5 text-sm text-slate-400
-                         transition-colors hover:border-accent hover:text-accent
-                         focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-            >
-              {t('file.paste')}
-            </button>
-          </div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xlsb,.xls,.ods,.kml,.kmz,.geojson,.json,.gpx"
-            // The visible button above is the control; this input is opened by
-            // it. Left in the tab order it was a stop with no name at all.
-            tabIndex={-1}
-            aria-hidden="true"
-            className="sr-only"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) loadFile(file)
-              e.target.value = ''
-            }}
-          />
-        </div>
-
-        {pasting && (
-          <div className="mt-3">
-            <label htmlFor="paste-box" className="mb-1 block text-xs text-slate-400">
-              {t('file.pasteLabel')}
-            </label>
-            <textarea
-              id="paste-box"
-              rows={5}
-              value={pasted}
-              onChange={(e) => setPasted(e.target.value)}
-              placeholder={'Amostra\tLatitude\tLongitude\nA1\t38° 42\' 30" N\t9° 8\' 12" W'}
-              className="w-full rounded border border-edge bg-panel px-3 py-2 font-mono text-xs
-                         text-slate-100 focus-visible:outline focus-visible:outline-2
-                         focus-visible:outline-accent"
-            />
-            <button
-              type="button"
-              disabled={pasted.trim() === ''}
-              onClick={loadPasted}
-              className="mt-2 rounded border border-accent/50 px-3 py-1.5 text-sm text-accent
-                         transition-colors hover:bg-accent hover:text-panel
-                         disabled:cursor-not-allowed disabled:border-edge disabled:text-slate-600
-                         disabled:hover:bg-transparent"
-            >
-              {t('file.pasteRead')}
-            </button>
-          </div>
-        )}
-
-        {error && (
-          <p role="alert" className="mt-3 rounded border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            {error}
-          </p>
-        )}
-
-        {sheets.length > 1 && (
-          <div className="mt-3 flex flex-wrap items-end gap-3">
-            <Select id="sheet" label={t('file.sheet')} value={sheet} onChange={setSheet}>
-              {sheets.map((s) => <option key={s} value={s}>{s}</option>)}
-            </Select>
-          </div>
-        )}
-
-        {notice && (
-          <p className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
-            {notice}
-          </p>
-        )}
-
-        {source && (
-          <div className="mt-3 flex flex-wrap items-end gap-3">
-            <p className="text-sm text-slate-400">
-              {t('file.loaded', { name: source.name, n: source.table.rows.length, cols: columns.length })}
-            </p>
-
-            {sheets.length === 0 && bytes && !isGeospatial(source.name) && (
-              <Select id="sep" label={t('file.separator')} value={sep} onChange={setSep}>
-                {SEPARATOR_LABELS.filter((s) => s.value === 'auto' || SEPARATORS.includes(s.value))
-                  .map((s) => <option key={s.value} value={s.value}>{t(s.key)}</option>)}
-              </Select>
-            )}
-          </div>
-        )}
-      </Step>
-
-      {source && columns.length > 0 && (
-        <Step n={2} title={t('file.step2')}>
-          <div className="flex flex-wrap gap-3">
-            <Select
-              id="lat-col"
-              label={projectedInput ? t('crs.xColumn') : t('file.latColumn')}
-              value={latCol}
-              onChange={setLatCol}
-            >
-              {columns.map((c) => <option key={c} value={c}>{c}</option>)}
-            </Select>
-            <Select
-              id="lon-col"
-              label={projectedInput ? t('crs.yColumn') : t('file.lonColumn')}
-              value={lonCol}
-              onChange={setLonCol}
-            >
-              {columns.map((c) => <option key={c} value={c}>{c}</option>)}
-            </Select>
-            <Select id="region" label={t('file.region')} value={region} onChange={setRegion}>
-              <option value="auto">{t('file.regionAuto')}</option>
-              {Object.keys(REGION_MASKS).map((r) => <option key={r} value={r}>{r}</option>)}
-            </Select>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <CrsSelect
-              id="crs-in"
-              label={t('crs.input')}
-              value={inputSel}
-              onChange={setInputSel}
-              t={t}
-            />
-            <CrsSelect
-              id="crs-out"
-              label={t('crs.output')}
-              value={outputSel}
-              onChange={setOutputSel}
-              includeNone
-              t={t}
-            />
-          </div>
-
-          {(inputSel === 'utm' || outputSel === 'utm') && (
-            <div className="mt-3 flex flex-wrap items-end gap-3">
-              <div>
-                <label htmlFor="utm-zone" className="mb-1 block text-xs text-slate-400">
-                  {t('crs.utmZone')}
-                </label>
-                <input
-                  id="utm-zone"
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={utmZone}
-                  onChange={(e) => setUtmZone(e.target.value)}
-                  className="w-24 rounded border border-edge bg-panel px-2 py-1.5 text-sm text-slate-100"
-                />
+          {source && (
+            <div className="filerow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
+                   strokeLinejoin="round" aria-hidden="true">
+                <path d="M6 3h8l4 4v14H6z" />
+                <path d="M14 3v4h4M9 12h6M9 16h6" />
+              </svg>
+              <div className="min-w-0">
+                <b>{source.name}</b>
+                <span>{t('file.rowsCols', { n: source.table.rows.length, cols: columns.length })}</span>
               </div>
-              <label className="flex items-center gap-2 pb-2 text-xs text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={utmSouth}
-                  onChange={(e) => setUtmSouth(e.target.checked)}
-                  className="h-4 w-4 shrink-0 accent-accent"
-                />
-                {t('crs.utmSouth')}
-              </label>
             </div>
           )}
 
-          {(inputSel === 'custom' || outputSel === 'custom') && (
-            <div className="mt-3">
-              <label htmlFor="custom-proj4" className="mb-1 block text-xs text-slate-400">
-                {t('crs.customLabel')}
-              </label>
-              <input
-                id="custom-proj4"
-                value={customProj4}
-                onChange={(e) => setCustomProj4(e.target.value)}
-                placeholder="+proj=utm +zone=33 +south +datum=WGS84 +units=m +no_defs"
-                className="w-full rounded border border-edge bg-panel px-3 py-2 font-mono text-xs
-                           text-slate-100 focus-visible:outline focus-visible:outline-2
-                           focus-visible:outline-accent"
-              />
-            </div>
-          )}
-
-          {inputCrs !== null && inputCrs.epsg !== null && crs.REGISTRY[String(inputCrs.epsg)]?.note && (
-            <p className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-              {crs.REGISTRY[String(inputCrs.epsg)].note}
-            </p>
-          )}
-
-          <div className="mt-3 flex flex-wrap items-center gap-4">
-            <label className="flex items-center gap-2 text-xs text-slate-400">
-              {t('file.decimals')}
-              <input
-                type="range"
-                min="2"
-                max="8"
-                value={decimals}
-                onChange={(e) => setDecimals(Number(e.target.value))}
-                className="h-6 w-24 accent-accent"
-              />
-              <span className="w-4 font-mono text-slate-300">{decimals}</span>
-            </label>
-            <label className="flex items-center gap-2 text-xs text-slate-400">
-              <input
-                type="checkbox"
-                checked={addDms}
-                onChange={(e) => setAddDms(e.target.checked)}
-                className="h-4 w-4 shrink-0 accent-accent"
-              />
-              {t('file.addDms')}
-            </label>
-            {signable > 0 && (
-              <label className="flex items-center gap-2 text-xs text-amber-300">
-                <input
-                  type="checkbox"
-                  checked={applyRegionSign}
-                  onChange={(e) => setApplyRegionSign(e.target.checked)}
-                  className="h-4 w-4 shrink-0 accent-accent"
-                />
-                {t('file.applyRegionSign', { n: signable, region })}
-              </label>
-            )}
-          </div>
-        </Step>
-      )}
-
-      {final && detection && (
-        <>
-          <Step n={3} title={t('file.step3')}>
-            {/* Converting a large file takes a second or two, and transforming
-                between coordinate systems is per-row work on top. A page that
-                sits still without saying anything is a page people reload. */}
-            {/* What goes in here has to *change* when the result changes, or a
-                screen reader is told nothing after the first load. It used to
-                say only the row count, which is the one number that does not
-                move when the column mapping or the coordinate system does -
-                the two settings most likely to be wrong. */}
-            <p
-              aria-live="polite"
-              className={`mb-2 text-xs ${converting ? 'text-slate-400' : 'sr-only'}`}
-            >
-              {converting
-                ? t('crs.converting')
-                : t('file.doneCounts', {
-                  n: final.rows.length,
-                  ok: counts.get('ok') ?? 0,
-                  swap: suspects.length,
-                  bad: (counts.get('out_of_range') ?? 0) + (counts.get('missing') ?? 0),
-                })}
-            </p>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-              {['ok', 'swap_axis', 'swap_range', 'swap_cluster', 'out_of_range', 'missing'].map((s) => (
-                counts.get(s) ? (
-                  <span key={s} className={STATUS_STYLE[s]}>
-                    <span className="font-mono font-semibold">{counts.get(s)}</span>
-                    {' '}
-                    {t(`file.status.${s}`)}
-                  </span>
-                ) : null
+          <div className={`drop ${source ? '' : 'is-empty'} ${dragging ? 'is-dragging' : ''}`}>
+            <Reticle className="reticle" />
+            <p className="h">{t('file.dropHere')}</p>
+            <p className="s">
+              {formats.slice(0, 5).map((f, i) => (
+                <span key={f}>{i > 0 && <i>·</i>}{f}</span>
               ))}
+              <br />
+              {formats.slice(5).map((f, i) => (
+                <span key={f}>{i > 0 && <i>·</i>}{f}</span>
+              ))}
+            </p>
+            <div className="b">
+              <button type="button" onClick={() => inputRef.current?.click()} className="btn primary">
+                {t('file.choose')}
+              </button>
+              <button type="button" onClick={() => setPasting((v) => !v)} className="btn">
+                {t('file.paste')}
+              </button>
+            </div>
+            {!source && demoLat !== null && demoLon !== null && (
+              <div className="demo" aria-hidden="true">
+                <span className="in">{DEMO.lat}&nbsp;&nbsp;{DEMO.lon}</span>
+                <span>
+                  <span className="arr">→</span>
+                  <span className="out">{demoLat.toFixed(6)}, {demoLon.toFixed(6)}</span>
+                </span>
+              </div>
+            )}
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".csv,.txt,.tsv,.xlsx,.xlsm,.xlsb,.xls,.ods,.kml,.kmz,.geojson,.json,.gpx"
+              // The visible button above is the control; this input is opened by
+              // it. Left in the tab order it was a stop with no name at all.
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) loadFile(file)
+                e.target.value = ''
+              }}
+            />
+          </div>
+
+          {pasting && (
+            <div className="field mt-3">
+              <label htmlFor="paste-box">{t('file.pasteLabel')}</label>
+              <textarea
+                id="paste-box"
+                rows={5}
+                value={pasted}
+                onChange={(e) => setPasted(e.target.value)}
+                placeholder={'Amostra\tLatitude\tLongitude\nA1\t38° 42\' 30" N\t9° 8\' 12" W'}
+                className="txt font-mono text-xs"
+              />
+              <button
+                type="button"
+                disabled={pasted.trim() === ''}
+                onClick={loadPasted}
+                className="btn sm self-start"
+              >
+                {t('file.pasteRead')}
+              </button>
+            </div>
+          )}
+
+          {(sheets.length > 1 || (sheets.length === 0 && bytes && source && !isGeospatial(source.name))) && (
+            <div className="stack mt-3">
+              {sheets.length > 1 && (
+                <Select id="sheet" label={t('file.sheet')} value={sheet} onChange={setSheet}>
+                  {sheets.map((s) => <option key={s} value={s}>{s}</option>)}
+                </Select>
+              )}
+              {sheets.length === 0 && bytes && source && !isGeospatial(source.name) && (
+                <Select id="sep" label={t('file.separator')} value={sep} onChange={setSep}>
+                  {SEPARATOR_LABELS.filter((s) => s.value === 'auto' || SEPARATORS.includes(s.value))
+                    .map((s) => <option key={s.value} value={s.value}>{t(s.key)}</option>)}
+                </Select>
+              )}
+            </div>
+          )}
+        </Card>
+
+        {/* Outside the card, so a fold-away step cannot hide a thing that
+            went wrong or a thing worth knowing. */}
+        {error && <p role="alert" className="notice error">{error}</p>}
+        {notice && <p className="notice">{notice}</p>}
+
+        {source && columns.length > 0 && (
+          <Card
+            n={2}
+            title={t('file.step2')}
+            state={final ? 'ok' : null}
+            summary={summary2}
+            open={openCards[2]}
+            onToggle={() => toggleCard(2)}
+          >
+            <div className="stack">
+              <Select
+                id="lat-col"
+                label={projectedInput ? t('crs.xColumn') : t('file.latColumn')}
+                value={latCol}
+                onChange={setLatCol}
+              >
+                {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <Select
+                id="lon-col"
+                label={projectedInput ? t('crs.yColumn') : t('file.lonColumn')}
+                value={lonCol}
+                onChange={setLonCol}
+              >
+                {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <Select id="region" label={t('file.region')} value={region} onChange={setRegion}>
+                <option value="auto">{t('file.regionAuto')}</option>
+                {Object.keys(REGION_MASKS).map((r) => <option key={r} value={r}>{r}</option>)}
+              </Select>
+              <CrsSelect id="crs-in" label={t('crs.input')} value={inputSel} onChange={setInputSel} t={t} />
+              <CrsSelect
+                id="crs-out"
+                label={t('crs.output')}
+                value={outputSel}
+                onChange={setOutputSel}
+                includeNone
+                t={t}
+              />
+
+              {(inputSel === 'utm' || outputSel === 'utm') && (
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="field w-24">
+                    <label htmlFor="utm-zone">{t('crs.utmZone')}</label>
+                    <input
+                      id="utm-zone"
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={utmZone}
+                      onChange={(e) => setUtmZone(e.target.value)}
+                      className="txt"
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 pb-2 text-xs text-ink-2">
+                    <input
+                      type="checkbox"
+                      checked={utmSouth}
+                      onChange={(e) => setUtmSouth(e.target.checked)}
+                      className="cb"
+                    />
+                    {t('crs.utmSouth')}
+                  </label>
+                </div>
+              )}
+
+              {(inputSel === 'custom' || outputSel === 'custom') && (
+                <div className="field">
+                  <label htmlFor="custom-proj4">{t('crs.customLabel')}</label>
+                  <input
+                    id="custom-proj4"
+                    value={customProj4}
+                    onChange={(e) => setCustomProj4(e.target.value)}
+                    placeholder="+proj=utm +zone=33 +south +datum=WGS84 +units=m +no_defs"
+                    className="txt font-mono text-xs"
+                  />
+                </div>
+              )}
             </div>
 
-            {detection.detected.size > 0 && (
-              <p className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
-                {[...detection.detected].map(([name, n]) => (
-                  name
-                    ? t('file.outsideNamed', { n, region: name })
-                    : t('file.outsideUnknown', { n })
-                )).join(' ')}
-              </p>
+            {inputCrs !== null && inputCrs.epsg !== null && crs.REGISTRY[String(inputCrs.epsg)]?.note && (
+              <p className="notice">{crs.REGISTRY[String(inputCrs.epsg)].note}</p>
             )}
 
-            {suspects.length > 0 && (
-              <div className="mt-4 rounded border border-amber-500/40 bg-amber-500/5 p-3">
-                <p className="text-sm text-amber-200">{t('file.swapsFound', { n: suspects.length })}</p>
-                <p className="mt-1 text-xs text-slate-400">{t('file.swapsHint')}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAccepted(new Set(suspects.map((s) => s.i)))}
-                    className="rounded border border-accent/50 px-3 py-1 text-xs text-accent
-                               transition-colors hover:bg-accent hover:text-panel"
-                  >
-                    {t('file.swapAll')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAccepted(new Set())}
-                    className="rounded border border-edge px-3 py-1 text-xs text-slate-400
-                               transition-colors hover:border-accent hover:text-accent"
-                  >
-                    {t('file.swapNone')}
-                  </button>
-                  <span className="self-center text-xs text-slate-400">
-                    {t('file.swapChosen', { n: accepted.size })}
+            <div className="opts">
+              <span className="range">
+                <span>{t('file.decimals')}</span>
+                <input
+                  type="range"
+                  min="2"
+                  max="8"
+                  value={decimals}
+                  onChange={(e) => setDecimals(Number(e.target.value))}
+                  aria-label={t('file.decimals')}
+                />
+                <span className="v">{decimals}</span>
+              </span>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={addDms}
+                  onChange={(e) => setAddDms(e.target.checked)}
+                  className="cb"
+                />
+                <span>{t('file.addDms')}</span>
+              </label>
+              {signable > 0 && (
+                <label className="text-review">
+                  <input
+                    type="checkbox"
+                    checked={applyRegionSign}
+                    onChange={(e) => setApplyRegionSign(e.target.checked)}
+                    className="cb"
+                  />
+                  <span>{t('file.applyRegionSign', { n: signable, region })}</span>
+                </label>
+              )}
+            </div>
+          </Card>
+        )}
+      </aside>
+
+      <div className="res">
+        {!final || !detection ? (
+          <div className="pane-empty">
+            <Reticle />
+            <b>{source ? t('crs.converting') : t('map.nothingToShow')}</b>
+            <span>{t('map.emptyHint')}</span>
+          </div>
+        ) : (
+          <>
+            <Card
+              n={3}
+              title={t('file.step3')}
+              state={reviewPending ? 'warn' : 'ok'}
+              summary={summary3}
+              open={openCards[3]}
+              onToggle={() => toggleCard(3)}
+            >
+              {/* What goes in here has to *change* when the result changes, or a
+                  screen reader is told nothing after the first load. It used to
+                  say only the row count, which is the one number that does not
+                  move when the column mapping or the coordinate system does -
+                  the two settings most likely to be wrong. */}
+              <p aria-live="polite" className={converting ? 'mb-2 text-xs text-ink-3' : 'sr-only'}>
+                {converting
+                  ? t('crs.converting')
+                  : t('file.doneCounts', {
+                    n: final.rows.length,
+                    ok: okCount,
+                    swap: pendingCount,
+                    bad: badCount,
+                  })}
+              </p>
+
+              <div className="readout">
+                {STATUSES.map((s) => (
+                  counts.get(s) ? (
+                    <div key={s} className={`stat ${STATUS_TONE[s]}`}>
+                      <div className="n">
+                        {STATUS_MARK[s] && <span className="mk" aria-hidden="true">{STATUS_MARK[s].trim()}</span>}
+                        {counts.get(s)}
+                      </div>
+                      <div className="l">{t(`file.status.${s}`)}</div>
+                    </div>
+                  ) : null
+                ))}
+                {summary && (
+                  <dl className="sum">
+                    <div><dt>{t('file.valid')}</dt><dd className="count">{summary.count}</dd></div>
+                    <div><dt>{t('file.latRange')}</dt><dd>{summary.latMin} … {summary.latMax}</dd></div>
+                    <div><dt>{t('file.lonRange')}</dt><dd>{summary.lonMin} … {summary.lonMax}</dd></div>
+                    <div><dt>{t('file.centroid')}</dt><dd>{summary.latMean.toFixed(5)}, {summary.lonMean.toFixed(5)}</dd></div>
+                  </dl>
+                )}
+              </div>
+
+              {detection.detected.size > 0 && (
+                <p className="notice">
+                  {[...detection.detected].map(([name, n]) => (
+                    name
+                      ? t('file.outsideNamed', { n, region: name })
+                      : t('file.outsideUnknown', { n })
+                  )).join(' ')}
+                </p>
+              )}
+
+              {suspects.length > 0 && (
+                <div className={`rv ${reviewed ? 'resolved' : ''}`}>
+                  <h3 className="rv-h">
+                    <button
+                      type="button"
+                      aria-expanded={rvOpen}
+                      aria-controls="rv-body"
+                      onClick={() => { rvTouched.current = true; setRvOpen((v) => !v) }}
+                    >
+                      <span aria-hidden="true">{reviewed ? '✓' : '▲'}</span>
+                      <span>{t('file.swapsFound', { n: suspects.length })}</span>
+                      <span className="chosen">{t('file.swapChosen', { n: accepted.size })}</span>
+                      <Chevron />
+                    </button>
+                  </h3>
+                  <div className="rv-b" id="rv-body" hidden={!rvOpen}>
+                    <p className="s">{t('file.swapsHint')}</p>
+                    <div className="b">
+                      <button
+                        type="button"
+                        onClick={() => answer(new Set(suspects.map((s) => s.i)))}
+                        className="btn sm accent-line"
+                      >
+                        {t('file.swapAll')}
+                      </button>
+                      <button type="button" onClick={() => answer(new Set())} className="btn sm">
+                        {t('file.swapNone')}
+                      </button>
+                      <span>{t('file.swapChosen', { n: accepted.size })}</span>
+                    </div>
+                    <ul>
+                      {suspects.slice(0, 200).map(({ i, label }) => (
+                        <li key={i}>
+                          <input
+                            type="checkbox"
+                            id={`swap-${i}`}
+                            checked={accepted.has(i)}
+                            onChange={(e) => {
+                              const next = new Set(accepted)
+                              if (e.target.checked) next.add(i)
+                              else next.delete(i)
+                              answer(next)
+                            }}
+                            className="cb"
+                          />
+                          <label htmlFor={`swap-${i}`}>
+                            {t('file.rowN', { n: i + 1 })}
+                            {' · '}
+                            {converted.lats[i]}, {converted.lons[i]}
+                            {' → '}
+                            <b>{converted.lons[i]}, {converted.lats[i]}</b>
+                            {' · '}
+                            <span className="st">{t(`file.status.${label}`)}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* The map is the instrument: a point that landed in Sudan is
+                  obvious on it in a second and invisible in a column of numbers.
+                  It takes the width of the pane; the table, which is the detail,
+                  comes below it with every column in view. */}
+              <div className="blk">
+                <div className="cap">
+                  <h3>{t('file.stepMap')}</h3>
+                  <span className="legend"><i style={{ background: COLOR_OK }} />{t('map.legendOk')}</span>
+                  <span className="legend"><i style={{ background: COLOR_SUSPECT }} />{t('map.legendSuspect')}</span>
+                </div>
+                {mapPoints.length > 0 ? (
+                  <div className="map-well">
+                    <PointsMap points={mapPoints} />
+                  </div>
+                ) : (
+                  <div className="pane-empty" style={{ minHeight: '200px' }}>
+                    <b>{t('map.nothingToShow')}</b>
+                    <span>{t('map.emptyHint')}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="blk">
+                <div className="cap">
+                  <h3>{t('file.tableHeading')}</h3>
+                  <span className="sub">
+                    {final.rows.length > PREVIEW_ROWS
+                      ? t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })
+                      : t('file.previewAll', { n: final.rows.length })}
                   </span>
                 </div>
-                <ul className="mt-3 max-h-40 space-y-1 overflow-y-auto text-xs">
-                  {suspects.slice(0, 200).map(({ i, label }) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id={`swap-${i}`}
-                        checked={accepted.has(i)}
-                        onChange={(e) => setAccepted((prev) => {
-                          const next = new Set(prev)
-                          if (e.target.checked) next.add(i)
-                          else next.delete(i)
-                          return next
+                <div className="tbl" tabIndex={0} role="region" aria-label={t('file.tableRegion')}>
+                  <table>
+                    <caption className="sr-only">
+                      {t('file.tableCaption', { shown: Math.min(PREVIEW_ROWS, final.rows.length), total: final.rows.length })}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col" className="num">{t('file.rowHeader')}</th>
+                        {final.columns.map((c, ci) => {
+                          const out = !inputColumns.has(c)
+                          const numeric = /_(DD|\d+)$|^(X|Y)_/.test(c) && !/WKT/.test(c)
+                          return (
+                            <th
+                              key={c}
+                              scope="col"
+                              className={`${out ? 'out' : ''} ${numeric ? 'num' : ''} ${ci === firstOut ? 'first-out' : ''}`}
+                            >
+                              {c}
+                            </th>
+                          )
                         })}
-                        className="h-4 w-4 shrink-0 accent-accent"
-                      />
-                      <label htmlFor={`swap-${i}`} className="font-mono text-slate-400">
-                        {t('file.rowN', { n: i + 1 })}
-                        {' · '}
-                        {converted.lats[i]}, {converted.lons[i]}
-                        {' → '}
-                        <span className="text-accent">{converted.lons[i]}, {converted.lats[i]}</span>
-                        {' · '}
-                        <span className="text-slate-400">{t(`file.status.${label}`)}</span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {summary && (
-              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4">
-                <div><dt className="text-slate-400">{t('file.valid')}</dt><dd className="font-mono text-slate-200">{summary.count}</dd></div>
-                <div><dt className="text-slate-400">{t('file.latRange')}</dt><dd className="font-mono text-slate-200">{summary.latMin} … {summary.latMax}</dd></div>
-                <div><dt className="text-slate-400">{t('file.lonRange')}</dt><dd className="font-mono text-slate-200">{summary.lonMin} … {summary.lonMax}</dd></div>
-                <div><dt className="text-slate-400">{t('file.centroid')}</dt><dd className="font-mono text-slate-200">{summary.latMean.toFixed(5)}, {summary.lonMean.toFixed(5)}</dd></div>
-              </dl>
-            )}
-
-            {/* Two views of one answer, together. The map is the instrument
-                here: a point that landed in Sudan is obvious on it in a second
-                and invisible in a column of numbers. The table is for the
-                detail, which is the second question, not the first.
-
-                Side by side above lg, and on a narrow screen the map comes
-                first - order-1 - because that is the one worth seeing before
-                scrolling. The table keeps its own scrollbar at the map's
-                height so the two stay level instead of one running down the
-                page. */}
-            {/* Both columns are built the same way - a heading, one line of
-                small text, then a box that takes the rest - so the two boxes
-                start and end at the same height whatever is in them. The map's
-                legend and the table's row count are that line of small text on
-                each side. */}
-            <div className="mt-4 grid items-stretch gap-4 lg:grid-cols-5">
-              <div className="order-2 flex min-w-0 flex-col lg:order-1 lg:col-span-3">
-                <h3 className="mb-2 text-sm font-medium text-slate-200">
-                  {t('file.tableHeading')}
-                </h3>
-                <p className="mb-2 text-xs text-slate-400">
-                  {final.rows.length > PREVIEW_ROWS
-                    ? t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })
-                    : t('file.previewAll', { n: final.rows.length })}
-                </p>
-                <div
-                  className="min-h-[320px] flex-1 overflow-auto rounded border border-edge"
-                  tabIndex={0}
-                  role="region"
-                  aria-label={t('file.tableRegion')}
-                >
-              <table className="w-full min-w-max text-xs">
-                <caption className="sr-only">
-                  {t('file.tableCaption', { shown: Math.min(PREVIEW_ROWS, final.rows.length), total: final.rows.length })}
-                </caption>
-                <thead>
-                  <tr className="border-b border-edge bg-panel text-left">
-                    <th scope="col" className="px-2 py-1.5 font-medium text-slate-400">
-                      {t('file.rowHeader')}
-                    </th>
-                    {final.columns.map((c) => (
-                      <th key={c} scope="col" className="whitespace-nowrap px-2 py-1.5 font-medium text-slate-300">{c}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {final.rows.slice(0, PREVIEW_ROWS).map((row, i) => (
-                    <tr
-                      key={i}
-                      className={`border-b border-edge/50 last:border-0
-                                  ${ROW_STYLE[displayLabel(i)] ?? ''}`}
-                    >
-                      {/* The status was in the colour and nowhere else, so a
-                          screen reader was told nothing and anyone who cannot
-                          separate amber from green saw nothing either. The mark
-                          carries it visually, the hidden text carries it
-                          aloud. */}
-                      <th
-                        scope="row"
-                        className={`whitespace-nowrap px-2 py-1 text-left font-mono font-normal
-                                    ${STATUS_STYLE[displayLabel(i)] ?? 'text-slate-400'}`}
-                      >
-                        <span aria-hidden="true">{STATUS_MARK[displayLabel(i)] ?? ''}</span>
-                        {i + 1}
-                        <span className="sr-only">
-                          {', '}
-                          {t(`file.rowStatus.${displayLabel(i)}`)}
-                        </span>
-                      </th>
-                      {row.map((v, c) => (
-                        <td key={c} className="whitespace-nowrap px-2 py-1 font-mono">
-                          {v === null || v === undefined ? '' : String(v)}
-                        </td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {final.rows.slice(0, PREVIEW_ROWS).map((row, i) => (
+                        <tr key={i} className={STATUS_TONE[displayLabels[i]] ?? ''}>
+                          {/* The status was in the colour and nowhere else, so a
+                              screen reader was told nothing and anyone who cannot
+                              separate amber from green saw nothing either. The
+                              mark carries it visually, the hidden text aloud. */}
+                          <th scope="row">
+                            <span aria-hidden="true">{STATUS_MARK[displayLabels[i]] ?? ''}</span>
+                            {i + 1}
+                            <span className="sr-only">
+                              {', '}
+                              {t(`file.rowStatus.${displayLabels[i]}`)}
+                            </span>
+                          </th>
+                          {row.map((v, c) => {
+                            const name = final.columns[c]
+                            const out = !inputColumns.has(name)
+                            const gms = /_GMS$/.test(name)
+                            const numeric = out && !gms && !/WKT/.test(name)
+                            return (
+                              <td
+                                key={c}
+                                className={`${out ? 'out' : ''} ${numeric ? 'num' : ''} ${gms ? 'gms' : ''} ${c === firstOut ? 'first-out' : ''}`}
+                              >
+                                {out && numeric ? <Cell value={v} /> : (v === null || v === undefined ? '' : String(v))}
+                              </td>
+                            )
+                          })}
+                        </tr>
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                    </tbody>
+                  </table>
                 </div>
               </div>
+            </Card>
 
-              <div className="order-1 flex min-w-0 flex-col lg:order-2 lg:col-span-2">
-                <h3 className="mb-2 text-sm font-medium text-slate-200">{t('file.stepMap')}</h3>
-                {mapPoints.length > 0 ? (
-                  <PointsMap points={mapPoints} />
-                ) : (
-                  <>
-                    {/* The line the legend occupies once the map is drawn, so
-                        the two boxes start at the same height either way. */}
-                    <p className="mb-2 text-xs text-slate-400">{t('map.nothingToShow')}</p>
-                    <div className="flex min-h-[320px] flex-1 items-center justify-center
-                                    rounded border border-dashed border-edge p-4">
-                      <p className="text-center text-xs text-slate-500">{t('map.emptyHint')}</p>
-                    </div>
-                  </>
-                )}
+            {/* Gated while the swap question is open: closed, marked, its
+                summary is the question itself, and its buttons wait. Answering
+                the question - either button, or a row's box - is what opens it. */}
+            <Card
+              n={4}
+              title={t('file.step4')}
+              state={reviewPending ? 'warn' : 'ok'}
+              summary={summary4}
+              open={openCards[4]}
+              onToggle={() => toggleCard(4)}
+              className={reviewPending ? 'gated' : ''}
+            >
+              {reviewPending && (
+                <p className="gate"><span aria-hidden="true">▲</span>{t('file.swapsHint')}</p>
+              )}
+              <div className="dl">
+                <DownloadButton
+                  label="Excel"
+                  hint={t('file.xlsxHint')}
+                  file={`${baseName}_convertido.xlsx`}
+                  primary
+                  disabled={reviewPending}
+                  onClick={async () => download(
+                    await toExcelBytes(final),
+                    `${baseName}_convertido.xlsx`,
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  )}
+                />
+                <DownloadButton
+                  label="CSV"
+                  hint={t('file.csvHint')}
+                  file={`${baseName}_convertido.csv`}
+                  disabled={reviewPending}
+                  onClick={() => download(
+                    // The byte-order mark is what makes Excel open a UTF-8 CSV
+                    // with its accents intact instead of as mojibake.
+                    new TextEncoder().encode(`﻿${toCsv(final)}`),
+                    `${baseName}_convertido.csv`,
+                    'text/csv;charset=utf-8',
+                  )}
+                />
+                <DownloadButton
+                  label="GeoJSON"
+                  hint={t('file.gisHint')}
+                  file={`${baseName}.geojson`}
+                  disabled={reviewPending || exportable.features.length === 0}
+                  onClick={() => download(
+                    new TextEncoder().encode(toGeoJSON(exportable.features)),
+                    `${baseName}.geojson`,
+                    'application/geo+json',
+                  )}
+                />
+                <DownloadButton
+                  label="KML"
+                  hint={t('file.kmlHint')}
+                  file={`${baseName}.kml`}
+                  disabled={reviewPending || exportable.features.length === 0}
+                  onClick={() => download(
+                    new TextEncoder().encode(toKML(exportable.features, exportable.fieldNames[0] ?? null)),
+                    `${baseName}.kml`,
+                    'application/vnd.google-earth.kml+xml',
+                  )}
+                />
+                <DownloadButton
+                  label="Shapefile"
+                  hint={t('file.shpHint')}
+                  file={`${baseName}_shapefile.zip`}
+                  disabled={reviewPending || exportable.features.length === 0}
+                  onClick={async () => download(
+                    // The .prj describes the system the geometry is written in.
+                    // Shapefile geometry stays WGS84 here, so the sidecar does
+                    // too: a .prj that names a system the coordinates are not in
+                    // is worse than none.
+                    await toShapefileZip(exportable.features, exportable.fieldNames, baseName,
+                      crs.esriWkt(crs.WGS84).wkt),
+                    `${baseName}_shapefile.zip`,
+                    'application/zip',
+                  )}
+                />
+                <DownloadButton
+                  label="GPX"
+                  hint={t('file.gpxHint')}
+                  file={`${baseName}.gpx`}
+                  disabled={reviewPending || exportable.features.length === 0}
+                  onClick={() => download(
+                    new TextEncoder().encode(toGpx(exportable.features, exportable.fieldNames[0] ?? null)),
+                    `${baseName}.gpx`,
+                    'application/gpx+xml',
+                  )}
+                />
               </div>
-            </div>
-          </Step>
-
-          <Step n={4} title={t('file.step4')}>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              <DownloadButton
-                label="CSV"
-                hint={t('file.csvHint')}
-                onClick={() => download(
-                  // The byte-order mark is what makes Excel open a UTF-8 CSV
-                  // with its accents intact instead of as mojibake.
-                  new TextEncoder().encode(`﻿${toCsv(final)}`),
-                  `${baseName}_convertido.csv`,
-                  'text/csv;charset=utf-8',
-                )}
-              />
-              <DownloadButton
-                label="Excel"
-                hint={t('file.xlsxHint')}
-                onClick={async () => download(
-                  await toExcelBytes(final),
-                  `${baseName}_convertido.xlsx`,
-                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                )}
-              />
-              <DownloadButton
-                label="GeoJSON"
-                hint={t('file.gisHint')}
-                disabled={exportable.features.length === 0}
-                onClick={() => download(
-                  new TextEncoder().encode(toGeoJSON(exportable.features)),
-                  `${baseName}.geojson`,
-                  'application/geo+json',
-                )}
-              />
-              <DownloadButton
-                label="KML"
-                hint={t('file.kmlHint')}
-                disabled={exportable.features.length === 0}
-                onClick={() => download(
-                  new TextEncoder().encode(toKML(exportable.features, exportable.fieldNames[0] ?? null)),
-                  `${baseName}.kml`,
-                  'application/vnd.google-earth.kml+xml',
-                )}
-              />
-              <DownloadButton
-                label="Shapefile"
-                hint={t('file.shpHint')}
-                disabled={exportable.features.length === 0}
-                onClick={async () => download(
-                  // The .prj describes the system the geometry is written in.
-                  // Shapefile geometry stays WGS84 here, so the sidecar does
-                  // too: a .prj that names a system the coordinates are not in
-                  // is worse than none.
-                  await toShapefileZip(exportable.features, exportable.fieldNames, baseName,
-                    crs.esriWkt(crs.WGS84).wkt),
-                  `${baseName}_shapefile.zip`,
-                  'application/zip',
-                )}
-              />
-              <DownloadButton
-                label="GPX"
-                hint={t('file.gpxHint')}
-                disabled={exportable.features.length === 0}
-                onClick={() => download(
-                  new TextEncoder().encode(toGpx(exportable.features, exportable.fieldNames[0] ?? null)),
-                  `${baseName}.gpx`,
-                  'application/gpx+xml',
-                )}
-              />
-            </div>
-            <p className="mt-3 text-xs text-slate-400">{t('file.exportNote')}</p>
-          </Step>
-        </>
-      )}
-    </section>
+              <p className="note">{t('file.exportNote')}</p>
+            </Card>
+          </>
+        )}
+      </div>
+    </div>
   )
 }

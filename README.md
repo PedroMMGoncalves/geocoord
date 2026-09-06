@@ -27,8 +27,8 @@ before anything is changed, transforms between seventeen coordinate reference
 systems plus any UTM zone, and exports to six formats.
 
 **The file never leaves your computer.** It is read and converted in the
-browser; nothing is uploaded anywhere. For unpublished field data that is not a
-detail.
+browser; nothing is uploaded anywhere - not even the fonts are fetched. For
+unpublished field data that is not a detail.
 
 **Live app:** <https://pedrommgoncalves.github.io/geocoord/>
 

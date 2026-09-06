@@ -7,12 +7,6 @@ export default {
     pt: 'Converter um ficheiro',
     en: 'Convert a file',
   },
-  'file.intro': {
-    pt: 'Arraste uma folha de cálculo ou um CSV. O ficheiro é lido e convertido no seu '
-      + 'navegador — nada é enviado para nenhum servidor.',
-    en: 'Drop a spreadsheet or a CSV. The file is read and converted in your browser — '
-      + 'nothing is sent to any server.',
-  },
 
   'file.step1': { pt: 'Ficheiro', en: 'File' },
   'file.step2': { pt: 'Colunas e região', en: 'Columns and region' },
@@ -98,6 +92,13 @@ export default {
   },
   'file.pasteRead': { pt: 'Ler o que está colado', en: 'Read what is pasted' },
 
+  'file.sidebarLabel': { pt: 'Ficheiro e opções', en: 'File and options' },
+  'file.rowsCols': {
+    pt: '{n} linhas, {cols} colunas',
+    ptOne: '{n} linha, {cols} colunas',
+    en: '{n} rows, {cols} columns',
+    enOne: '{n} row, {cols} columns',
+  },
   'file.loaded': {
     pt: '{name} — {n} linhas, {cols} colunas',
     ptOne: '{name} — {n} linha, {cols} colunas',
@@ -170,6 +171,8 @@ export default {
     pt: 'possível troca (fora do sítio)',
     en: 'possible swap (out of place)',
   },
+  // The closed result card counts the rows still waiting for an answer.
+  'file.toReview': { pt: 'a rever', en: 'to review' },
   'file.status.out_of_range': { pt: 'fora do intervalo válido', en: 'out of valid range' },
   'file.status.missing': { pt: 'ilegíveis', en: 'unreadable' },
 

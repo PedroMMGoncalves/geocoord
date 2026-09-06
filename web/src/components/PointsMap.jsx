@@ -22,8 +22,10 @@ const STORAGE_KEY = 'geocoord:basemap'
 
 // Okabe-Ito blue and vermillion, the same pair app.py uses: distinguishable
 // under every common form of colour blindness, which a red/green pair is not.
-const COLOR_OK = '#0072B2'
-const COLOR_SUSPECT = '#D55E00'
+// Exported so the legend, which now sits in the caption line beside the map's
+// title rather than inside this component, draws the same two discs.
+export const COLOR_OK = '#0072B2'
+export const COLOR_SUSPECT = '#D55E00'
 
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services'
 const ESRI_IMAGERY = `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`
@@ -123,6 +125,9 @@ export default function PointsMap({ points }) {
     const map = L.map(containerRef.current, { zoomControl: false })
       .setView([39.5, -8.0], 6)
     L.control.zoom({ position: 'bottomright' }).addTo(map)
+    // A scale bar, metric only: this is a map of field sites, and the question
+    // it answers is how far one is from the next.
+    L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map)
 
     const builders = baseLayers(L)
     let saved
@@ -136,7 +141,9 @@ export default function PointsMap({ points }) {
     const layers = {}
     for (const key of Object.keys(builders)) layers[t(BASE_LABELS[key])] = builders[key]()
     layers[t(BASE_LABELS[active])].addTo(map)
-    L.control.layers(layers, null, { position: 'bottomleft' }).addTo(map)
+    // Above the zoom buttons in the same corner: Leaflet stacks a corner's
+    // controls in the order they are added, later ones on top.
+    L.control.layers(layers, null, { position: 'bottomright' }).addTo(map)
 
     map.on('baselayerchange', (e) => {
       const key = Object.keys(builders).find((k) => t(BASE_LABELS[k]) === e.name)
@@ -192,38 +199,25 @@ export default function PointsMap({ points }) {
 
   if (failed) {
     return (
-      <p className="rounded border border-edge px-3 py-2 text-sm text-slate-400">
+      <p className="px-3 py-2 text-sm text-ink-2">
         {t('map.failed')}
       </p>
     )
   }
 
   return (
-    // A flex column that fills the height it is handed, rather than fixing its
-    // own: beside the results table, the two boxes have to end level, and the
-    // map cannot know how tall the table is.
-    <div className="flex h-full flex-col">
-      <div className="mb-2 flex flex-wrap items-center gap-4 text-xs">
-        <span className="flex items-center gap-1.5 text-slate-300">
-          <span className="inline-block h-3 w-3 rounded-full border border-white/70"
-                style={{ background: COLOR_OK }} />
-          {t('map.legendOk')}
-        </span>
-        <span className="flex items-center gap-1.5 text-slate-300">
-          <span className="inline-block h-3 w-3 rounded-full border border-white/70"
-                style={{ background: COLOR_SUSPECT }} />
-          {t('map.legendSuspect')}
-        </span>
-      </div>
+    // The map and nothing else; the well it sits in, its caption and its
+    // legend belong to the page around it.
+    <>
       <div
         ref={containerRef}
         role="application"
         aria-label={t('map.label')}
-        className="min-h-[320px] w-full flex-1 rounded border border-edge bg-panel"
+        className="h-[340px] w-full bg-map-ground"
       />
       {!lib && (
-        <p className="mt-2 text-xs text-slate-500">{t('map.loading')}</p>
+        <p className="px-3 py-2 text-xs text-ink-3">{t('map.loading')}</p>
       )}
-    </div>
+    </>
   )
 }

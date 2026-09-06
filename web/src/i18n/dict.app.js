@@ -5,9 +5,11 @@
  * dict.<area>.js instead of this one file becoming unwieldy.
  */
 export default {
-  'app.subtitle': {
-    pt: 'Conversor de coordenadas GMS para graus decimais',
-    en: 'DMS to decimal degrees coordinate converter',
+  // The one promise the page makes, worn as a badge in the header. It used
+  // to be said in each tab's own intro, in two different registers.
+  'app.privacy': {
+    pt: 'Nada é enviado para lado nenhum.',
+    en: 'Nothing is sent anywhere.',
   },
   'app.skipToContent': {
     pt: 'Saltar para o conteúdo',

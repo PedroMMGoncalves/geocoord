@@ -17,14 +17,14 @@ function Mark() {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.75"
       strokeLinecap="round"
-      className="h-6 w-6 shrink-0 text-accent"
+      className="mark"
       aria-hidden="true"
     >
-      <circle cx="12" cy="12" r="7" />
-      <circle cx="12" cy="12" r="1.4" fill="currentColor" />
-      <path d="M12 1v4M12 19v4M1 12h4M19 12h4" />
+      <circle cx="12" cy="12" r="7.25" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <path d="M12 1.5v5M12 17.5v5M1.5 12h5M17.5 12h5" />
     </svg>
   )
 }
@@ -74,32 +74,53 @@ function AppInner({ lang, setLang }) {
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50
                    focus:rounded focus:bg-accent focus:px-3 focus:py-2 focus:text-sm
-                   focus:font-medium focus:text-panel"
+                   focus:font-medium focus:text-accent-ink"
       >
         {t('app.skipToContent')}
       </a>
-      <header className="border-b border-edge bg-surface px-4 py-3 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Mark />
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-semibold text-slate-100">GeoCoord</span>
-                <span className="text-xs text-slate-400">v{import.meta.env.APP_VERSION}</span>
-              </div>
-              <p className="text-sm text-slate-400">{t('app.subtitle')}</p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <label htmlFor="lang-select" className="text-xs text-slate-400">
-              {t('app.langLabel')}
-            </label>
+      {/* One row: the brand, the two sections, and the two things worth
+          knowing at a glance. It used to be four rows - a header, a subtitle,
+          a tab bar, then each tab's own heading and intro - before anything
+          could be done. */}
+      <header className="top">
+        <div className="brand">
+          <Mark />
+          <span className="name">GeoCoord</span>
+          <span className="ver">v{import.meta.env.APP_VERSION}</span>
+        </div>
+
+        <nav className="tabs" aria-label={t('app.sections')}>
+          {TABS.map(({ id, key }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              aria-current={tab === id ? 'page' : undefined}
+              className={`tab ${tab === id ? 'is-active' : ''}`}
+            >
+              {t(key)}
+            </button>
+          ))}
+        </nav>
+
+        <div className="util">
+          {/* The one promise this page makes, said once, where it is seen on
+              either tab as the page opens. */}
+          <span className="badge">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+              <rect x="3" y="7" width="10" height="7" rx="1.5" />
+              <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+            </svg>
+            {t('app.privacy')}
+          </span>
+          <label className="lang">
+            <span>{t('app.langLabel')}</span>
             <select
               id="lang-select"
               value={lang}
               onChange={(e) => setLang(e.target.value)}
-              className="rounded border border-edge bg-panel px-2 py-1 text-sm text-slate-200"
+              className="sel"
             >
               {LANGS.map((l) => (
                 <option key={l.code} value={l.code}>
@@ -107,29 +128,9 @@ function AppInner({ lang, setLang }) {
                 </option>
               ))}
             </select>
-          </div>
+          </label>
         </div>
       </header>
-
-      <nav className="border-b border-edge bg-surface px-4 sm:px-6" aria-label={t('app.sections')}>
-        <div className="flex gap-1">
-          {TABS.map(({ id, key }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              aria-current={tab === id ? 'page' : undefined}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors
-                          focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent
-                          ${tab === id
-                            ? 'border-accent text-accent'
-                            : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-            >
-              {t(key)}
-            </button>
-          ))}
-        </div>
-      </nav>
 
       <main id="main" tabIndex={-1} className="flex-1">
         {tab === 'file' ? <FileConvert /> : <QuickConvert />}
