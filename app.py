@@ -419,7 +419,6 @@ with tab_file:
 
         name = uploaded.name.lower()
         notes: list[dict] = []
-        declared_crs = None
         try:
             # KML, KMZ, GeoJSON and GPX: the formats this application already
             # writes, read back. These come with more than a table - a GPX whose
@@ -429,7 +428,7 @@ with tab_file:
             if is_geospatial(name):
                 uploaded.seek(0)
                 read = read_geospatial_bytes(uploaded.read(), name)
-                df, notes, declared_crs = read.table, read.notes, read.crs
+                df, notes = read.table, read.notes
             elif name.endswith(".csv"):
                 with st.expander("Read options (CSV)"):
                     sep_label = st.selectbox(
@@ -466,11 +465,17 @@ with tab_file:
                 st.info(f"The marked waypoints were read. The file also holds "
                         f"{note['count']} track or route point(s), which were not.")
             elif code == "geojson_crs":
-                st.warning(f"The file declares the {note['crs']} system, so its "
-                           f"coordinates are metres rather than degrees. Choose "
-                           f"that system as the input below.")
-        del declared_crs   # surfaced above; the picker below stays the user's
-
+                # This build reads WGS84 degrees and has no input-system picker,
+                # so every row of a projected file fails the range check with
+                # nothing to explain why. The web version does have one, and
+                # picks the declared system by itself.
+                st.warning(
+                    f"The file declares the {note['crs']} system, so its "
+                    f"coordinates are metres rather than degrees. This build "
+                    f"converts WGS84 degrees only, so every row will fail. Open "
+                    f"the file at https://pedrommgoncalves.github.io/geocoord/ , "
+                    f"which reads {note['crs']} and selects it for you, or "
+                    f"reproject the file to WGS84 first.")
         df = tidy_table(df)
         if df.empty:
             st.warning("The file contains no rows to process.")
