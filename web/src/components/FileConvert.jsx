@@ -368,6 +368,16 @@ export default function FileConvert() {
   const outputCrs = resolve(outputSel)
   const projectedInput = inputCrs !== null && inputCrs.kind === 'projected'
 
+  // A region's display name. The key is the identifier - it is contract data -
+  // and this is what the reader sees; a key with no entry falls back to itself,
+  // so a new mask shows its own name rather than "region.Whatever".
+  const regionLabel = useCallback((name) => {
+    if (name === 'auto') return t('file.regionAuto')
+    const key = `region.${name}`
+    const shown = t(key)
+    return shown === key ? name : shown
+  }, [t])
+
   const inputRef = useRef(null)
   // The file's name, outside React state: the re-read effect needs it without
   // taking a dependency on the source it is about to replace.
@@ -776,7 +786,7 @@ export default function FileConvert() {
   const summary2 = source && latCol && lonCol
     ? [
       `${latCol} / ${lonCol}`,
-      region === 'auto' ? t('file.regionAuto') : region,
+      regionLabel(region),
       inputCrs ? `${inputCrs.label}${inputCrs.epsg ? ` — EPSG:${inputCrs.epsg}` : ''}` : null,
       outputCrs ? `+ ${outputCrs.label}` : null,
       `${decimals} ${t('file.decimals').toLowerCase()}`,
@@ -950,7 +960,9 @@ export default function FileConvert() {
               </Select>
               <Select id="region" label={t('file.region')} value={region} onChange={setRegion}>
                 <option value="auto">{t('file.regionAuto')}</option>
-                {Object.keys(REGION_MASKS).map((r) => <option key={r} value={r}>{r}</option>)}
+                {Object.keys(REGION_MASKS).map((r) => (
+                  <option key={r} value={r}>{regionLabel(r)}</option>
+                ))}
               </Select>
               <CrsSelect id="crs-in" label={t('crs.input')} value={inputSel} onChange={setInputSel} t={t} />
               <CrsSelect
@@ -1036,7 +1048,7 @@ export default function FileConvert() {
                     onChange={(e) => setApplyRegionSign(e.target.checked)}
                     className="cb"
                   />
-                  <span>{t('file.applyRegionSign', { n: signable, region })}</span>
+                  <span>{t('file.applyRegionSign', { n: signable, region: regionLabel(region) })}</span>
                 </label>
               )}
             </div>
@@ -1112,7 +1124,7 @@ export default function FileConvert() {
                   boxes. Entries naming another region stay: they are a
                   different fact. */}
               {(() => {
-                const chosenName = region === 'auto' ? t('file.regionAuto') : region
+                const chosenName = regionLabel(region)
                 const entries = [...detection.detected]
                   .filter(([name]) => name !== null || suggestion === null)
                 if (entries.length === 0) return null
@@ -1120,7 +1132,7 @@ export default function FileConvert() {
                   <p className="notice">
                     {entries.map(([name, n]) => (
                       name
-                        ? t('file.outsideNamed', { n, region: name, chosen: chosenName })
+                        ? t('file.outsideNamed', { n, region: regionLabel(name), chosen: chosenName })
                         : t('file.outsideUnknown', { n, chosen: chosenName })
                     )).join(' ')}
                   </p>
@@ -1134,23 +1146,29 @@ export default function FileConvert() {
               {suggestion && (
                 <div className="notice">
                   <p className="m-0">
-                    {t('file.suggestRegion', {
-                      chosen: region === 'auto' ? t('file.regionAuto') : region,
-                    })}
+                    {t('file.suggestRegion', { chosen: regionLabel(region) })}
                   </p>
                   <p className="mt-1">
-                    {t('file.suggestRegionFit', {
-                      region: suggestion.region,
-                      inside: suggestion.inside,
-                      readable: suggestion.readable,
-                    })}
+                    {t(
+                      // Every record fitting is the common case and reads
+                      // better without the fraction; the guard allows a fifth
+                      // of them not to, and then the fraction is the fact.
+                      suggestion.inside === suggestion.readable
+                        ? 'file.suggestRegionFit'
+                        : 'file.suggestRegionFitSome',
+                      {
+                        region: regionLabel(suggestion.region),
+                        inside: suggestion.inside,
+                        readable: suggestion.readable,
+                      },
+                    )}
                   </p>
                   <button
                     type="button"
                     className="btn sm accent-line mt-2"
                     onClick={() => setRegion(suggestion.region)}
                   >
-                    {t('file.suggestRegionUse', { region: suggestion.region })}
+                    {t('file.suggestRegionUse', { region: regionLabel(suggestion.region) })}
                   </button>
                 </div>
               )}

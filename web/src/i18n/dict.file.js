@@ -141,6 +141,25 @@ export default {
   'file.latColumn': { pt: 'Coluna da latitude', en: 'Latitude column' },
   'file.lonColumn': { pt: 'Coluna da longitude', en: 'Longitude column' },
   'file.region': { pt: 'Região esperada', en: 'Expected region' },
+
+  // The regions are keys of REGION_MASKS, and those keys are data: they are in
+  // the parity contract, in app.py and in both test suites, so they stay as
+  // they are. What was wrong is that they were also the text on screen, in
+  // whatever language each happened to have been written in - so Portuguese
+  // showed "Azores" and "Portugal mainland" while English showed "Moçambique"
+  // and "Guiné-Bissau". Half of them were wrong in each language. The key is
+  // the identifier; this is the name.
+  'region.Portugal mainland': { pt: 'Portugal Continental', en: 'Mainland Portugal' },
+  'region.Azores': { pt: 'Açores', en: 'Azores' },
+  'region.Madeira': { pt: 'Madeira', en: 'Madeira' },
+  'region.Angola': { pt: 'Angola', en: 'Angola' },
+  'region.Cabo Verde': { pt: 'Cabo Verde', en: 'Cape Verde' },
+  'region.Guiné-Bissau': { pt: 'Guiné-Bissau', en: 'Guinea-Bissau' },
+  'region.Moçambique': { pt: 'Moçambique', en: 'Mozambique' },
+  'region.São Tomé e Príncipe': {
+    pt: 'São Tomé e Príncipe',
+    en: 'São Tomé and Príncipe',
+  },
   'file.regionAuto': {
     pt: 'Automático (maior agrupamento)',
     en: 'Automatic (largest cluster)',
@@ -205,12 +224,28 @@ export default {
   // written - they are in Sudan - and it is the flip that puts them there. A
   // reader who is not told that cannot judge the offer.
   'file.suggestRegion': {
-    pt: 'Estes valores caem fora de {chosen} e de todas as regiões conhecidas.',
-    en: 'These values fall outside {chosen} and every known region.',
+    pt: 'Estes valores caem fora de {chosen}.',
+    en: 'These values fall outside {chosen}.',
   },
+  // "e de todas as regiões conhecidas" was in this sentence and was false on
+  // its face: the region offered on the next line is a known region. It was
+  // only true of the values *as written*, and saying so made the sentence
+  // heavier than the fact was worth.
+  //
+  // "Se forem" carries the uncertainty that the application actually has, which
+  // is why no disclaimer is needed after it. And "dentro da região" rather than
+  // "dentro do país": the Azores and Madeira can both be suggested - an Azores
+  // file written without the W on its longitudes is exactly this case - and
+  // neither is a country.
   'file.suggestRegionFit': {
-    pt: 'Com o sinal de {region}, ficam {inside} de {readable} dentro do país.',
-    en: 'With the sign of {region}, {inside} of {readable} fall inside the country.',
+    pt: 'Se forem coordenadas de {region}, os {readable} registos ficam dentro da região.',
+    en: 'If these are {region} coordinates, all {readable} records fall inside the region.',
+  },
+  'file.suggestRegionFitSome': {
+    pt: 'Se forem coordenadas de {region}, {inside} dos {readable} registos ficam '
+      + 'dentro da região.',
+    en: 'If these are {region} coordinates, {inside} of the {readable} records fall '
+      + 'inside the region.',
   },
   'file.suggestRegionUse': { pt: 'Usar {region}', en: 'Use {region}' },
 
