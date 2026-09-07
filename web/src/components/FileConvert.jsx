@@ -672,15 +672,22 @@ export default function FileConvert() {
     if (!rvTouched.current) setRvOpen(false)
   }, [])
 
-  // The cards follow the work. Each closes on its own once its step is done,
-  // unless the user has taken it in hand.
+  // The cards follow the work, with one deliberate exception.
+  //
+  // 01 folds once there is a file: nobody picks the same file twice. 04 waits
+  // for the swap question and opens when it is answered.
+  //
+  // 02 never folds on its own. It is not a step that completes - it is where
+  // the work is tuned. The guessed column is wrong, the region is not the
+  // default, the file is in metres, six decimals is too many: every one of
+  // those is a return to 02, and it is the *first* thing anyone does after
+  // reading the result. Folding it away put the controls most likely to be
+  // needed behind a click, to save a strip of screen the page was not short
+  // of. It still closes if the user closes it.
   const hasSource = source !== null
   useEffect(() => {
     if (!touched.current.has(1)) setOpen(1, !hasSource)
   }, [hasSource, setOpen])
-  useEffect(() => {
-    if (!touched.current.has(2)) setOpen(2, final === null)
-  }, [final, setOpen])
   useEffect(() => {
     if (!touched.current.has(4)) setOpen(4, !reviewPending)
   }, [reviewPending, final, setOpen])

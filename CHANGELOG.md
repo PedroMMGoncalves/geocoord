@@ -28,7 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `amostras.xlsx — 23 linhas, 4 colunas`, `02` to `Latitude / Longitude ·
   Moçambique · WGS 84 — EPSG:4326 · 6 casas decimais` - so a glance confirms
   every setting without opening anything and the page compresses as the work
-  progresses. A card the user has opened stays as they left it. Closed, the
+  progresses - except step 2, the columns and the region, which stays open
+  because it is not a step that completes but the place the work is tuned, and
+  the first thing anyone returns to after reading the result. A card the user
+  has opened or closed stays as they left it. Closed, the
   two input cards share one row above the answer, which takes the full width
   below them - the file and its settings were in a sidebar for one version,
   and once they had folded to their summaries the sidebar was a column of
