@@ -176,18 +176,35 @@ export default {
   'file.status.out_of_range': { pt: 'fora do intervalo válido', en: 'out of valid range' },
   'file.status.missing': { pt: 'ilegíveis', en: 'unreadable' },
 
+  // The chosen region is named rather than referred to. "Outside the chosen
+  // region" is true of a file in Angola and of a file in the sea, and the
+  // reader cannot tell which without knowing what was chosen - which, until
+  // they touch the picker, is whatever the application chose for them.
   'file.outsideNamed': {
-    pt: '{n} coordenadas válidas caem em {region}, não na região escolhida.',
-    ptOne: 'Uma coordenada válida cai em {region}, não na região escolhida.',
-    en: '{n} valid coordinates fall in {region}, not in the chosen region.',
-    enOne: 'One valid coordinate falls in {region}, not in the chosen region.',
+    pt: '{n} coordenadas válidas caem em {region}, não em {chosen}.',
+    ptOne: 'Uma coordenada válida cai em {region}, não em {chosen}.',
+    en: '{n} valid coordinates fall in {region}, not in {chosen}.',
+    enOne: 'One valid coordinate falls in {region}, not in {chosen}.',
   },
   'file.outsideUnknown': {
-    pt: '{n} coordenadas válidas caem fora da região escolhida e de todas as regiões conhecidas.',
-    ptOne: 'Uma coordenada válida cai fora da região escolhida e de todas as regiões conhecidas.',
-    en: '{n} valid coordinates fall outside the chosen region and every known region.',
-    enOne: 'One valid coordinate falls outside the chosen region and every known region.',
+    pt: '{n} coordenadas válidas caem fora de {chosen} e de todas as regiões conhecidas.',
+    ptOne: 'Uma coordenada válida cai fora de {chosen} e de todas as regiões conhecidas.',
+    en: '{n} valid coordinates fall outside {chosen} and every known region.',
+    enOne: 'One valid coordinate falls outside {chosen} and every known region.',
   },
+  // The question, put rather than answered. It names what would change and by
+  // how much, and the decision stays with the person who collected the data.
+  'file.suggestRegion': {
+    pt: 'Estes valores não fazem sentido em {chosen}. Com o sinal de {region} '
+      + 'ficariam {inside} de {readable} dentro do país.',
+    en: 'These values make no sense in {chosen}. With the sign of {region}, '
+      + '{inside} of {readable} would fall inside the country.',
+  },
+  'file.suggestRegionAsk': {
+    pt: 'Só quem recolheu os dados sabe se é esse o sítio.',
+    en: 'Only whoever collected the data knows whether that is the place.',
+  },
+  'file.suggestRegionUse': { pt: 'Usar {region}', en: 'Use {region}' },
 
   'file.swapsFound': {
     pt: '{n} linhas parecem ter a latitude e a longitude trocadas.',

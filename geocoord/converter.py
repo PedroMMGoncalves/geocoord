@@ -739,6 +739,84 @@ def identify_region(lat, lon, regions):
     return None
 
 
+def suggest_region(lat_values, lon_values, regions, chosen=None,
+                   min_rows=3, min_share=0.8):
+    """The known region whose own sign would put this file inside it.
+
+    A field notebook from the southern hemisphere is routinely written without
+    signs, because the survey knew which side of the equator it stood on. Read
+    literally, Tete is Sudan. :func:`unsigned_outside_region` fixes that, but
+    only against the region the user has *declared* - it is the only place the
+    information can come from - so a user who never touches the region picker
+    gets the default's answer to a question they did not know was being asked.
+
+    This does not answer it either. It asks it. For each known region it
+    applies that region's sign to the unsigned values and counts how many rows
+    would then fall inside; if one region takes nearly all of them and the
+    declared region takes fewer, its name is returned so an interface can put
+    the question to the user.
+
+    **It cannot tell a Moçambique file from a Sudan file, and does not try.**
+    Both are unsigned magnitudes near 15 N; only the person who collected them
+    knows. What it can say is that one sign flip would put every point inside a
+    country this application knows, which is a fact worth showing to somebody
+    whose alternative is the silent reading - as written, in the sea south of
+    Khartoum, with nothing to say why.
+
+    ``regions`` is a name -> mask mapping. ``chosen`` is the declared region's
+    name, excluded from the candidates and used as the bar to beat. Returns
+    ``{"region", "inside", "readable", "flips"}`` or ``None``.
+
+    Only a region that requires at least one sign flip is offered:
+    :func:`region_check` already reports points that sit in another region as
+    written, and saying it twice would train the reader to skip both.
+    """
+    parsed = [
+        (parse_coordinate(a), parse_coordinate(b))
+        for a, b in zip(lat_values, lon_values)
+    ]
+    readable = [i for i, (a, b) in enumerate(parsed) if a is not None and b is not None]
+    if len(readable) < min_rows:
+        return None
+
+    def inside_with(mask):
+        """Rows inside ``mask`` once its sign is applied, and how many flipped."""
+        sign_lat = unsigned_outside_region(lat_values, "lat", mask)
+        sign_lon = unsigned_outside_region(lon_values, "lon", mask)
+        inside = 0
+        flips = 0
+        for i in readable:
+            lat, lon = parsed[i]
+            if sign_lat[i]:
+                lat = -abs(lat)
+                flips += 1
+            if sign_lon[i]:
+                lon = -abs(lon)
+                flips += 1
+            if point_in_mask(lat, lon, mask):
+                inside += 1
+        return inside, flips
+
+    bar = inside_with(regions[chosen])[0] if chosen in regions else 0
+
+    best = None
+    for name, mask in regions.items():
+        if name == chosen:
+            continue
+        inside, flips = inside_with(mask)
+        if flips == 0 or inside <= bar or inside < min_share * len(readable):
+            continue
+        # A tie is not evidence: two regions fitting equally well means the
+        # file could be in either, and naming one would be a guess.
+        if best is not None and inside == best["inside"]:
+            best = None
+            break
+        if best is None or inside > best["inside"]:
+            best = {"region": name, "inside": inside,
+                    "readable": len(readable), "flips": flips}
+    return best
+
+
 def region_check(lats, lons, labels, regions, mask=None, reference=None,
                  region_radius=10.0):
     """Find valid ('ok') points that fall outside the region the user declared.

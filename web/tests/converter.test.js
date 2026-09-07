@@ -16,7 +16,9 @@ import {
   regionCheck,
   tidyTable,
   unsignedOutsideRegion,
+  suggestRegion,
 } from '../src/core/converter.js'
+import fixtures from '../../tests/fixtures/parity.json' with { type: 'json' }
 
 describe('parity fixtures', () => {
   // A tripwire against a truncated, empty or half-written contract, not a
@@ -181,5 +183,15 @@ describe('numpy-compatible statistics', () => {
     expect(median([1, 3])).toBeCloseTo(2, 12)
     expect(median([2, 4])).toBeCloseTo(3, 12)
     expect(median([1, 2, 3])).toBe(2)
+  })
+})
+
+describe('suggestRegion', () => {
+  // The question the application cannot answer for itself: a file of unsigned
+  // magnitudes near 15 N is Moçambique or it is Sudan, and only the person who
+  // collected it knows. What it can say is that one sign flip would put every
+  // point inside a country it knows.
+  it.each(fixtures.suggest_region.map((c) => [c.id, c]))('%s', (_id, c) => {
+    expect(suggestRegion(c.lat, c.lon, c.regions, c.chosen)).toEqual(c.expected)
   })
 })

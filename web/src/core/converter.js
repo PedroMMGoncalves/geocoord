@@ -736,6 +736,73 @@ export function detectSwaps(lats, lons, options = {}) {
  * matches no known region) to a count. A Map is used rather than a plain object
  * because null is a legitimate key here.
  */
+/**
+ * The known region whose own sign would put this file inside it.
+ *
+ * A field notebook from the southern hemisphere is routinely written without
+ * signs, because the survey knew which side of the equator it stood on. Read
+ * literally, Tete is Sudan. unsignedOutsideRegion fixes that, but only against
+ * the region the user has *declared* - it is the only place the information can
+ * come from - so a user who never touches the region picker gets the default's
+ * answer to a question they did not know was being asked.
+ *
+ * This does not answer it either. It asks it. For each known region it applies
+ * that region's sign to the unsigned values and counts how many rows would then
+ * fall inside; if one region takes nearly all of them and the declared region
+ * takes fewer, its name is returned so the interface can put the question.
+ *
+ * It cannot tell a Moçambique file from a Sudan file, and does not try. Both
+ * are unsigned magnitudes near 15 N; only the person who collected them knows.
+ * What it can say is that one sign flip would put every point inside a country
+ * this application knows - a fact worth showing to somebody whose alternative
+ * is the silent reading, in the sea south of Khartoum, with nothing to say why.
+ *
+ * Only a region needing at least one flip is offered: regionCheck already
+ * reports points sitting in another region as written, and saying it twice
+ * would train the reader to skip both.
+ *
+ * Mirrors suggest_region() in geocoord/converter.py.
+ */
+export function suggestRegion(latValues, lonValues, regions, chosen = null,
+  minRows = 3, minShare = 0.8) {
+  const parsed = latValues.map((v, i) => [parseCoordinate(v), parseCoordinate(lonValues[i])])
+  const readable = []
+  parsed.forEach(([a, b], i) => { if (a !== null && b !== null) readable.push(i) })
+  if (readable.length < minRows) return null
+
+  const insideWith = (mask) => {
+    const signLat = unsignedOutsideRegion(latValues, 'lat', mask)
+    const signLon = unsignedOutsideRegion(lonValues, 'lon', mask)
+    let inside = 0
+    let flips = 0
+    for (const i of readable) {
+      let [lat, lon] = parsed[i]
+      if (signLat[i]) { lat = -Math.abs(lat); flips += 1 }
+      if (signLon[i]) { lon = -Math.abs(lon); flips += 1 }
+      if (pointInMask(lat, lon, mask)) inside += 1
+    }
+    return { inside, flips }
+  }
+
+  const bar = Object.prototype.hasOwnProperty.call(regions, chosen)
+    ? insideWith(regions[chosen]).inside
+    : 0
+
+  let best = null
+  for (const [name, mask] of Object.entries(regions)) {
+    if (name === chosen) continue
+    const { inside, flips } = insideWith(mask)
+    if (flips === 0 || inside <= bar || inside < minShare * readable.length) continue
+    // A tie is not evidence: two regions fitting equally well means the file
+    // could be in either, and naming one would be a guess.
+    if (best !== null && inside === best.inside) { best = null; break }
+    if (best === null || inside > best.inside) {
+      best = { region: name, inside, readable: readable.length, flips }
+    }
+  }
+  return best
+}
+
 export function regionCheck(lats, lons, labels, regions, options = {}) {
   const mask = options.mask ?? null
   const reference = options.reference ?? null

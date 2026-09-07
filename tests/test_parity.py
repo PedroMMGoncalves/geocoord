@@ -33,6 +33,7 @@ from geocoord.converter import (
     parse_projected,
     point_in_mask,
     region_check,
+    suggest_region,
     tidy_table,
 )
 from geocoord.georead import read_geospatial_bytes
@@ -142,6 +143,17 @@ def test_region_check(case):
     )
     assert out_idx == case["expected"]["out_idx"]
     assert [[k, v] for k, v in detected.items()] == case["expected"]["detected"]
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["suggest_region"], ids=ids(FIXTURES["suggest_region"])
+)
+def test_suggest_region(case):
+    # The question the application cannot answer for itself, asked the same way
+    # on both sides: which known region's sign would put this file inside it.
+    assert suggest_region(
+        case["lat"], case["lon"], case["regions"], case["chosen"],
+    ) == case["expected"]
 
 
 @pytest.mark.parametrize(

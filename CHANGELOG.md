@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A file whose coordinates land nowhere is asked about rather than left as it
+  is. A field notebook from the southern hemisphere is routinely written
+  unsigned, because the survey knew which side of the equator it stood on, and
+  read literally Tete is Sudan. The application already fixes that, but only
+  against the region the user *declared* - the only place the information can
+  come from - so a user who never touched the region picker got the default's
+  answer to a question they did not know was being asked. Now, when the chosen
+  region leaves the points nowhere known and one known region's sign would take
+  nearly all of them, that region is named with the numbers and a button:
+  *"Estes valores não fazem sentido em Portugal continental. Com o sinal de
+  Moçambique ficariam 22 de 22 dentro do país. Só quem recolheu os dados sabe
+  se é esse o sítio."* It cannot tell a Moçambique file from a Sudan one and
+  does not try - both are unsigned magnitudes near 15 N - but it can say that
+  one sign flip would put every point inside a country it knows, which beats
+  the silent reading with nothing to explain it. Eleven cases in the shared
+  contract.
+- The region check names the region that was chosen. "Outside the chosen
+  region" is true of a file in Angola and of a file in the sea, and the reader
+  could not tell which without knowing what had been chosen - which, until they
+  touched the picker, was whatever the application chose for them.
 - KML, KMZ, GeoJSON and GPX are read, not only written. The exporters have
   always produced them; now a file that arrives in one opens. A colleague's
   Google Earth pins, a day of waypoints off a receiver, a layer somebody

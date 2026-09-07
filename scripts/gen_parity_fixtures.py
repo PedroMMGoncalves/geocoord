@@ -32,6 +32,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from geocoord.converter import (
+    suggest_region,
     axis_mismatch,
     detect_swaps,
     guess_coordinate_columns,
@@ -552,6 +553,102 @@ POINT_IN_MASK_INPUTS = [
 #
 # Every dialect here is one a real tool writes. A reader that handles the one
 # its author tested against returns empty columns for the other two.
+# suggest_region asks a question the application cannot answer for itself: a
+# file of unsigned magnitudes near 15 N is Moçambique or it is Sudan, and only
+# the person who collected it knows. What the function can say is that one sign
+# flip would put every point inside a country it knows - which beats the silent
+# reading, in the sea south of Khartoum, with nothing to say why.
+#
+# The regions travel with each case rather than being imported: the masks live
+# in app.py and pipeline.js, and a contract that read one of them would pin the
+# two implementations against a single copy instead of against each other.
+SUGGEST_REGIONS = {
+    "Portugal mainland": [
+        [
+            36.8,
+            42.2,
+            -9.6,
+            -6.1
+        ]
+    ],
+    "Azores": [
+        [
+            36.9,
+            39.8,
+            -31.3,
+            -24.9
+        ]
+    ],
+    "Madeira": [
+        [
+            32.3,
+            33.2,
+            -17.3,
+            -16.2
+        ],
+        [
+            30.0,
+            30.25,
+            -16.1,
+            -15.7
+        ]
+    ],
+    "Angola": [
+        [
+            -18.1,
+            -4.3,
+            11.6,
+            24.2
+        ]
+    ],
+    "Cabo Verde": [
+        [
+            14.7,
+            17.3,
+            -25.5,
+            -22.6
+        ]
+    ],
+    "Guiné-Bissau": [
+        [
+            10.8,
+            12.8,
+            -16.9,
+            -13.5
+        ]
+    ],
+    "Moçambique": [
+        [
+            -27.0,
+            -10.4,
+            30.1,
+            41.0
+        ]
+    ],
+    "São Tomé e Príncipe": [
+        [
+            -0.1,
+            1.8,
+            6.4,
+            7.6
+        ]
+    ]
+}
+
+SUGGEST_INPUTS = [
+    ('tete_unsigned_against_portugal', ['15 22 23', '15 22 37', '15 15 22', '15 22 23', '15 15 55', '15 25 31', '15 03 47', '15 04 47', '14 59 34', '15 34 24'], ['33 53 11', '33 48 37', '33 05 27', '33 53 11', '33 02 37', '31 18 24', '30 26 15', '30 24 54', '30 15 08', '30 32 19'], 'Portugal mainland'),
+    ('portuguese_file_suggests_nothing', ['41.1496', '38.7083', '37.8781', '40.1717', '41.5', '39.2'], ['-8.6104', '-9.1367', '-8.1653', '-7.7560', '-8.4', '-8.9'], 'Portugal mainland'),
+    ('already_signed_needs_no_flip', ['-15.373', '-15.377', '-15.256', '-15.373', '-15.265', '-15.425'], ['33.886', '33.810', '33.090', '33.886', '33.043', '31.306'], 'Portugal mainland'),
+    ('angola_unsigned', ['8 50 00', '9 10 00', '8 30 00', '9 00 00', '8 45 00', '9 20 00'], ['13 14 00', '13 30 00', '13 00 00', '13 20 00', '13 10 00', '13 40 00'], 'Portugal mainland'),
+    ('too_few_rows_is_not_evidence', ['15 22 23', '15 22 37'], ['33 53 11', '33 48 37'], 'Portugal mainland'),
+    ('one_stray_row_does_not_break_the_share', ['15 22 23', '15 22 37', '15 15 22', '15 22 23', '15 15 55', '88.0'], ['33 53 11', '33 48 37', '33 05 27', '33 53 11', '33 02 37', '179.0'], 'Portugal mainland'),
+    ('half_the_rows_is_not_enough', ['15 22 23', '15 22 37', '15 15 22', '88.0', '87.0', '86.0'], ['33 53 11', '33 48 37', '33 05 27', '179.0', '178.0', '177.0'], 'Portugal mainland'),
+    ('unreadable_rows_are_not_counted', ['15 22 23', 'n/d', '15 15 22', '', '15 15 55', '15 25 31'], ['33 53 11', 'n/d', '33 05 27', '', '33 02 37', '31 18 24'], 'Portugal mainland'),
+    ('the_chosen_region_is_never_suggested', ['15 22 23', '15 22 37', '15 15 22', '15 22 23', '15 15 55'], ['33 53 11', '33 48 37', '33 05 27', '33 53 11', '33 02 37'], 'Moçambique'),
+    ('no_region_chosen_at_all', ['15 22 23', '15 22 37', '15 15 22', '15 22 23', '15 15 55'], ['33 53 11', '33 48 37', '33 05 27', '33 53 11', '33 02 37'], None),
+    ('sao_tome_unsigned_south_of_the_equator', ['0 02 00', '0 03 30', '0 01 00', '0 04 00', '0 02 30'], ['6 31 00', '6 33 00', '6 30 00', '6 35 00', '6 32 00'], 'Portugal mainland'),
+]
+
 READ_GEO_INPUTS = [
     # Google Earth: a folder, a name, no structured attributes at all, and a
     # LineString that has no row and must be counted rather than reduced.
@@ -1122,6 +1219,7 @@ def build():
         "region_check": [],
         "read_csv": [],
         "read_geospatial": [],
+        "suggest_region": [],
         "tidy_table": [],
     }
 
@@ -1178,6 +1276,16 @@ def build():
                 "notes": read.notes,
                 "crs": read.crs,
             },
+        })
+
+    for case_id, lat, lon, chosen in SUGGEST_INPUTS:
+        data["suggest_region"].append({
+            "id": case_id,
+            "lat": lat,
+            "lon": lon,
+            "chosen": chosen,
+            "regions": SUGGEST_REGIONS,
+            "expected": suggest_region(lat, lon, SUGGEST_REGIONS, chosen),
         })
 
     for case in TIDY_INPUTS:

@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PointsMap, { COLOR_OK, COLOR_SUSPECT } from './PointsMap.jsx'
-import { detectSwaps, inRange, parseCoordinate, regionCheck, tidyTable } from '../core/converter.js'
+import {
+  detectSwaps,
+  inRange,
+  parseCoordinate,
+  regionCheck,
+  suggestRegion,
+  tidyTable,
+} from '../core/converter.js'
 import { sanitizeFilename, toGeoJSON, toKML, toShapefileZip } from '../core/geoexport.js'
 import {
   REGION_MASKS,
@@ -622,6 +629,22 @@ export default function FileConvert() {
     return { labels, detected }
   }, [converted, region])
 
+  // Which region's sign would put this file somewhere, if the declared one
+  // leaves it nowhere. The raw column values, not the converted ones: the
+  // question is about the sign the file was written without.
+  const suggestion = useMemo(() => {
+    if (!source || !latCol || !lonCol || projectedInput) return null
+    const li = source.table.columns.indexOf(latCol)
+    const oi = source.table.columns.indexOf(lonCol)
+    if (li < 0 || oi < 0) return null
+    return suggestRegion(
+      source.table.rows.map((r) => r[li]),
+      source.table.rows.map((r) => r[oi]),
+      REGION_MASKS,
+      region === 'auto' ? null : region,
+    )
+  }, [source, latCol, lonCol, region, projectedInput])
+
   // The count survives the checkbox being unticked: buildResult reports how
   // many rows the region *could* sign either way, so the offer does not
   // vanish the moment it is declined.
@@ -1087,10 +1110,39 @@ export default function FileConvert() {
                 <p className="notice">
                   {[...detection.detected].map(([name, n]) => (
                     name
-                      ? t('file.outsideNamed', { n, region: name })
-                      : t('file.outsideUnknown', { n })
+                      ? t('file.outsideNamed', {
+                        n, region: name, chosen: region === 'auto' ? t('file.regionAuto') : region,
+                      })
+                      : t('file.outsideUnknown', {
+                        n, chosen: region === 'auto' ? t('file.regionAuto') : region,
+                      })
                   )).join(' ')}
                 </p>
+              )}
+
+              {/* The application cannot tell a Moçambique file from a Sudan
+                  one - both are unsigned magnitudes near 15 N - so it does not
+                  try. It says what one sign flip would do and leaves the
+                  answer where it belongs. */}
+              {suggestion && (
+                <div className="notice">
+                  <p className="m-0">
+                    {t('file.suggestRegion', {
+                      chosen: region === 'auto' ? t('file.regionAuto') : region,
+                      region: suggestion.region,
+                      inside: suggestion.inside,
+                      readable: suggestion.readable,
+                    })}
+                  </p>
+                  <p className="mt-1 text-ink-2">{t('file.suggestRegionAsk')}</p>
+                  <button
+                    type="button"
+                    className="btn sm accent-line mt-2"
+                    onClick={() => setRegion(suggestion.region)}
+                  >
+                    {t('file.suggestRegionUse', { region: suggestion.region })}
+                  </button>
+                </div>
               )}
 
               {suspects.length > 0 && (
