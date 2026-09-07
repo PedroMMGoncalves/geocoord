@@ -60,9 +60,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The empty drop zone shows a worked example - `38° 42' 30" N  9° 8' 12" W →
   38.708333, -9.136667` - converted by the same code, so the first thing a
   visitor sees is what the tool does.
-- The promise that nothing is sent anywhere is a badge in the header, once,
-  visible on either tab as the page opens. It used to be a sentence at the top
-  of each tab, in two different registers.
+- The header badge says what is true about the data, on two lines: *Dados
+  processados localmente, no seu computador. / Não são enviados para servidores
+  externos.* It used to say "nothing is sent anywhere", which was the least
+  accurate sentence on the page - the map fetches tiles, and that request
+  carries the area being looked at. The claim worth making is about the data,
+  and it stays true with the map open, because a tile request carries none of
+  it. Two lines rather than one for a reason worth recording: stacking trades
+  width, which the header row is short of, for height, which it has - the same
+  claim on one line is 397px wide and gives way 120px sooner. The promise used
+  to be a sentence at the top of each tab, in two different registers.
+- One form of address throughout. The application was already `você` in six
+  places - *Confirme*, *Escolha*, *Divida*, *a sua confirmação*, *Arraste* -
+  against a single `tu` in the single-coordinate tab's opening line, which now
+  matches the rest.
 - An Excel (.xlsx) download on the web page, which the desktop application has
   had since the first release. It sits outside the parity contract for the same
   reason Excel reading does - openpyxl and SheetJS build different workbooks

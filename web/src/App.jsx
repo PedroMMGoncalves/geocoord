@@ -106,13 +106,19 @@ function AppInner({ lang, setLang }) {
 
         <div className="util">
           {/* The one promise this page makes, said once, where it is seen on
-              either tab as the page opens. */}
+              either tab as the page opens. Two lines rather than one because
+              stacking is cheaper here than it looks: it trades width, which
+              this row is short of, for height, which it has - the same claim
+              on one line is 397px wide and disappears 120px sooner. */}
           <span className="badge">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
               <rect x="3" y="7" width="10" height="7" rx="1.5" />
               <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
             </svg>
-            {t('app.privacy')}
+            <span className="badge-lines">
+              <span>{t('app.privacy')}</span>
+              <span>{t('app.privacyMore')}</span>
+            </span>
           </span>
           <label className="lang">
             <span>{t('app.langLabel')}</span>

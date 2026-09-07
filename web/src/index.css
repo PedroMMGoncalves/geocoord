@@ -198,7 +198,11 @@
     padding: 5px 11px 5px 9px; border: 1px solid var(--line-1); border-radius: 999px;
     background: var(--bg-0); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .4);
   }
-  .badge svg { width: 12px; height: 12px; color: var(--accent); }
+  .badge svg { width: 12px; height: 12px; color: var(--accent); flex: none; }
+  /* Claim, then consequence: the second line is dimmer so the two read as one
+     statement rather than two. 6.0:1 on the badge's ground, so still AA. */
+  .badge-lines { display: flex; flex-direction: column; line-height: 1.3; }
+  .badge-lines > :last-child { color: var(--fg-3); }
   .lang { display: flex; align-items: center; gap: 7px; color: var(--fg-3); font-size: 12px; }
 
   /* ---------------- a select, a key you can read ---------------- */

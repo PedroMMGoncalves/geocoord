@@ -7,7 +7,7 @@ export default {
     en: 'Convert one coordinate',
   },
   'quick.intro': {
-    pt: 'Escreve a latitude e a longitude em qualquer formato — graus decimais, '
+    pt: 'Escreva a latitude e a longitude em qualquer formato — graus decimais, '
       + 'graus e minutos, ou graus-minutos-segundos. O hemisfério pode vir em '
       + 'português ou inglês, antes ou depois do valor.',
     en: 'Type the latitude and longitude in any format — decimal degrees, '
