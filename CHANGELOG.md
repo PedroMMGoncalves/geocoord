@@ -18,9 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answer to a question they did not know was being asked. Now, when the chosen
   region leaves the points nowhere known and one known region's sign would take
   nearly all of them, that region is named with the numbers and a button:
-  *"Estes valores não fazem sentido em Portugal continental. Com o sinal de
-  Moçambique ficariam 22 de 22 dentro do país. Só quem recolheu os dados sabe
-  se é esse o sítio."* It cannot tell a Moçambique file from a Sudan one and
+  *"Estes valores caem fora de Portugal continental e de todas as regiões
+  conhecidas. Com o sinal de Moçambique, ficam 22 de 22 dentro do país."* It
+  replaces the plain outside-region notice rather than following it: the two
+  were saying the same thing in two stacked boxes. There is no disclaimer about
+  who really knows where the data was collected - the button says that already,
+  being an offer rather than a correction. It cannot tell a Moçambique file
+  from a Sudan one and
   does not try - both are unsigned magnitudes near 15 N - but it can say that
   one sign flip would put every point inside a country it knows, which beats
   the silent reading with nothing to explain it. Eleven cases in the shared
