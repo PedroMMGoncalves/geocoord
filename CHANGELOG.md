@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Region names read in the reader's language. They are keys of REGION_MASKS,
+  and those keys are data - they sit in the parity contract, in `app.py` and in
+  both test suites - but they were also the text on screen, each in whatever
+  language it happened to have been written in. Portuguese showed *Azores* and
+  *Portugal mainland*; English showed *Moçambique* and *Guiné-Bissau*. Half of
+  them were wrong in each language, and nobody had noticed because each reader
+  sees only one. The keys are unchanged; a display name now sits beside them,
+  so it is *Portugal Continental* / *Mainland Portugal*, *Açores* / *Azores*,
+  *Cabo Verde* / *Cape Verde*.
 - A file whose coordinates land nowhere is asked about rather than left as it
   is. A field notebook from the southern hemisphere is routinely written
   unsigned, because the survey knew which side of the equator it stood on, and
@@ -18,12 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answer to a question they did not know was being asked. Now, when the chosen
   region leaves the points nowhere known and one known region's sign would take
   nearly all of them, that region is named with the numbers and a button:
-  *"Estes valores caem fora de Portugal continental e de todas as regiões
-  conhecidas. Com o sinal de Moçambique, ficam 22 de 22 dentro do país."* It
+  *"Estes valores caem fora de Portugal Continental. Se forem coordenadas de
+  Moçambique, os 22 registos ficam dentro da região."* It
   replaces the plain outside-region notice rather than following it: the two
   were saying the same thing in two stacked boxes. There is no disclaimer about
-  who really knows where the data was collected - the button says that already,
-  being an offer rather than a correction. It cannot tell a Moçambique file
+  who really knows where the data was collected: "se forem" carries the
+  uncertainty the application actually has, and the button says the rest, being
+  an offer rather than a correction. It says "dentro da região" and not "do
+  país", because the Azores and Madeira can both be suggested and neither is a
+  country. It cannot tell a Moçambique file
   from a Sudan one and
   does not try - both are unsigned magnitudes near 15 N - but it can say that
   one sign flip would put every point inside a country it knows, which beats
