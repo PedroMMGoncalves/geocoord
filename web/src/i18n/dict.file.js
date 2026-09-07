@@ -192,17 +192,25 @@ export default {
     en: '{n} valid coordinates fall outside {chosen} and every known region.',
     enOne: 'One valid coordinate falls outside {chosen} and every known region.',
   },
-  // The question, put rather than answered. It names what would change and by
-  // how much, and the decision stays with the person who collected the data.
+  // The question, put rather than answered: the problem, then what one sign
+  // would do about it, then the button. It replaces the plain outside-region
+  // notice rather than following it - they were saying the same thing in two
+  // stacked boxes.
+  //
+  // No disclaimer about who really knows where the data was collected. The
+  // button says that already: it is an offer, not a correction, and nothing
+  // moves until it is pressed. Spelling it out was preaching.
+  //
+  // The sign stays in the sentence. These values are not in Moçambique as
+  // written - they are in Sudan - and it is the flip that puts them there. A
+  // reader who is not told that cannot judge the offer.
   'file.suggestRegion': {
-    pt: 'Estes valores não fazem sentido em {chosen}. Com o sinal de {region} '
-      + 'ficariam {inside} de {readable} dentro do país.',
-    en: 'These values make no sense in {chosen}. With the sign of {region}, '
-      + '{inside} of {readable} would fall inside the country.',
+    pt: 'Estes valores caem fora de {chosen} e de todas as regiões conhecidas.',
+    en: 'These values fall outside {chosen} and every known region.',
   },
-  'file.suggestRegionAsk': {
-    pt: 'Só quem recolheu os dados sabe se é esse o sítio.',
-    en: 'Only whoever collected the data knows whether that is the place.',
+  'file.suggestRegionFit': {
+    pt: 'Com o sinal de {region}, ficam {inside} de {readable} dentro do país.',
+    en: 'With the sign of {region}, {inside} of {readable} fall inside the country.',
   },
   'file.suggestRegionUse': { pt: 'Usar {region}', en: 'Use {region}' },
 

@@ -1106,19 +1106,26 @@ export default function FileConvert() {
                 )}
               </div>
 
-              {detection.detected.size > 0 && (
-                <p className="notice">
-                  {[...detection.detected].map(([name, n]) => (
-                    name
-                      ? t('file.outsideNamed', {
-                        n, region: name, chosen: region === 'auto' ? t('file.regionAuto') : region,
-                      })
-                      : t('file.outsideUnknown', {
-                        n, chosen: region === 'auto' ? t('file.regionAuto') : region,
-                      })
-                  )).join(' ')}
-                </p>
-              )}
+              {/* The unnamed entry - points in no known region at all - is the
+                  one the suggestion below is about, so it is dropped when
+                  there is a suggestion rather than said twice in two stacked
+                  boxes. Entries naming another region stay: they are a
+                  different fact. */}
+              {(() => {
+                const chosenName = region === 'auto' ? t('file.regionAuto') : region
+                const entries = [...detection.detected]
+                  .filter(([name]) => name !== null || suggestion === null)
+                if (entries.length === 0) return null
+                return (
+                  <p className="notice">
+                    {entries.map(([name, n]) => (
+                      name
+                        ? t('file.outsideNamed', { n, region: name, chosen: chosenName })
+                        : t('file.outsideUnknown', { n, chosen: chosenName })
+                    )).join(' ')}
+                  </p>
+                )
+              })()}
 
               {/* The application cannot tell a Moçambique file from a Sudan
                   one - both are unsigned magnitudes near 15 N - so it does not
@@ -1129,12 +1136,15 @@ export default function FileConvert() {
                   <p className="m-0">
                     {t('file.suggestRegion', {
                       chosen: region === 'auto' ? t('file.regionAuto') : region,
+                    })}
+                  </p>
+                  <p className="mt-1">
+                    {t('file.suggestRegionFit', {
                       region: suggestion.region,
                       inside: suggestion.inside,
                       readable: suggestion.readable,
                     })}
                   </p>
-                  <p className="mt-1 text-ink-2">{t('file.suggestRegionAsk')}</p>
                   <button
                     type="button"
                     className="btn sm accent-line mt-2"
