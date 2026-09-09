@@ -202,6 +202,49 @@ def to_kml(features, name_key=None) -> bytes:
     return "".join(parts).encode("utf-8")
 
 
+def gpx_number(value) -> str:
+    """A coordinate as GPX will accept it: plain decimal, never exponential.
+
+    GPX 1.1 types latitude and longitude as restrictions of ``xsd:decimal``,
+    which has no exponent form. Python's ``repr`` gives ``1e-07`` below 1e-4
+    and JavaScript's ``String`` gives ``1e-7`` below 1e-6, so both would emit a
+    document a strict reader - or a receiver - is entitled to reject, and they
+    would disagree with each other about which one. Ten places is past the
+    application's own ceiling of ten decimals, so nothing is lost by fixing it
+    there and dropping the zeros that follow.
+    """
+    text = f"{float(value):.10f}".rstrip("0").rstrip(".")
+    return "0" if text in ("", "-", "-0") else text
+
+
+def to_gpx(features, name_key=None) -> bytes:
+    """The features as GPX 1.1 waypoints.
+
+    A handheld receiver and every field application read GPX, which is where
+    these coordinates usually go next. It carries the point name and nothing
+    else - a GPX round trip is lossy by construction, and the format offers
+    nowhere honest to put an arbitrary attribute column.
+
+    Only ``&``, ``<`` and ``>`` are escaped, which is what ``escape`` from
+    :mod:`xml.sax.saxutils` does and what the KML writer above inherits.
+    """
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<gpx version="1.1" creator="GeoCoord" '
+        'xmlns="http://www.topografix.com/GPX/1/1">',
+    ]
+    for lon, lat, props in features:
+        name = ""
+        if name_key is not None and props.get(name_key) is not None:
+            name = escape(str(props[name_key]))
+        parts.append(
+            f'<wpt lat="{gpx_number(lat)}" lon="{gpx_number(lon)}">'
+            f"<name>{name}</name></wpt>"
+        )
+    parts.append("</gpx>")
+    return "".join(parts).encode("utf-8")
+
+
 def _truncate_bytes(text: str, limit: int = 10) -> str:
     """Cut ``text`` to at most ``limit`` UTF-8 bytes, dropping whole characters.
 

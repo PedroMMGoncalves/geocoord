@@ -8,6 +8,7 @@ import {
   toGeoJSON,
   toKML,
   toShapefileZip,
+  toGpx,
 } from '../src/core/geoexport.js'
 
 describe('sanitizeFilename', () => {
@@ -119,5 +120,27 @@ describe('csvSafe', () => {
   // a negative coordinate begins with a minus.
   it.each(cases('csv_safe'))('%s', (_id, c) => {
     expect(csvSafe(c.input)).toBe(c.expected)
+  })
+})
+
+describe('the GPX contract', () => {
+  it.each(cases('to_gpx'))('%s', (_id, c) => {
+    expect(toGpx(withOrder(c), c.name_key)).toBe(c.expected)
+  })
+
+  it('takes a plain object as well as a Map', () => {
+    // It used to call props.get directly and threw on the plain object every
+    // other writer here accepts.
+    expect(toGpx([[-8.0, 39.0, { nome: 'Beja' }]], 'nome'))
+      .toContain('<name>Beja</name>')
+  })
+
+  it('never writes a coordinate in exponential form', () => {
+    // GPX 1.1 restricts latitude and longitude to xsd:decimal, which has no
+    // exponent. String(1e-7) is "1e-7", which a strict reader may reject.
+    const gpx = toGpx([[1e-7, -1e-7, {}]], null)
+    expect(gpx).not.toMatch(/e-/)
+    expect(gpx).toContain('lat="-0.0000001"')
+    expect(gpx).toContain('lon="0.0000001"')
   })
 })

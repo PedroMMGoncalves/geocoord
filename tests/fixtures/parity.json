@@ -2466,6 +2466,248 @@
       ]
     }
   ],
+  "to_gpx": [
+    {
+      "id": "two_points_text_and_int",
+      "features": [
+        [
+          -8.611,
+          41.1496,
+          {
+            "name": "Porto",
+            "count": 3
+          }
+        ],
+        [
+          -9.1393,
+          38.7223,
+          {
+            "name": "Lisboa",
+            "count": 12
+          }
+        ]
+      ],
+      "name_key": "name",
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"41.1496\" lon=\"-8.611\"><name>Porto</name></wpt><wpt lat=\"38.7223\" lon=\"-9.1393\"><name>Lisboa</name></wpt></gpx>",
+      "prop_order": [
+        [
+          "name",
+          "count"
+        ],
+        [
+          "name",
+          "count"
+        ]
+      ]
+    },
+    {
+      "id": "xml_special_characters",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "note": "A & B <C> \"quoted\" 'apostrophe'"
+          }
+        ]
+      ],
+      "name_key": null,
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"39\" lon=\"-8\"><name></name></wpt></gpx>",
+      "prop_order": [
+        [
+          "note"
+        ]
+      ]
+    },
+    {
+      "id": "long_accented_attribute_truncated",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "note": "ãããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããã"
+          }
+        ]
+      ],
+      "name_key": "note",
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"39\" lon=\"-8\"><name>ãããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããããã</name></wpt></gpx>",
+      "prop_order": [
+        [
+          "note"
+        ]
+      ]
+    },
+    {
+      "id": "accented_attribute_value",
+      "features": [
+        [
+          6.7273,
+          0.1864,
+          {
+            "country": "São Tomé e Príncipe"
+          }
+        ]
+      ],
+      "name_key": "country",
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"0.1864\" lon=\"6.7273\"><name>São Tomé e Príncipe</name></wpt></gpx>",
+      "prop_order": [
+        [
+          "country"
+        ]
+      ]
+    },
+    {
+      "id": "none_and_long_attribute",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "note": null
+          }
+        ],
+        [
+          -8.1,
+          39.1,
+          {
+            "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        ]
+      ],
+      "name_key": null,
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"39\" lon=\"-8\"><name></name></wpt><wpt lat=\"39.1\" lon=\"-8.1\"><name></name></wpt></gpx>",
+      "prop_order": [
+        [
+          "note"
+        ],
+        [
+          "note"
+        ]
+      ]
+    },
+    {
+      "id": "single_point",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "name": "Only"
+          }
+        ]
+      ],
+      "name_key": "name",
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"39\" lon=\"-8\"><name>Only</name></wpt></gpx>",
+      "prop_order": [
+        [
+          "name"
+        ]
+      ]
+    },
+    {
+      "id": "exponential_coordinates",
+      "features": [
+        [
+          1e-05,
+          -51.468987049,
+          {
+            "note": "gap"
+          }
+        ],
+        [
+          -111.9941399921,
+          1e-05,
+          {
+            "note": "gap"
+          }
+        ],
+        [
+          1e-07,
+          -1e-07,
+          {
+            "note": "both exponential"
+          }
+        ],
+        [
+          0.0001,
+          -0.0001,
+          {
+            "note": "neither exponential"
+          }
+        ]
+      ],
+      "name_key": "note",
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"-51.468987049\" lon=\"0.00001\"><name>gap</name></wpt><wpt lat=\"0.00001\" lon=\"-111.9941399921\"><name>gap</name></wpt><wpt lat=\"-0.0000001\" lon=\"0.0000001\"><name>both exponential</name></wpt><wpt lat=\"-0.0001\" lon=\"0.0001\"><name>neither exponential</name></wpt></gpx>",
+      "prop_order": [
+        [
+          "note"
+        ],
+        [
+          "note"
+        ],
+        [
+          "note"
+        ],
+        [
+          "note"
+        ]
+      ]
+    },
+    {
+      "id": "integer_like_property_key",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "local": "Beja",
+            "2024": "12",
+            "nota": "x",
+            "0": "zero"
+          }
+        ]
+      ],
+      "name_key": "local",
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"39\" lon=\"-8\"><name>Beja</name></wpt></gpx>",
+      "prop_order": [
+        [
+          "local",
+          "2024",
+          "nota",
+          "0"
+        ]
+      ]
+    },
+    {
+      "id": "empty_feature_list",
+      "features": [],
+      "name_key": null,
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"></gpx>",
+      "prop_order": []
+    },
+    {
+      "id": "attribute_name_with_a_quote",
+      "features": [
+        [
+          -8.0,
+          39.0,
+          {
+            "a\"b": "v",
+            "c<d": "e&f"
+          }
+        ]
+      ],
+      "name_key": null,
+      "expected": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"GeoCoord\" xmlns=\"http://www.topografix.com/GPX/1/1\"><wpt lat=\"39\" lon=\"-8\"><name></name></wpt></gpx>",
+      "prop_order": [
+        [
+          "a\"b",
+          "c<d"
+        ]
+      ]
+    }
+  ],
   "to_shapefile_zip": [
     {
       "id": "two_points_two_fields",

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The desktop application writes GPX, so both write the same six formats. It
+  had no Python counterpart at all, and writing one exposed two faults in the
+  browser's: it required a `Map` where every other writer here takes a plain
+  object too, and it wrote coordinates with the language's own number
+  formatting, which produces `1e-7` - a form GPX 1.1 does not permit, since it
+  types latitude and longitude as restrictions of `xsd:decimal`. Both sides now
+  write plain decimal to ten places, and GPX has joined the parity contract.
 - Three screenshots in the README, from **synthetic data**: the page after a
   conversion, the review panel holding the downloads, and the region offered to
   a file that reads as Sudan. The coordinates are invented and the generator

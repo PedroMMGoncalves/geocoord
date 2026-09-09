@@ -21,6 +21,7 @@ from geocoord.geoexport import (
     to_excel_bytes,
     sanitize_filename,
     to_geojson,
+    to_gpx,
     to_kml,
     to_shapefile_zip,
 )
@@ -257,6 +258,12 @@ def export_kml(df, name_key):
 
 
 @st.cache_data(show_spinner=False)
+def export_gpx(df, name_key):
+    features, _ = features_in_range(df)
+    return to_gpx(features, name_key=name_key)
+
+
+@st.cache_data(show_spinner=False)
 def export_shapefile(df, base):
     features, fields = features_in_range(df)
     return to_shapefile_zip(features, fields, base_name=base)
@@ -357,16 +364,17 @@ def render_downloads(result, name_key, base):
     _step("5. Download")
     st.caption("Tabular formats include all rows; spatial formats include valid points only.")
     st.caption(f"Files are named after the input file: `{base}.csv`, `{base}.geojson`, …")
-    c = st.columns(5)
+    c = st.columns(6)
     want = {
         "CSV": c[0].checkbox("CSV", value=True),
         "Excel": c[1].checkbox("Excel", value=True),
         "GeoJSON": c[2].checkbox("GeoJSON", value=True),
         "KML": c[3].checkbox("KML", value=False),
         "Shapefile": c[4].checkbox("Shapefile", value=False),
+        "GPX": c[5].checkbox("GPX", value=False),
     }
     has_points = bool(features_in_range(result)[0])
-    d = st.columns(5)
+    d = st.columns(6)
     if want["CSV"]:
         d[0].download_button("Download CSV", export_csv(result),
                              f"{base}.csv", "text/csv", use_container_width=True)
@@ -385,6 +393,10 @@ def render_downloads(result, name_key, base):
     if want["Shapefile"]:
         d[4].download_button("Download Shapefile (.zip)", export_shapefile(result, base),
                              f"{base}.zip", "application/zip",
+                             disabled=not has_points, use_container_width=True)
+    if want["GPX"]:
+        d[5].download_button("Download GPX", export_gpx(result, name_key),
+                             f"{base}.gpx", "application/gpx+xml",
                              disabled=not has_points, use_container_width=True)
 
 

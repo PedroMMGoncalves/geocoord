@@ -315,8 +315,8 @@ application, and in JavaScript, for the browser. That is a translation, not a
 rewrite, and translations drift.
 
 So both are held to one frozen file,
-[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 274 cases across
-24 sections, read by pytest and by vitest alike. A divergence on any pinned
+[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 284 cases across
+25 sections, read by pytest and by vitest alike. A divergence on any pinned
 case fails both suites, and CI additionally fails if the committed contract and
 its generator disagree.
 
@@ -335,6 +335,14 @@ representations, and pinning the bytes would freeze the internals of two
 third-party libraries), and the coordinate transformations — which are pinned,
 but to a tolerance of a tenth of a millimetre rather than to equality, because
 pyproj and proj4js are different implementations of the same definitions.
+
+GPX used to be a third. It had no Python counterpart, so there was nothing to
+hold it to; writing one turned up two faults in the browser's version that only
+a mirror could have shown. It required a `Map` where every other writer here
+takes a plain object too, and it wrote its coordinates with the language's own
+number formatting — which produces `1e-7`, a form GPX 1.1 does not permit,
+since it types latitude and longitude as restrictions of `xsd:decimal`. Both
+sides now write plain decimal, and both are pinned.
 
 ## Development
 

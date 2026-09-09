@@ -13,8 +13,8 @@ import {
   pointsSummary,
   toCsv,
   toExcelBytes,
-  toGpx,
 } from '../src/core/pipeline.js'
+import { toGpx } from '../src/core/geoexport.js'
 import { get as crsGet } from '../src/core/crs.js'
 import { readWorkbook } from '../src/core/reader.js'
 
@@ -160,20 +160,6 @@ describe('toCsv', () => {
   })
 })
 
-describe('toGpx', () => {
-  it('writes one waypoint per feature, named from the chosen column', async () => {
-    const { features } = featuresInRange(await build(TABLE, 'lat', 'lon'))
-    const gpx = toGpx(features, 'amostra')
-    expect(gpx).toContain('<wpt lat="38.708333" lon="-9.136667"><name>0071</name></wpt>')
-    expect(gpx.match(/<wpt /g)).toHaveLength(2)
-  })
-
-  it('escapes the characters XML cannot carry raw', async () => {
-    const table = { columns: ['nome', 'lat', 'lon'], rows: [['a & <b>', '38.5', '-9.0']] }
-    const { features } = featuresInRange(await build(table, 'lat', 'lon'))
-    expect(toGpx(features, 'nome')).toContain('<name>a &amp; &lt;b&gt;</name>')
-  })
-})
 
 describe('pointsSummary', () => {
   it('measures only the valid points', async () => {
@@ -494,5 +480,20 @@ describe('toExcelBytes', () => {
     const table = { columns: ['a', 'b'], rows: [[null, 'x']] }
     const book = XLSX.read(await toExcelBytes(table), { type: 'array' })
     expect(book.Sheets.converted.A2?.v ?? '').toBe('')
+  })
+})
+
+describe('toGpx', () => {
+  it('writes one waypoint per feature, named from the chosen column', async () => {
+    const { features } = featuresInRange(await build(TABLE, 'lat', 'lon'))
+    const gpx = toGpx(features, 'amostra')
+    expect(gpx).toContain('<wpt lat="38.708333" lon="-9.136667"><name>0071</name></wpt>')
+    expect(gpx.match(/<wpt /g)).toHaveLength(2)
+  })
+
+  it('escapes the characters XML cannot carry raw', async () => {
+    const table = { columns: ['nome', 'lat', 'lon'], rows: [['a & <b>', '38.5', '-9.0']] }
+    const { features } = featuresInRange(await build(table, 'lat', 'lon'))
+    expect(toGpx(features, 'nome')).toContain('<name>a &amp; &lt;b&gt;</name>')
   })
 })

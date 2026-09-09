@@ -384,28 +384,3 @@ export async function toExcelBytes(table) {
   return new Uint8Array(XLSX.write(book, { type: 'array', bookType: 'xlsx' }))
 }
 
-/**
- * Write the features as GPX 1.1 waypoints.
- *
- * GPX has no counterpart in the Python package, so it is outside the parity
- * contract - stated here rather than left to be discovered. It exists because
- * a handheld GPS and every field application read it, which is where these
- * coordinates are usually going next.
- *
- * Only `&`, `<` and `>` are escaped, matching the escaping the KML writer
- * inherits from Python's xml.sax.saxutils.escape.
- */
-export function toGpx(features, nameKey = null) {
-  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const parts = [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<gpx version="1.1" creator="GeoCoord" xmlns="http://www.topografix.com/GPX/1/1">',
-  ]
-  for (const [lon, lat, props] of features) {
-    const raw = nameKey === null || nameKey === undefined ? null : props.get(nameKey)
-    const name = raw === null || raw === undefined ? '' : esc(raw)
-    parts.push(`<wpt lat="${lat}" lon="${lon}"><name>${name}</name></wpt>`)
-  }
-  parts.push('</gpx>')
-  return parts.join('')
-}

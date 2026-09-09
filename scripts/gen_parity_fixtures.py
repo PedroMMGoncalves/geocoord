@@ -56,6 +56,7 @@ from geocoord.geoexport import (
     sanitize_filename,
     to_geojson,
     csv_safe,
+    to_gpx,
     to_kml,
     to_shapefile_zip,
     _safe_field_names,
@@ -1202,6 +1203,19 @@ def build():
                 "expected": to_kml(feats, name_key=name_key).decode("utf-8"),
                 # The key order, so the JavaScript half can rebuild a Map: a
                 # plain object cannot carry it, see integer_like_property_key.
+                "prop_order": [list(props.keys()) for _, _, props in feats],
+            }
+            for i, feats, name_key in EXPORT_FEATURES
+        ],
+        # GPX carries the point name and nothing else, so the same feature sets
+        # exercise a different thing here than in to_kml: the coordinate
+        # formatting, which GPX restricts to plain decimal.
+        "to_gpx": [
+            {
+                "id": i,
+                "features": feats,
+                "name_key": name_key,
+                "expected": to_gpx(feats, name_key=name_key).decode("utf-8"),
                 "prop_order": [list(props.keys()) for _, _, props in feats],
             }
             for i, feats, name_key in EXPORT_FEATURES

@@ -8,7 +8,13 @@ import {
   suggestRegion,
   tidyTable,
 } from '../core/converter.js'
-import { sanitizeFilename, toGeoJSON, toKML, toShapefileZip } from '../core/geoexport.js'
+import {
+  sanitizeFilename,
+  toGeoJSON,
+  toGpx,
+  toKML,
+  toShapefileZip,
+} from '../core/geoexport.js'
 import {
   REGION_MASKS,
   applySwaps,
@@ -19,7 +25,6 @@ import {
   pointsSummary,
   toCsv,
   toExcelBytes,
-  toGpx,
 } from '../core/pipeline.js'
 import * as crs from '../core/crs.js'
 import { isGeospatial, readGeospatialBytes } from '../core/georead.js'

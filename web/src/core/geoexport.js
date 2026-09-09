@@ -203,6 +203,55 @@ export function pyFloat(value) {
 }
 
 /**
+ * A coordinate as GPX will accept it: plain decimal, never exponential.
+ *
+ * GPX 1.1 types latitude and longitude as restrictions of xsd:decimal, which
+ * has no exponent form. String() gives "1e-7" below 1e-6 and Python's repr
+ * gives "1e-07" below 1e-4, so both would emit a document a strict reader -
+ * or a receiver - is entitled to reject, and they would disagree about which.
+ * Ten places is past the application's own ceiling of ten decimals.
+ *
+ * Mirrors gpx_number() in geocoord/geoexport.py.
+ */
+export function gpxNumber(value) {
+  const text = Number(value).toFixed(10).replace(/0+$/, '').replace(/\.$/, '')
+  return text === '' || text === '-' || text === '-0' ? '0' : text
+}
+
+/**
+ * The features as GPX 1.1 waypoints.
+ *
+ * A handheld receiver and every field application read GPX, which is where
+ * these coordinates usually go next. It carries the point name and nothing
+ * else - a GPX round trip is lossy by construction, and the format offers
+ * nowhere honest to put an arbitrary attribute column.
+ *
+ * It lived in pipeline.js while it had no Python counterpart and was outside
+ * the contract. It has one now, so it sits with the other writers and is
+ * pinned like them.
+ *
+ * Mirrors to_gpx() in geocoord/geoexport.py.
+ */
+export function toGpx(features, nameKey = null) {
+  const parts = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<gpx version="1.1" creator="GeoCoord" '
+    + 'xmlns="http://www.topografix.com/GPX/1/1">',
+  ]
+  for (const [lon, lat, props] of features) {
+    // propGet, not props.get: this used to require a Map and threw
+    // "props.get is not a function" on the plain object every other writer
+    // here accepts.
+    const raw = nameKey === null || nameKey === undefined ? null : propGet(props, nameKey)
+    const name = raw === null || raw === undefined ? '' : escapeXml(String(raw))
+    parts.push(`<wpt lat="${gpxNumber(lat)}" lon="${gpxNumber(lon)}">`
+      + `<name>${name}</name></wpt>`)
+  }
+  parts.push('</gpx>')
+  return parts.join('')
+}
+
+/**
  * KML document of points (Google Earth / generic GIS), as a string.
  * Mirrors to_kml() in geocoord/geoexport.py. Built by concatenation, so
  * (unlike toGeoJSON) it is compared byte for byte against the contract, and

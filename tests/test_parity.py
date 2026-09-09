@@ -42,6 +42,7 @@ from geocoord.geoexport import (
     sanitize_filename,
     to_geojson,
     csv_safe,
+    to_gpx,
     to_kml,
     to_shapefile_zip,
     _safe_field_names,
@@ -143,6 +144,16 @@ def test_region_check(case):
     )
     assert out_idx == case["expected"]["out_idx"]
     assert [[k, v] for k, v in detected.items()] == case["expected"]["detected"]
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["to_gpx"], ids=ids(FIXTURES["to_gpx"])
+)
+def test_to_gpx(case):
+    # Byte for byte, like to_kml: it is built by concatenation, so there is
+    # nothing to normalise and no reason to compare anything looser.
+    feats = [(lon, lat, props) for lon, lat, props in case["features"]]
+    assert to_gpx(feats, name_key=case["name_key"]).decode("utf-8") == case["expected"]
 
 
 @pytest.mark.parametrize(
