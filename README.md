@@ -284,8 +284,8 @@ application, and in JavaScript, for the browser. That is a translation, not a
 rewrite, and translations drift.
 
 So both are held to one frozen file,
-[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 263 cases across
-23 sections, read by pytest and by vitest alike. A divergence on any pinned
+[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 274 cases across
+24 sections, read by pytest and by vitest alike. A divergence on any pinned
 case fails both suites, and CI additionally fails if the committed contract and
 its generator disagree.
 
@@ -308,12 +308,19 @@ pyproj and proj4js are different implementations of the same definitions.
 ## Development
 
 ```bash
-python -m pytest                 # 523 tests
+python -m pytest                 # the engine, the readers, the writers, the contract
 cd web && npm install
-npm test                         # 486 tests
+npm test                         # the same, and the file tab's own behaviour
 npm run dev                      # http://localhost:5173
 npm run build                    # production bundle into web/dist/
 ```
+
+The two suite sizes used to be written here. They were wrong three times in one
+day: every commit that adds a test makes a line of prose false, and nobody
+notices, because nobody re-reads a number they already believe. The badges say
+whether they pass, which is the part worth knowing. The contract's size below
+is still stated - it is the point of the section it sits in - and `--check`
+now fails if it drifts.
 
 Regenerate the contract only when the shared behaviour is meant to change, and
 read the diff before committing it:

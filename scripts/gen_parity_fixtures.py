@@ -20,6 +20,7 @@ import io
 import json
 import math
 import pathlib
+import re
 import sys
 import zipfile
 
@@ -1349,14 +1350,45 @@ def _describe_drift(current_text, generated_text):
                     f"the {want['tolerance_m']} m this section pins")
     return None
 
+README = pathlib.Path(__file__).resolve().parents[1] / "README.md"
+
+
+def readme_drift(data) -> str | None:
+    """What the README says about the contract's size, if it is wrong.
+
+    Prose carrying a number goes stale the moment the number changes, and
+    nobody re-reads a sentence they already believe - this one was wrong three
+    times in a day. It is worth keeping, being the point of the section it sits
+    in, so it is checked rather than trusted.
+    """
+    if not README.exists():
+        return None
+    found = re.search(r"— (\d+) cases across\s+(\d+)\s+sections",
+                      README.read_text(encoding="utf-8"))
+    if found is None:
+        return ("README.md no longer states the contract's size; restore the "
+                "sentence or drop this check")
+    said = (int(found.group(1)), int(found.group(2)))
+    real = (sum(len(v) for v in data.values() if isinstance(v, list)), len(data))
+    if said == real:
+        return None
+    return (f"README.md says {said[0]} cases across {said[1]} sections; the "
+            f"contract has {real[0]} across {real[1]}")
+
+
 if __name__ == "__main__":
-    payload = json.dumps(build(), ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+    built = build()
+    payload = json.dumps(built, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
 
     if "--check" in sys.argv:
         current = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
         if current != payload:
             problem = _describe_drift(current, payload)
             if problem is None:
+                stale = readme_drift(built)
+                if stale is not None:
+                    print(stale, file=sys.stderr)
+                    raise SystemExit(1)
                 print(f"{OUT} is up to date (coordinate values differ only "
                       "within tolerance, which is what that section pins)")
                 raise SystemExit(0)
@@ -1367,7 +1399,11 @@ if __name__ == "__main__":
                 file=sys.stderr,
             )
             raise SystemExit(1)
-        print(f"{OUT} is up to date")
+        stale = readme_drift(built)
+        if stale is not None:
+            print(stale, file=sys.stderr)
+            raise SystemExit(1)
+        print(f"{OUT} is up to date, and the README agrees about its size")
         raise SystemExit(0)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

@@ -12,6 +12,8 @@ from geocoord.converter import (
     in_range,
     parse_coordinate,
     region_check,
+    suggest_region,
+    unsigned_outside_region,
     tidy_table,
 )
 from geocoord.geoexport import (
@@ -171,11 +173,43 @@ def add_derived(result, add_dms):
     return result
 
 
-def build_result(df, lat_col, lon_col, decimals, add_dms):
+def build_result(df, lat_col, lon_col, decimals, add_dms, region_mask=None):
+    """The converted table.
+
+    ``region_mask`` is the declared region, and it is optional for a reason
+    worth stating: it is the only place a *missing* sign can come from. A field
+    notebook from the southern hemisphere is routinely written unsigned,
+    because the survey knew which side of the equator it stood on, so read
+    literally Tete is Sudan. Where a value carries no sign and no hemisphere
+    letter, its magnitude is outside the region, and the negated magnitude is
+    inside, the sign is supplied. A value the file signed is never touched.
+    """
     result = df.copy().reset_index(drop=True)
-    result["Latitude_DD"] = [_round(parse_coordinate(v), decimals) for v in result[lat_col]]
-    result["Longitude_DD"] = [_round(parse_coordinate(v), decimals) for v in result[lon_col]]
+    lat_raw = result[lat_col].tolist()
+    lon_raw = result[lon_col].tolist()
+    sign_lat = unsigned_outside_region(lat_raw, "lat", region_mask)
+    sign_lon = unsigned_outside_region(lon_raw, "lon", region_mask)
+
+    def read(values, flags):
+        out = []
+        for value, flip in zip(values, flags):
+            parsed = parse_coordinate(value)
+            if parsed is not None and flip:
+                parsed = -abs(parsed)
+            out.append(_round(parsed, decimals))
+        return out
+
+    result["Latitude_DD"] = read(lat_raw, sign_lat)
+    result["Longitude_DD"] = read(lon_raw, sign_lon)
     return add_derived(result, add_dms)
+
+
+def signable_count(df, lat_col, lon_col, region_mask):
+    """How many values the declared region could sign, and none of them has."""
+    if region_mask is None:
+        return 0
+    return (sum(unsigned_outside_region(df[lat_col].tolist(), "lat", region_mask))
+            + sum(unsigned_outside_region(df[lon_col].tolist(), "lon", region_mask)))
 
 
 def apply_swaps(result, idxs, add_dms):
@@ -545,6 +579,44 @@ with tab_file:
             n_swap = sum(1 for s in labels
                          if s in ("swap_range", "swap_cluster", "swap_axis"))
             n_bad = sum(1 for s in labels if s in ("out_of_range", "missing"))
+
+            # The region is picked at this step, after the conversion, so a
+            # sign it could have supplied has to be offered as a rebuild -
+            # the same shape the swap review already uses.
+            n_signable = signable_count(df, lat_col, lon_col, mask)
+            if n_signable:
+                st.info(
+                    f"**{n_signable}** value(s) carry no hemisphere and no sign, and "
+                    f"sit outside **{region_label}** as written - but inside it once "
+                    f"negated. A notebook from the southern hemisphere is normally "
+                    f"written this way."
+                )
+                if st.button(f"Give them the sign of {region_label}",
+                             key="apply_region_sign"):
+                    st.session_state.result = build_result(
+                        df, lat_col, lon_col, decimals, add_dms, region_mask=mask)
+                    st.rerun()
+
+            # Which region's sign would place a file the declared region leaves
+            # nowhere. A field notebook from the southern hemisphere is written
+            # unsigned - the survey knew which side of the equator it stood on -
+            # so read literally, Tete is Sudan. This does not decide that; it
+            # says what one sign flip would do and offers the region as a
+            # button. Same function the browser calls, same guards.
+            offer = suggest_region(
+                df[lat_col].tolist(), df[lon_col].tolist(), REGION_MASKS,
+                region_label if region_label in REGION_MASKS else None,
+            )
+            if offer is not None:
+                fits = ("all " if offer["inside"] == offer["readable"]
+                        else f"{offer['inside']} of the ")
+                st.warning(
+                    f"These values fall outside **{region_label}**. If these are "
+                    f"**{offer['region']}** coordinates, {fits}{offer['readable']} "
+                    f"records fall inside the region once given its sign."
+                )
+                st.button(f"Use {offer['region']}", key="use_suggested_region",
+                          on_click=_select_region, args=(offer["region"],))
 
             # Region awareness: valid points that landed outside the declared region.
             out_idx, detected = region_check(lat_list, lon_list, labels, REGION_MASKS,

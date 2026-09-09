@@ -18,7 +18,6 @@ import {
   unsignedOutsideRegion,
   suggestRegion,
 } from '../src/core/converter.js'
-import fixtures from '../../tests/fixtures/parity.json' with { type: 'json' }
 
 describe('parity fixtures', () => {
   // A tripwire against a truncated, empty or half-written contract, not a

@@ -1,7 +1,11 @@
+import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  plugins: [react()],
   test: {
-    include: ['tests/**/*.test.js'],
+    // .jsx as well: the component tests are JSX, and they need the React
+    // plugin to compile it.
+    include: ['tests/**/*.test.{js,jsx}'],
   },
 })

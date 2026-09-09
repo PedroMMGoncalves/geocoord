@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The file tab's own behaviour is tested. Every other suite here tests a pure
+  function; this one drives the component, because what it pins is not in any
+  function but in the wiring, and the wiring is what a refactor moves. Fifteen
+  cases, chief among them the review gate: while a row is flagged as possibly
+  swapped the downloads wait, and each of the three ways of answering - invert
+  all, invert none, tick one row - releases them. Until now that was verified
+  by hand in a browser, by a script CI never ran, and it is the one thing
+  standing between a hurried user and a file with its coordinates the wrong way
+  round.
+- The desktop application can give a file the sign of its region, which is what
+  makes a notebook from the southern hemisphere work at all, and offers the
+  same region suggestion the browser does. Taking the offer used to move the
+  picker and leave every point in Sudan, because the desktop had no way to
+  supply the sign the offer promised; the region is chosen there after the
+  conversion, so the sign is offered as a rebuild - the shape the swap review
+  beside it already uses.
+- The two suite sizes are gone from the README. They were wrong three times in
+  one day, because every commit that adds a test makes a line of prose false
+  and nobody re-reads a number they already believe. The contract's size stays,
+  and `gen_parity_fixtures.py --check` now fails if the README disagrees.
 - Region names read in the reader's language. They are keys of REGION_MASKS,
   and those keys are data - they sit in the parity contract, in `app.py` and in
   both test suites - but they were also the text on screen, each in whatever
