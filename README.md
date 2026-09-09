@@ -12,7 +12,7 @@
 [![UI](https://img.shields.io/badge/UI-PT_%7C_EN-informational.svg)](#usage)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/PedroMMGoncalves/geocoord?logo=github&label=Release)](https://github.com/PedroMMGoncalves/geocoord/releases)
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20596871-blue.svg)](https://doi.org/10.5281/zenodo.20596871)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20596870.svg)](https://doi.org/10.5281/zenodo.20596870)
 [![CI](https://github.com/PedroMMGoncalves/geocoord/actions/workflows/ci.yml/badge.svg)](https://github.com/PedroMMGoncalves/geocoord/actions/workflows/ci.yml)
 [![deploy](https://github.com/PedroMMGoncalves/geocoord/actions/workflows/deploy.yml/badge.svg)](https://github.com/PedroMMGoncalves/geocoord/actions/workflows/deploy.yml)
 [![Live](https://img.shields.io/website?url=https%3A%2F%2Fpedrommgoncalves.github.io%2Fgeocoord%2F&label=GitHub%20Pages&logo=github&up_message=online&down_message=offline)](https://pedrommgoncalves.github.io/geocoord/)
@@ -31,6 +31,16 @@ browser; nothing is uploaded anywhere - not even the fonts are fetched. For
 unpublished field data that is not a detail.
 
 **Live app:** <https://pedrommgoncalves.github.io/geocoord/>
+
+![The GeoCoord file tab after a conversion: four numbered steps, a map showing
+twenty points in Moçambique, and a table carrying the original columns beside
+the converted decimal-degree and degrees-minutes-seconds
+ones.](docs/screenshots/geocoord.png)
+
+*Synthetic test data. The coordinate columns were found by their values, the
+southern hemisphere was supplied from the declared region, and all twenty rows
+converted. Every screenshot in this README uses invented coordinates — real
+survey data is nobody's to publish, which is rather the point of the tool.*
 
 There is also a **desktop application** for offline use, and an importable
 **Python package** for scripting. The three share one conversion engine — see
@@ -122,6 +132,16 @@ the track is reported rather than silently appended.
 the points come through and the rest is counted and named in a notice, not
 folded into a centroid nobody asked for.
 
+![A notice reading "Estes valores caem fora de Portugal Continental. Se forem
+coordenadas de Moçambique, os 20 registos ficam dentro da região", with a
+button offering to use Moçambique, above a map showing the points in
+Sudan.](docs/screenshots/regiao.png)
+
+*Synthetic test data. Values written without a hemisphere read as Sudan, which
+is where they are as written. The application says what one sign would do and
+leaves the decision to whoever collected the data — it cannot tell a Moçambique
+file from a Sudanese one, and does not try.*
+
 A GeoJSON that declares a projected system in the 2008 `crs` member — which is
 what QGIS still writes — is recognised, its columns are called X and Y rather
 than latitude and longitude, and that system is chosen as the input if this
@@ -165,6 +185,17 @@ or, better, PTRA08 (5016).
 
 A common error is latitude and longitude reversed in some rows. GeoCoord finds
 them three ways, and never corrects anything without being asked.
+
+![The review panel listing eight rows whose latitude and longitude look
+reversed, each with the values it would take if inverted; a world map with the
+correct points off the coast of Portugal and the reversed ones in Moçambique;
+and the download step marked with a warning and its six buttons greyed
+out.](docs/screenshots/trocas.png)
+
+*Synthetic test data. Eight rows written the other way round put their points
+on the far side of the equator — the blue and the orange on that map are the
+same survey. Nothing is changed, and the downloads stay closed, until the
+question is answered either way.*
 
 - **The hemisphere letter.** `N` and `S` can only be a latitude, `E`, `W`, `O`
   and `L` only a longitude. A letter that contradicts the column it sits in is
@@ -399,7 +430,7 @@ If you use this software, please cite it using the metadata in
 
 > Gonçalves, P. (2026). *GeoCoord — coordinate converter for field data*
 > (Version 0.1.0) [Computer software]. LNEG — Laboratório Nacional de Energia e
-> Geologia. <https://doi.org/10.5281/zenodo.20596871>
+> Geologia. <https://doi.org/10.5281/zenodo.20596870>
 
 ## License
 

@@ -56,8 +56,8 @@ export default {
   },
   'file.noticeGpxTrack': {
     pt: 'O ficheiro não tem pontos marcados, por isso foram lidos os {count} '
-      + 'pontos do trilho.',
-    ptOne: 'O ficheiro não tem pontos marcados, por isso foi lido o único ponto do trilho.',
+      + 'pontos do percurso.',
+    ptOne: 'O ficheiro não tem pontos marcados, por isso foi lido o único ponto do percurso.',
     en: 'The file has no marked waypoints, so its {count} track points were read.',
     enOne: 'The file has no marked waypoints, so its one track point was read.',
   },
@@ -70,9 +70,9 @@ export default {
   },
   'file.noticeGpxIgnored': {
     pt: 'Foram lidos os pontos marcados. O ficheiro tem também {count} pontos de '
-      + 'trilho ou rota, que não foram lidos.',
+      + 'percurso ou rota, que não foram lidos.',
     ptOne: 'Foram lidos os pontos marcados. O ficheiro tem também um ponto de '
-      + 'trilho ou rota, que não foi lido.',
+      + 'percurso ou rota, que não foi lido.',
     en: 'The marked waypoints were read. The file also holds {count} track or '
       + 'route points, which were not.',
     enOne: 'The marked waypoints were read. The file also holds one track or '

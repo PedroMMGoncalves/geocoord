@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Three screenshots in the README, from **synthetic data**: the page after a
+  conversion, the review panel holding the downloads, and the region offered to
+  a file that reads as Sudan. The coordinates are invented and the generator
+  that makes them is in `scripts/`. The first proposal was to shoot them with
+  the two real workbooks, which are gold sampling sites and a national mine
+  register - a colleague's unpublished field data, in a public README, on a
+  tool whose whole promise is that the file never leaves the machine.
+- The citation and the DOI badge use the **concept DOI**
+  (`10.5281/zenodo.20596870`) rather than v0.1.0's own
+  (`...871`). The concept DOI always resolves to the newest release; the
+  version one does not, so both would have gone on citing June after every
+  release from here.
+- `trilho` becomes `percurso` in the GPX notices. A *trilho* is a footpath; a
+  receiver records a *percurso*.
 - The file tab's own behaviour is tested. Every other suite here tests a pure
   function; this one drives the component, because what it pins is not in any
   function but in the wiring, and the wiring is what a refactor moves. Fifteen

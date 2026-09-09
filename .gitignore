@@ -13,3 +13,8 @@ dist/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# The synthetic workbooks behind the README screenshots. The generator is
+# seeded, so running it reproduces them exactly; there is no reason to carry
+# spreadsheets in the repository.
+docs/screenshots/samples/
