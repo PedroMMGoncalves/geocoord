@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-09
+
+Version 1.0.0 is not a claim that the work is finished — software is never
+finished — but that the promise `0.x` makes is no longer true. There is a
+frozen contract of 284 cases holding two implementations to each other, a
+thousand tests, and a page people are using. `0.x` says *expect this to change
+under you*, and that is the wrong thing to tell a colleague who is about to
+cite it.
+
 ### Added
 
+- The results table can show only the rows that need attention. The preview is
+  capped at fifty rows and raising that would take a browser tab down, which is
+  the failure the size limits exist to prevent - but the fifty were the *first*
+  fifty, so a row that failed at 180 was never seen. The filter is offered only
+  when there is something to filter, the line numbers keep meaning the line in
+  the file, and answering the swap question empties it.
 - The desktop application converts between coordinate systems, which only the
   browser could do. A file in ETRS89/PT-TM06 - what a Portuguese GIS exports -
   could not be converted offline at all; it showed a warning telling you to use

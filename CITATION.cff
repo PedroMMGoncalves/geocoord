@@ -8,15 +8,24 @@ authors:
     affiliation: "LNEG - Laboratório Nacional de Energia e Geologia"
 repository-code: "https://github.com/PedroMMGoncalves/geocoord"
 license: Apache-2.0
-version: "0.1.0"
+version: "1.0.0"
 doi: "10.5281/zenodo.20596870"
-date-released: "2026-06-08"
+date-released: "2026-09-09"
 keywords:
   - coordinates
   - DMS
   - decimal degrees
+  - coordinate reference system
+  - datum transformation
   - WGS84
+  - ETRS89
   - EPSG:4326
+  - KML
+  - GPX
+  - GeoJSON
+  - shapefile
   - GIS
   - QGIS
   - ArcGIS
+  - field data
+  - data cleaning

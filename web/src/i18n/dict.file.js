@@ -303,6 +303,22 @@ export default {
       + 'of each row gives the conversion status.',
   },
   'file.tableHeading': { pt: 'Tabela', en: 'Table' },
+  // The preview is for spot-checking, not for reading, and fifty rows of a two
+  // hundred row file is an arbitrary window. This makes it the useful one.
+  'file.onlyProblems': {
+    pt: 'Só as linhas a rever e as ilegíveis',
+    en: 'Only the rows to review and the unreadable ones',
+  },
+  'file.previewProblems': {
+    pt: 'A mostrar as {n} linhas que precisam de atenção, de {total}. '
+      + 'O ficheiro descarregado leva todas.',
+    ptOne: 'A mostrar a única linha que precisa de atenção, de {total}. '
+      + 'O ficheiro descarregado leva todas.',
+    en: 'Showing the {n} rows that need attention, out of {total}. The '
+      + 'downloaded file carries all of them.',
+    enOne: 'Showing the one row that needs attention, out of {total}. The '
+      + 'downloaded file carries all of them.',
+  },
   'file.previewAll': {
     pt: 'A mostrar as {n} linhas. O ficheiro descarregado leva as mesmas.',
     ptOne: 'Uma linha.',

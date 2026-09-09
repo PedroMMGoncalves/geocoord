@@ -273,3 +273,59 @@ describe('a file that cannot be read', () => {
     expect(screen.queryAllByText(/amostras\.csv/)).toHaveLength(0)
   })
 })
+
+describe('the table filter', () => {
+  // Raising the fifty-row cap is the wrong fix - fifty thousand rows of DOM is
+  // what takes a tab down. The fault is that the fifty are the *first* fifty,
+  // so a row that failed at 180 is never seen.
+  const rows = () => [...document.querySelectorAll('.tbl tbody tr')]
+  const rowNumbers = () => rows().map((r) => r.querySelector('th').textContent.replace(/\D/g, ''))
+
+  it('is not offered when every row converted', async () => {
+    show()
+    await load(CLEAN)
+    await waitFor(() => expect(rows().length).toBeGreaterThan(0))
+    expect(screen.queryByText(/Só as linhas a rever/)).toBeNull()
+  })
+
+  it('keeps only the rows needing attention, with their own line numbers', async () => {
+    show()
+    await load(NEAR_LISBON)
+    await waitFor(() => expect(document.querySelector('.rv')).toBeTruthy())
+    const before = rows().length
+
+    fireEvent.click(screen.getByText(/Só as linhas a rever/))
+
+    await waitFor(() => expect(rows().length).toBeLessThan(before))
+    // The eighth row is the reversed one; the number has to keep meaning the
+    // line in the file, not the position in the filtered view.
+    expect(rowNumbers()).toEqual(['8'])
+  })
+
+  it('empties itself once the question is answered', async () => {
+    // Accepting the inversion makes the row ordinary, so a filter for
+    // problems should stop showing it rather than keep it on a stale label.
+    show()
+    await load(NEAR_LISBON)
+    await waitFor(() => expect(document.querySelector('.rv')).toBeTruthy())
+    fireEvent.click(screen.getByText(/Só as linhas a rever/))
+    await waitFor(() => expect(rows()).toHaveLength(1))
+
+    fireEvent.click(screen.getByRole('button', { name: /Inverter todas/ }))
+
+    await waitFor(() => expect(rows()).toHaveLength(0))
+  })
+
+  it('does not carry the filter over to the next file', async () => {
+    show()
+    await load(NEAR_LISBON)
+    await waitFor(() => expect(document.querySelector('.rv')).toBeTruthy())
+    fireEvent.click(screen.getByText(/Só as linhas a rever/))
+    await waitFor(() => expect(rows()).toHaveLength(1))
+
+    await load(CLEAN, 'outro.csv')
+
+    await waitFor(() => expect(rows().length).toBeGreaterThan(1))
+    expect(screen.queryByText(/Só as linhas a rever/)).toBeNull()
+  })
+})

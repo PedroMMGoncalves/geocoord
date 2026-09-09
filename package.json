@@ -1,6 +1,6 @@
 {
   "name": "geocoord",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "GeoCoord - DMS to decimal degrees coordinate converter (desktop via stlite/Electron)",
   "author": "Pedro Gonçalves (LNEG)",
   "license": "Apache-2.0",

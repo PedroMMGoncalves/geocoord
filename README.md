@@ -437,7 +437,7 @@ If you use this software, please cite it using the metadata in
 [`CITATION.cff`](CITATION.cff):
 
 > Gonçalves, P. (2026). *GeoCoord — coordinate converter for field data*
-> (Version 0.1.0) [Computer software]. LNEG — Laboratório Nacional de Energia e
+> (Version 1.0.0) [Computer software]. LNEG — Laboratório Nacional de Energia e
 > Geologia. <https://doi.org/10.5281/zenodo.20596870>
 
 ## License

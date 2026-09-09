@@ -326,6 +326,11 @@ export default function FileConvert() {
   // one promise this application makes about the data is that nothing is
   // changed without the user's confirmation, and a download button above an
   // unanswered question is an invitation to take the file without deciding.
+  // Show only what needs looking at. Off by default: most files have nothing
+  // to review, and a filter that starts on would hide every row of a clean
+  // one behind a checkbox nobody knew was ticked.
+  const [onlyProblems, setOnlyProblems] = useState(false)
+
   const [reviewed, setReviewed] = useState(false)
   const [rvOpen, setRvOpen] = useState(true)
   const rvTouched = useRef(false)
@@ -506,6 +511,7 @@ export default function FileConvert() {
     // summary and the rest open as they are reached.
     touched.current = new Set()
     rvTouched.current = false
+    setOnlyProblems(false)
     setOpenCards({ 1: false, 2: true, 3: true, 4: true })
 
     // A file that names its own coordinate system has answered the question
@@ -772,6 +778,22 @@ export default function FileConvert() {
   // the file was brought here for.
   const inputColumns = useMemo(() => new Set(source?.table.columns ?? []), [source])
   const firstOut = final ? final.columns.findIndex((c) => !inputColumns.has(c)) : -1
+
+  // The rows the preview shows, as (row, original index) so the number in the
+  // first column keeps meaning the line in the file rather than the position
+  // in the filtered view.
+  const problemCount = useMemo(
+    () => displayLabels.filter((l) => l !== 'ok').length,
+    [displayLabels],
+  )
+  const shown = useMemo(() => {
+    if (!final) return []
+    const numbered = final.rows.map((row, i) => [row, i])
+    const kept = onlyProblems
+      ? numbered.filter(([, i]) => displayLabels[i] !== 'ok')
+      : numbered
+    return kept.slice(0, PREVIEW_ROWS)
+  }, [final, onlyProblems, displayLabels])
 
   function onDrop(e) {
     e.preventDefault()
@@ -1265,15 +1287,28 @@ export default function FileConvert() {
                 <div className="cap">
                   <h3>{t('file.tableHeading')}</h3>
                   <span className="sub">
-                    {final.rows.length > PREVIEW_ROWS
-                      ? t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })
-                      : t('file.previewAll', { n: final.rows.length })}
+                    {onlyProblems
+                      ? t('file.previewProblems', { n: shown.length, total: final.rows.length })
+                      : final.rows.length > PREVIEW_ROWS
+                        ? t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })
+                        : t('file.previewAll', { n: final.rows.length })}
                   </span>
+                  {problemCount > 0 && (
+                    <label className="ml-auto flex items-center gap-2 text-xs text-ink-2">
+                      <input
+                        type="checkbox"
+                        className="cb"
+                        checked={onlyProblems}
+                        onChange={(e) => setOnlyProblems(e.target.checked)}
+                      />
+                      <span>{t('file.onlyProblems')}</span>
+                    </label>
+                  )}
                 </div>
                 <div className="tbl" tabIndex={0} role="region" aria-label={t('file.tableRegion')}>
                   <table>
                     <caption className="sr-only">
-                      {t('file.tableCaption', { shown: Math.min(PREVIEW_ROWS, final.rows.length), total: final.rows.length })}
+                      {t('file.tableCaption', { shown: shown.length, total: final.rows.length })}
                     </caption>
                     <thead>
                       <tr>
@@ -1294,7 +1329,7 @@ export default function FileConvert() {
                       </tr>
                     </thead>
                     <tbody>
-                      {final.rows.slice(0, PREVIEW_ROWS).map((row, i) => (
+                      {shown.map(([row, i]) => (
                         <tr key={i} className={STATUS_TONE[displayLabels[i]] ?? ''}>
                           {/* The status was in the colour and nowhere else, so a
                               screen reader was told nothing and anyone who cannot
