@@ -1,4 +1,5 @@
 import io
+import re
 import os
 
 import pandas as pd
@@ -11,6 +12,7 @@ from geocoord.converter import (
     format_dms,
     in_range,
     parse_coordinate,
+    parse_projected,
     region_check,
     suggest_region,
     unsigned_outside_region,
@@ -25,6 +27,7 @@ from geocoord.geoexport import (
     to_kml,
     to_shapefile_zip,
 )
+from geocoord import crs
 from geocoord.georead import is_geospatial, read_geospatial_bytes
 from geocoord.reader import read_csv_bytes, read_excel_bytes, workbook_sheets
 
@@ -156,9 +159,17 @@ def _round(value, decimals):
 # ---------------------------------------------------------------------------
 DERIVED = ["X_DD", "Y_DD", "status", "WKT", "Latitude_GMS", "Longitude_GMS"]
 
+# The columns a second coordinate system adds, named after its EPSG code or its
+# UTM zone. They are matched by shape rather than listed, because the suffix is
+# whatever system was chosen last - and a rebuild has to clear the previous
+# one, or a file converted twice would carry both.
+_EXTRA_COLUMN_RE = re.compile(r"^(X|Y|WKT)_[A-Za-z0-9]+$")
 
-def add_derived(result, add_dms):
+
+def add_derived(result, add_dms, target=None):
     result = result.drop(columns=[c for c in DERIVED if c in result.columns])
+    result = result.drop(columns=[c for c in result.columns
+                                  if _EXTRA_COLUMN_RE.match(str(c))])
     lat = result["Latitude_DD"].tolist()
     lon = result["Longitude_DD"].tolist()
 
@@ -171,10 +182,125 @@ def add_derived(result, add_dms):
     if add_dms:
         result["Latitude_GMS"] = [format_dms(v, "lat") for v in lat]
         result["Longitude_GMS"] = [format_dms(v, "lon") for v in lon]
+    # A second system as extra columns. Three decimals: these are metres for a
+    # projected target, and a millimetre is already past what any of this is
+    # good for.
+    if target is not None and target["proj4"] != crs.WGS84_PROJ4:
+        pairs = [crs.from_wgs84(x, y, target["proj4"]) if (x is not None and y is not None)
+                 else (None, None)
+                 for x, y in zip(result["Longitude_DD"], result["Latitude_DD"])]
+        result[f"X_{target['suffix']}"] = [_round(p[0], 3) for p in pairs]
+        result[f"Y_{target['suffix']}"] = [_round(p[1], 3) for p in pairs]
+        result[f"WKT_{target['suffix']}"] = [
+            f"POINT ({p[0]} {p[1]})" if p[0] is not None else None for p in pairs
+        ]
     return result
 
 
-def build_result(df, lat_col, lon_col, decimals, add_dms, region_mask=None):
+UTM_CHOICE = "UTM by zone..."
+CUSTOM_CHOICE = "Pasted proj4 definition..."
+
+
+def crs_choices(include_none: bool):
+    """The picker's options: the registry by kind, then the two escape hatches.
+
+    Deprecated systems are marked rather than hidden - somebody with a file in
+    Madeira 1936 still has to be able to say so.
+    """
+    options = ["None - WGS84 only"] if include_none else []
+    for entry in crs.systems("geographic"):
+        options.append(f"{entry['pt']} - EPSG:{entry['epsg']}")
+    for entry in crs.systems("projected"):
+        suffix = " (deprecated)" if entry.get("deprecated") else ""
+        options.append(f"{entry['pt']} - EPSG:{entry['epsg']}{suffix}")
+    return options + [UTM_CHOICE, CUSTOM_CHOICE]
+
+
+def resolve_crs(choice, zone, south, pasted):
+    """A picker choice as ``{proj4, kind, suffix, label, epsg}``, or None.
+
+    None means "nothing usable was chosen" - the no-system option, an empty
+    pasted definition, a zone out of range. Mirrors resolve() in
+    web/src/components/FileConvert.jsx.
+    """
+    if choice is None or choice.startswith("None"):
+        return None
+    if choice == UTM_CHOICE:
+        try:
+            n = int(zone)
+        except (TypeError, ValueError):
+            return None
+        if not 1 <= n <= 60:
+            return None
+        return {"proj4": crs.utm_proj4(n, south), "kind": "projected",
+                "suffix": crs.utm_label(n, south),
+                "label": f"UTM {n}{'S' if south else 'N'} (WGS84)", "epsg": None}
+    if choice == CUSTOM_CHOICE:
+        definition = (pasted or "").strip()
+        if not definition.startswith("+proj="):
+            return None
+        return {"proj4": definition,
+                "kind": "geographic" if "+proj=longlat" in definition else "projected",
+                "suffix": "custom", "label": "pasted definition", "epsg": None}
+    code = choice.rsplit("EPSG:", 1)[-1].split()[0] if "EPSG:" in choice else None
+    entry = crs.REGISTRY.get(code)
+    if entry is None:
+        return None
+    return {"proj4": entry["proj4"], "kind": entry["kind"],
+            "suffix": str(entry["epsg"]), "label": entry["pt"], "epsg": entry["epsg"]}
+
+
+def current_source():
+    """The input system as the widgets hold it right now.
+
+    Read from the widget keys rather than from what :func:`crs_controls` stored
+    on the previous run: the column pickers are drawn before it, so a stashed
+    value is always one interaction stale. Streamlit populates widget state
+    before the script runs, so this is current on the rerun the choice causes.
+    """
+    return resolve_crs(
+        st.session_state.get("crs_in"),
+        st.session_state.get("utm_zone", 29),
+        st.session_state.get("utm_south", False),
+        st.session_state.get("custom_proj4", ""),
+    )
+
+
+def crs_controls():
+    """The two pickers and their escape hatches. Returns (input, output)."""
+    st.caption("Leave both alone for a file already in WGS84 degrees, which is "
+               "most of them.")
+    c1, c2 = st.columns(2)
+    in_choice = c1.selectbox("System the file is in", crs_choices(include_none=False),
+                             index=0, key="crs_in")
+    out_choice = c2.selectbox("Extra system in the output", crs_choices(include_none=True),
+                              index=0, key="crs_out")
+
+    zone, south, pasted = 29, False, ""
+    if UTM_CHOICE in (in_choice, out_choice):
+        z1, z2 = st.columns([1, 3])
+        zone = z1.number_input("UTM zone", min_value=1, max_value=60, value=29, key="utm_zone")
+        south = z2.checkbox("Southern hemisphere", key="utm_south")
+    if CUSTOM_CHOICE in (in_choice, out_choice):
+        pasted = st.text_input(
+            "proj4 definition (works offline; covers any system not listed)",
+            placeholder="+proj=utm +zone=33 +south +datum=WGS84 +units=m +no_defs",
+            key="custom_proj4")
+
+    source = resolve_crs(in_choice, zone, south, pasted)
+    target = resolve_crs(out_choice, zone, south, pasted)
+    for chosen in (source, target):
+        note = crs.REGISTRY.get(str(chosen["epsg"]), {}).get("note") if chosen else None
+        if note:
+            st.info(note)
+    if source is None and not in_choice.startswith("None"):
+        st.warning("That system is not usable yet - check the zone or the pasted "
+                   "definition. The file is being read as WGS84 degrees.")
+    return source, target
+
+
+def build_result(df, lat_col, lon_col, decimals, add_dms, region_mask=None,
+                 source=None, target=None):
     """The converted table.
 
     ``region_mask`` is the declared region, and it is optional for a reason
@@ -188,21 +314,50 @@ def build_result(df, lat_col, lon_col, decimals, add_dms, region_mask=None):
     result = df.copy().reset_index(drop=True)
     lat_raw = result[lat_col].tolist()
     lon_raw = result[lon_col].tolist()
-    sign_lat = unsigned_outside_region(lat_raw, "lat", region_mask)
-    sign_lon = unsigned_outside_region(lon_raw, "lon", region_mask)
+
+    projected = source is not None and source["kind"] == "projected"
+    # A projected value is a number of metres and must not go through the
+    # degrees parser: "532725 4555481" would be read as degrees, minutes and
+    # seconds, and it would be read successfully, which is worse. A projected
+    # file has no missing hemisphere either - the sign is in the easting.
+    read_one = parse_projected if projected else parse_coordinate
+    sign_lat = ([False] * len(lat_raw) if projected
+                else unsigned_outside_region(lat_raw, "lat", region_mask))
+    sign_lon = ([False] * len(lon_raw) if projected
+                else unsigned_outside_region(lon_raw, "lon", region_mask))
 
     def read(values, flags):
         out = []
         for value, flip in zip(values, flags):
-            parsed = parse_coordinate(value)
+            parsed = read_one(value)
             if parsed is not None and flip:
                 parsed = -abs(parsed)
-            out.append(_round(parsed, decimals))
+            out.append(parsed)
         return out
 
-    result["Latitude_DD"] = read(lat_raw, sign_lat)
-    result["Longitude_DD"] = read(lon_raw, sign_lon)
-    return add_derived(result, add_dms)
+    # The chosen columns are (lat, lon) for a geographic system and (X, Y) -
+    # so (lon-ish, lat-ish) - for a projected one. proj4 wants x first either
+    # way, which is why these are named for their position and not their axis.
+    firsts = read(lat_raw, sign_lat)
+    seconds = read(lon_raw, sign_lon)
+
+    if source is None or source["proj4"] == crs.WGS84_PROJ4:
+        lats, lons = firsts, seconds
+    elif projected:
+        pairs = [crs.to_wgs84(x, y, source["proj4"]) for x, y in zip(firsts, seconds)]
+        lons = [p[0] for p in pairs]
+        lats = [p[1] for p in pairs]
+    else:
+        # Geographic but not WGS84: ETRS89 or PTRA08, read as degrees and then
+        # shifted onto the WGS84 datum.
+        pairs = [crs.to_wgs84(lon, lat, source["proj4"])
+                 for lat, lon in zip(firsts, seconds)]
+        lons = [p[0] for p in pairs]
+        lats = [p[1] for p in pairs]
+
+    result["Latitude_DD"] = [_round(v, decimals) for v in lats]
+    result["Longitude_DD"] = [_round(v, decimals) for v in lons]
+    return add_derived(result, add_dms, target=target)
 
 
 def signable_count(df, lat_col, lon_col, region_mask):
@@ -361,7 +516,7 @@ def render_summary(result, labels, lat_col, lon_col):
 
 
 def render_downloads(result, name_key, base):
-    _step("5. Download")
+    _step("6. Download")
     st.caption("Tabular formats include all rows; spatial formats include valid points only.")
     st.caption(f"Files are named after the input file: `{base}.csv`, `{base}.geojson`, …")
     c = st.columns(6)
@@ -543,8 +698,16 @@ with tab_file:
         # values alone are enough on the files that need this most.
         guess_lat, guess_lon = guess_coordinate_columns(
             cols, df.astype(object).values.tolist())
-        lat_col = c1.selectbox("Latitude column (DMS)", cols, index=guess_lat)
-        lon_col = c2.selectbox("Longitude column (DMS)", cols, index=guess_lon)
+        projected_input = (current_source() or {}).get("kind") == "projected"
+        # The first picker is the latitude for a geographic system and the X -
+        # the easting - for a projected one, so a projected file takes the
+        # guessed pair the other way round.
+        if projected_input:
+            guess_lat, guess_lon = guess_lon, guess_lat
+        lat_label = "X column (Easting, metres)" if projected_input else "Latitude column (DMS)"
+        lon_label = "Y column (Northing, metres)" if projected_input else "Longitude column (DMS)"
+        lat_col = c1.selectbox(lat_label, cols, index=guess_lat, key="lat_col")
+        lon_col = c2.selectbox(lon_label, cols, index=guess_lon, key="lon_col")
 
         st.caption("Conversion preview (first rows):")
         if lat_col == lon_col:
@@ -563,10 +726,20 @@ with tab_file:
         preview["-> Longitude_DD"] = [parse_coordinate(v) for v in preview[lon_col]]
         st.dataframe(preview, use_container_width=True)
 
-        _step("3. Convert")
+        _step("3. Coordinate system")
+        source, target = crs_controls()
+        # Remembered because the later steps rebuild the result - accepting a
+        # swap, taking the region's sign - and a rebuild that forgot the
+        # system would silently undo the transformation.
+        st.session_state.crs_source = source
+        st.session_state.crs_target = target
+
+        _step("4. Convert")
         if st.button("Convert coordinates", type="primary"):
             with st.spinner("Converting..."):
-                st.session_state.result = build_result(df, lat_col, lon_col, decimals, add_dms)
+                st.session_state.result = build_result(
+                    df, lat_col, lon_col, decimals, add_dms,
+                    source=source, target=target)
                 # Which rows carry a hemisphere letter that contradicts the
                 # column it sits in. Computed here, where the raw cells are
                 # still in hand: build_result converts them to numbers and the
@@ -578,7 +751,7 @@ with tab_file:
         if st.session_state.get("result") is not None:
             result = st.session_state.result
 
-            _step("4. Review and fix swapped coordinates")
+            _step("5. Review and fix swapped coordinates")
             mask, reference, region_radius, is_auto, region_label = swap_detection_controls()
             lat_list = result["Latitude_DD"].tolist()
             lon_list = result["Longitude_DD"].tolist()
@@ -606,7 +779,9 @@ with tab_file:
                 if st.button(f"Give them the sign of {region_label}",
                              key="apply_region_sign"):
                     st.session_state.result = build_result(
-                        df, lat_col, lon_col, decimals, add_dms, region_mask=mask)
+                        df, lat_col, lon_col, decimals, add_dms, region_mask=mask,
+                        source=st.session_state.get("crs_source"),
+                        target=st.session_state.get("crs_target"))
                     st.rerun()
 
             # Which region's sign would place a file the declared region leaves

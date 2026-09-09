@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The desktop application converts between coordinate systems, which only the
+  browser could do. A file in ETRS89/PT-TM06 - what a Portuguese GIS exports -
+  could not be converted offline at all; it showed a warning telling you to use
+  the web version, which is a poor answer for the build that exists to work
+  without a connection. Same two pickers, same seventeen systems plus a UTM
+  zone and a pasted proj4 definition, same extra output columns. **The two
+  applications now do the same things.**
 - The desktop application writes GPX, so both write the same six formats. It
   had no Python counterpart at all, and writing one exposed two faults in the
   browser's: it required a `Map` where every other writer here takes a plain
