@@ -603,6 +603,7 @@ export default function FileConvert() {
     // 15 and 33, is the latitude.
     const [a, b] = guessCoordinateColumns(
       columns, source.table.rows, region === 'auto' ? null : REGION_MASKS[region],
+      projectedInput,
     )
     // The first selector is the latitude for a geographic system and the X -
     // the easting - for a projected one, so for a projected file the pair is

@@ -300,7 +300,8 @@ def test_to_shapefile_zip(case):
 )
 def test_guess_coordinate_columns(case):
     mask = [tuple(b) for b in case["mask"]]
-    got = guess_coordinate_columns(case["columns"], case["rows"], mask)
+    got = guess_coordinate_columns(case["columns"], case["rows"], mask,
+                                   projected=case["projected"])
     assert list(got) == case["expected"]
 
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A table typed off a military sheet is read by its own column names. On the
+  Carta Militar the grid is written `M` and `P` - the distances to the
+  *Meridiana* and the *Perpendicular*, that is, the easting and the northing -
+  and the application knew neither: with a column for the sheet number beside
+  them, it took the sheet number for the northing. `M` and `P` are now tried
+  after `X` and `Y`, and only when the file is read in a projected system - in a
+  geochemistry table, `P` is phosphorus.
+
 ## [1.1.0] - 2026-09-30
 
 ### Added

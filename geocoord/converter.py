@@ -57,6 +57,14 @@ LAT_CANDIDATES = ["latitude", "lat", "coordenadas x", "latitude x", "coord_lat",
 LON_CANDIDATES = ["longitude", "lon", "long", "coordenadas y", "longitude y",
                   "coord_lon", "lon_dms", "lon_gms", "x", "x_dd", "lon_x"]
 
+#: The names a Portuguese military sheet gives its grid: P, the distance to the
+#: Perpendicular, is the northing, and M, the distance to the Meridiana, the
+#: easting. They sit in the latitude and longitude slots because that is where
+#: the northing and the easting go. Consulted only for a file read in a
+#: projected system - in a geochemistry table, P is phosphorus.
+GRID_LAT_CANDIDATES = ["p"]
+GRID_LON_CANDIDATES = ["m"]
+
 
 def parse_coordinate(value) -> Optional[float]:
     """Convert a value (DMS/DM/decimal) into decimal degrees.
@@ -279,7 +287,7 @@ def _fits_region(median, mask):
     return (lat_lo <= median <= lat_hi) or (lon_lo <= median <= lon_hi)
 
 
-def guess_coordinate_columns(columns, rows, mask=None):
+def guess_coordinate_columns(columns, rows, mask=None, projected=False):
     """Which two columns hold the coordinates. Returns ``(lat_index, lon_index)``.
 
     Names first, because a column called Latitude is not a guess. But names run
@@ -300,11 +308,19 @@ def guess_coordinate_columns(columns, rows, mask=None):
     one of those is a latitude between 10 and 27 degrees - and otherwise by
     magnitude and column order.
 
+    ``projected`` says the file is being read in a grid, which adds the
+    military sheet's M and P to the names tried - after X and Y, so a file that
+    has both is read by the plainer pair. Without it, a table typed off a
+    1:25000 sheet with a column for the sheet number had that column taken for
+    the northing.
+
     Falls back to the first two columns, which is what it did before, when
     neither the names nor the values are any use.
     """
-    by_name_lat = _named_column(columns, LAT_CANDIDATES)
-    by_name_lon = _named_column(columns, LON_CANDIDATES)
+    lat_names = LAT_CANDIDATES + GRID_LAT_CANDIDATES if projected else LAT_CANDIDATES
+    lon_names = LON_CANDIDATES + GRID_LON_CANDIDATES if projected else LON_CANDIDATES
+    by_name_lat = _named_column(columns, lat_names)
+    by_name_lon = _named_column(columns, lon_names)
     if by_name_lat is not None and by_name_lon is not None and by_name_lat != by_name_lon:
         return by_name_lat, by_name_lon
 

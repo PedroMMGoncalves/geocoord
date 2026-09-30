@@ -405,6 +405,26 @@ describe('reading a projected file as kilometres', () => {
     expect(offered()).toBeNull()
   })
 
+  it('takes M and P for the grid, not the sheet number', async () => {
+    // The column names a military sheet uses. Before they were known, the
+    // sheet number was taken for the northing and every row converted to
+    // nonsense until someone changed the picker.
+    const SHEET = [
+      'Folha,M,P',
+      '282,252.52,315.15',
+      '282,252.76,314.16',
+      '281,251.28,316.70',
+      '292,257.86,320.21',
+      '282,255.19,315.35',
+      '292,260.78,314.71',
+    ].join('\n')
+    show()
+    await load(SHEET)
+    militar()
+    await waitFor(() => expect(document.getElementById('lat-col').value).toBe('M'))
+    expect(document.getElementById('lon-col').value).toBe('P')
+  })
+
   it('drops the reading when another file is loaded', async () => {
     // The factor belongs to the file that needed it. Carried over, the next
     // file converts a thousandfold wrong and nothing on screen says why.

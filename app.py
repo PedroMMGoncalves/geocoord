@@ -747,9 +747,9 @@ with tab_file:
         # No mask here: in this interface the region is chosen further down,
         # after the conversion, so at this point there is none to use. The
         # values alone are enough on the files that need this most.
-        guess_lat, guess_lon = guess_coordinate_columns(
-            cols, df.astype(object).values.tolist())
         projected_input = (current_source() or {}).get("kind") == "projected"
+        guess_lat, guess_lon = guess_coordinate_columns(
+            cols, df.astype(object).values.tolist(), projected=projected_input)
         # The first picker is the latitude for a geographic system and the X -
         # the easting - for a projected one, so a projected file takes the
         # guessed pair the other way round.

@@ -325,7 +325,7 @@ application, and in JavaScript, for the browser. That is a translation, not a
 rewrite, and translations drift.
 
 So both are held to one frozen file,
-[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 292 cases across
+[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 296 cases across
 26 sections, read by pytest and by vitest alike. A divergence on any pinned
 case fails both suites, and CI additionally fails if the committed contract and
 its generator disagree.
@@ -423,7 +423,9 @@ in the contract, so the desktop and the browser refuse the same files.
 - **Messy spreadsheet exports load fine.** A blank first line, a leading empty
   index column, empty rows, decimal commas inside quoted fields (`"33,6603"`),
   ragged rows, a UTF-16 export from Excel: all handled. Columns named `X`/`Y`
-  are recognised (`Y` = latitude, `X` = longitude).
+  are recognised (`Y` = latitude, `X` = longitude). In a projected system, so
+  are `M` and `P` — the military grid's distances to the *Meridiana* and the
+  *Perpendicular*, that is, the easting and the northing.
 - **Western longitudes have the wrong sign.** The source must carry `W`/`O` or a
   leading `-`. Without either, the sign cannot be inferred and the value is
   taken as East.

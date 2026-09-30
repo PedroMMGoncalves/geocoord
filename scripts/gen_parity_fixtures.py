@@ -473,6 +473,14 @@ GUESS_COLUMN_INPUTS = [
       ["Aldeia B", "18 36 36", "34 17 16"],
       ["Aldeia C", "19 07 04", "33 33 00"],
       ["aldeia d", "19 10 10", "33 24 01"]], [PT]),
+    # Degrees, and a column called P holding phosphorus in ppm: the military
+    # grid's names are not consulted, so the coordinates are found by value.
+    ("p_is_phosphorus_when_the_file_is_in_degrees",
+     ["amostra", "P", "a", "b"],
+     [["A1", "1250", "38\u00b0 41' 30\" N", "9\u00b0 08' 12\" W"],
+      ["A2", "980", "38\u00b0 42' 10\" N", "9\u00b0 09' 02\" W"],
+      ["A3", "1430", "38\u00b0 43' 55\" N", "9\u00b0 07' 40\" W"],
+      ["A4", "1100", "38\u00b0 40' 05\" N", "9\u00b0 10' 31\" W"]], []),
     ("nothing_usable_falls_back_to_the_first_two",
      ["a", "b", "c"], [["x", "y", "z"]] * 4, []),
     ("a_single_column_does_not_go_out_of_bounds",
@@ -582,6 +590,23 @@ _AS_METRES = [(36.9473, -10.3754), (36.9473, -10.3754), (36.9473, -10.3754),
 _AS_KILOMETRES = [(39.8031, -7.5198), (39.7942, -7.5171), (39.8171, -7.5342),
                   (39.8483, -7.4570), (39.8047, -7.4886), (39.7986, -7.4234)]
 _ELSEWHERE = [(12.0, 40.0), (13.0, 41.0), (14.0, 42.0)]
+
+# The column names of a table typed off a military sheet: M and P, beside the
+# sheet number. Synthetic values around Castelo Branco, in kilometres and in
+# metres. Read in a grid, M is the easting and P the northing; read as degrees,
+# a column called P is more likely phosphorus, and must not be taken for one.
+_SHEET_KM = [["282", "252.52", "315.15"], ["282", "252.76", "314.16"],
+             ["281", "251.28", "316.70"], ["292", "257.86", "320.21"]]
+_SHEET_M = [[f, str(round(float(m) * 1000)), str(round(float(p) * 1000))]
+            for f, m, p in _SHEET_KM]
+
+GUESS_GRID_COLUMN_INPUTS = [
+    ("grid_columns_named_m_and_p_in_kilometres", ["Folha", "M", "P"], _SHEET_KM, []),
+    ("grid_columns_named_m_and_p_in_metres", ["Folha", "M", "P"], _SHEET_M, []),
+    # X and Y are tried first, so a file with both pairs is read by the plainer.
+    ("grid_x_and_y_come_before_m_and_p",
+     ["M", "P", "X", "Y"], [r[1:] + r[1:] for r in _SHEET_M], []),
+]
 
 SUGGEST_SCALE_INPUTS = [
     ("kilometres_on_a_military_sheet", _AS_METRES, _AS_KILOMETRES, PT_MASK),
@@ -1187,9 +1212,12 @@ def build():
             "cases": CRS_CASES,
         },
         "guess_coordinate_columns": [
-            {"id": i, "columns": c, "rows": r, "mask": m,
-             "expected": list(guess_coordinate_columns(c, r, [tuple(b) for b in m]))}
-            for i, c, r, m in GUESS_COLUMN_INPUTS
+            {"id": i, "columns": c, "rows": r, "mask": m, "projected": g,
+             "expected": list(guess_coordinate_columns(
+                 c, r, [tuple(b) for b in m], projected=g))}
+            for i, c, r, m, g in (
+                [(*case, False) for case in GUESS_COLUMN_INPUTS]
+                + [(*case, True) for case in GUESS_GRID_COLUMN_INPUTS])
         ],
         "unsigned_outside_region": [
             {"id": i, "values": v, "axis": a, "mask": m,

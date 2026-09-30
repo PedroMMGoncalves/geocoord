@@ -178,6 +178,16 @@ export const LON_CANDIDATES = [
   'lon_dms', 'lon_gms', 'x', 'x_dd', 'lon_x',
 ]
 
+/**
+ * The names a Portuguese military sheet gives its grid: P, the distance to the
+ * Perpendicular, is the northing, and M, the distance to the Meridiana, the
+ * easting. They sit in the latitude and longitude slots because that is where
+ * the northing and the easting go. Consulted only for a file read in a
+ * projected system - in a geochemistry table, P is phosphorus.
+ */
+export const GRID_LAT_CANDIDATES = ['p']
+export const GRID_LON_CANDIDATES = ['m']
+
 // A column has to be mostly coordinates before it is taken for one, and have
 // enough values for that fraction to mean anything.
 const COLUMN_HIT_RATE = 0.6
@@ -302,14 +312,23 @@ function orderByRegion(first, second, mask) {
  * Which of the two is the latitude is decided by the declared region when there
  * is one - in central Moçambique the magnitudes are 19 and 34, and only one of
  * those is a latitude between 10 and 27 degrees - and otherwise by magnitude
- * and column order. Falls back to the first two columns when neither names nor values
- * are any use, which is what it did before.
+ * and column order.
+ *
+ * `projected` says the file is being read in a grid, which adds the military
+ * sheet's M and P to the names tried - after X and Y, so a file that has both is
+ * read by the plainer pair. Without it, a table typed off a 1:25000 sheet with a
+ * column for the sheet number had that column taken for the northing.
+ *
+ * Falls back to the first two columns when neither names nor values are any
+ * use, which is what it did before.
  *
  * Mirrors guess_coordinate_columns() in geocoord/converter.py.
  */
-export function guessCoordinateColumns(columns, rows, mask = null) {
-  const byNameLat = namedColumn(columns, LAT_CANDIDATES)
-  const byNameLon = namedColumn(columns, LON_CANDIDATES)
+export function guessCoordinateColumns(columns, rows, mask = null, projected = false) {
+  const latNames = projected ? [...LAT_CANDIDATES, ...GRID_LAT_CANDIDATES] : LAT_CANDIDATES
+  const lonNames = projected ? [...LON_CANDIDATES, ...GRID_LON_CANDIDATES] : LON_CANDIDATES
+  const byNameLat = namedColumn(columns, latNames)
+  const byNameLon = namedColumn(columns, lonNames)
   if (byNameLat !== null && byNameLon !== null && byNameLat !== byNameLon) {
     return [byNameLat, byNameLon]
   }

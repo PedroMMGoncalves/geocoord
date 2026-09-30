@@ -101,7 +101,8 @@ describe('guessCoordinateColumns', () => {
   // file the columns were called "Condenadas" and "Unnamed: 2", and matching
   // on names put the village name in the latitude slot.
   it.each(cases('guess_coordinate_columns'))('%s', (_id, c) => {
-    expect(guessCoordinateColumns(c.columns, c.rows, c.mask)).toEqual(c.expected)
+    expect(guessCoordinateColumns(c.columns, c.rows, c.mask, c.projected))
+      .toEqual(c.expected)
   })
 })
 

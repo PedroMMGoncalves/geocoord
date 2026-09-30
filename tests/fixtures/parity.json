@@ -908,6 +908,7 @@
         ]
       ],
       "mask": [],
+      "projected": false,
       "expected": [
         1,
         2
@@ -943,6 +944,7 @@
         ]
       ],
       "mask": [],
+      "projected": false,
       "expected": [
         0,
         1
@@ -983,6 +985,7 @@
         ]
       ],
       "mask": [],
+      "projected": false,
       "expected": [
         1,
         2
@@ -1025,6 +1028,7 @@
           41.0
         ]
       ],
+      "projected": false,
       "expected": [
         1,
         2
@@ -1070,6 +1074,7 @@
         ]
       ],
       "mask": [],
+      "projected": false,
       "expected": [
         1,
         2
@@ -1115,6 +1120,7 @@
         ]
       ],
       "mask": [],
+      "projected": false,
       "expected": [
         1,
         2
@@ -1145,6 +1151,7 @@
         ]
       ],
       "mask": [],
+      "projected": false,
       "expected": [
         0,
         1
@@ -1187,9 +1194,51 @@
           -6.1
         ]
       ],
+      "projected": false,
       "expected": [
         1,
         2
+      ]
+    },
+    {
+      "id": "p_is_phosphorus_when_the_file_is_in_degrees",
+      "columns": [
+        "amostra",
+        "P",
+        "a",
+        "b"
+      ],
+      "rows": [
+        [
+          "A1",
+          "1250",
+          "38° 41' 30\" N",
+          "9° 08' 12\" W"
+        ],
+        [
+          "A2",
+          "980",
+          "38° 42' 10\" N",
+          "9° 09' 02\" W"
+        ],
+        [
+          "A3",
+          "1430",
+          "38° 43' 55\" N",
+          "9° 07' 40\" W"
+        ],
+        [
+          "A4",
+          "1100",
+          "38° 40' 05\" N",
+          "9° 10' 31\" W"
+        ]
+      ],
+      "mask": [],
+      "projected": false,
+      "expected": [
+        2,
+        3
       ]
     },
     {
@@ -1222,6 +1271,7 @@
         ]
       ],
       "mask": [],
+      "projected": false,
       "expected": [
         0,
         1
@@ -1247,6 +1297,7 @@
         ]
       ],
       "mask": [],
+      "projected": false,
       "expected": [
         0,
         0
@@ -1265,9 +1316,123 @@
         ]
       ],
       "mask": [],
+      "projected": false,
       "expected": [
         0,
         1
+      ]
+    },
+    {
+      "id": "grid_columns_named_m_and_p_in_kilometres",
+      "columns": [
+        "Folha",
+        "M",
+        "P"
+      ],
+      "rows": [
+        [
+          "282",
+          "252.52",
+          "315.15"
+        ],
+        [
+          "282",
+          "252.76",
+          "314.16"
+        ],
+        [
+          "281",
+          "251.28",
+          "316.70"
+        ],
+        [
+          "292",
+          "257.86",
+          "320.21"
+        ]
+      ],
+      "mask": [],
+      "projected": true,
+      "expected": [
+        2,
+        1
+      ]
+    },
+    {
+      "id": "grid_columns_named_m_and_p_in_metres",
+      "columns": [
+        "Folha",
+        "M",
+        "P"
+      ],
+      "rows": [
+        [
+          "282",
+          "252520",
+          "315150"
+        ],
+        [
+          "282",
+          "252760",
+          "314160"
+        ],
+        [
+          "281",
+          "251280",
+          "316700"
+        ],
+        [
+          "292",
+          "257860",
+          "320210"
+        ]
+      ],
+      "mask": [],
+      "projected": true,
+      "expected": [
+        2,
+        1
+      ]
+    },
+    {
+      "id": "grid_x_and_y_come_before_m_and_p",
+      "columns": [
+        "M",
+        "P",
+        "X",
+        "Y"
+      ],
+      "rows": [
+        [
+          "252520",
+          "315150",
+          "252520",
+          "315150"
+        ],
+        [
+          "252760",
+          "314160",
+          "252760",
+          "314160"
+        ],
+        [
+          "251280",
+          "316700",
+          "251280",
+          "316700"
+        ],
+        [
+          "257860",
+          "320210",
+          "257860",
+          "320210"
+        ]
+      ],
+      "mask": [],
+      "projected": true,
+      "expected": [
+        3,
+        2
       ]
     }
   ],
