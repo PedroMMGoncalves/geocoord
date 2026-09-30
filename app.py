@@ -268,6 +268,15 @@ def current_source():
     )
 
 
+def crs_choice_for(code):
+    """The input picker's option for a declared EPSG code, or None if unknown."""
+    number = str(code).upper().removeprefix("EPSG:").strip()
+    if number not in crs.REGISTRY:
+        return None
+    return next((o for o in crs_choices(include_none=False)
+                 if o.endswith(f"EPSG:{number}") or f"EPSG:{number} " in o), None)
+
+
 def crs_controls():
     """The two pickers and their escape hatches. Returns (input, output)."""
     st.caption("Leave both alone for a file already in WGS84 degrees, which is "
@@ -561,8 +570,13 @@ def render_summary(result, labels, lat_col, lon_col):
             width="stretch")
 
 
-def render_downloads(result, name_key, base):
+def render_downloads(result, name_key, base, pending=False):
     _step("6. Download")
+    if pending:
+        st.warning("**Answer the swap review first.** Some rows may have their "
+                   "latitude and longitude the other way round. Nothing is changed "
+                   "without your confirmation: invert them, or keep them as "
+                   "written, and the downloads open.")
     st.caption("Tabular formats include all rows; spatial formats include valid points only.")
     st.caption(f"Files are named after the input file: `{base}.csv`, `{base}.geojson`, …")
     c = st.columns(6)
@@ -578,27 +592,28 @@ def render_downloads(result, name_key, base):
     d = st.columns(6)
     if want["CSV"]:
         d[0].download_button("Download CSV", export_csv(result),
-                             f"{base}.csv", "text/csv", width="stretch")
+                             f"{base}.csv", "text/csv", disabled=pending,
+                             width="stretch")
     if want["Excel"]:
         d[1].download_button("Download Excel", export_excel(result), f"{base}.xlsx",
                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                             width="stretch")
+                             disabled=pending, width="stretch")
     if want["GeoJSON"]:
         d[2].download_button("Download GeoJSON", export_geojson(result),
                              f"{base}.geojson", "application/geo+json",
-                             disabled=not has_points, width="stretch")
+                             disabled=pending or not has_points, width="stretch")
     if want["KML"]:
         d[3].download_button("Download KML", export_kml(result, name_key),
                              f"{base}.kml", "application/vnd.google-earth.kml+xml",
-                             disabled=not has_points, width="stretch")
+                             disabled=pending or not has_points, width="stretch")
     if want["Shapefile"]:
         d[4].download_button("Download Shapefile (.zip)", export_shapefile(result, base),
                              f"{base}.zip", "application/zip",
-                             disabled=not has_points, width="stretch")
+                             disabled=pending or not has_points, width="stretch")
     if want["GPX"]:
         d[5].download_button("Download GPX", export_gpx(result, name_key),
                              f"{base}.gpx", "application/gpx+xml",
-                             disabled=not has_points, width="stretch")
+                             disabled=pending or not has_points, width="stretch")
 
 
 def _select_region(name):
@@ -666,8 +681,9 @@ with tab_file:
             st.session_state.pop("result", None)
             # The kilometre factor belongs to the file that needed it. Carried
             # over, the next file converts a thousandfold wrong and nothing on
-            # screen says why.
+            # screen says why. The same for an answer to the swap review.
             st.session_state.pop("scale", None)
+            st.session_state.pop("swaps_kept", None)
 
         name = uploaded.name.lower()
         notes: list[dict] = []
@@ -681,6 +697,14 @@ with tab_file:
                 uploaded.seek(0)
                 read = read_geospatial_bytes(uploaded.read(), name)
                 df, notes = read.table, read.notes
+                # A file that names its own system has answered the question
+                # step 3 asks. Taken once, when the file arrives, so the user
+                # can still change it; and only when this build knows the
+                # system - otherwise the note says what the file claimed.
+                declared = crs_choice_for(read.crs) if read.crs else None
+                if declared and st.session_state.get("crs_taken_for") != uploaded.name:
+                    st.session_state.crs_taken_for = uploaded.name
+                    st.session_state.crs_in = declared
             elif name.endswith(".csv"):
                 with st.expander("Read options (CSV)"):
                     sep_label = st.selectbox(
@@ -717,17 +741,19 @@ with tab_file:
                 st.info(f"The marked waypoints were read. The file also holds "
                         f"{note['count']} track or route point(s), which were not.")
             elif code == "geojson_crs":
-                # This build reads WGS84 degrees and has no input-system picker,
-                # so every row of a projected file fails the range check with
-                # nothing to explain why. The web version does have one, and
-                # picks the declared system by itself.
-                st.warning(
-                    f"The file declares the {note['crs']} system, so its "
-                    f"coordinates are metres rather than degrees. This build "
-                    f"converts WGS84 degrees only, so every row will fail. Open "
-                    f"the file at https://pedrommgoncalves.github.io/geocoord/ , "
-                    f"which reads {note['crs']} and selects it for you, or "
-                    f"reproject the file to WGS84 first.")
+                # The system is chosen for the user when this build knows it;
+                # when it does not, every row would be read as degrees and
+                # fail the range check with nothing to explain why, so that is
+                # said instead.
+                if crs_choice_for(note["crs"]):
+                    st.info(f"The file declares the {note['crs']} system, and it has "
+                            f"been chosen as the input under *3. Coordinate system*.")
+                else:
+                    st.warning(
+                        f"The file declares the {note['crs']} system, which this "
+                        f"build does not know. Choose it under *3. Coordinate "
+                        f"system* - by UTM zone, or by pasting its proj4 "
+                        f"definition - or every row will be read as degrees.")
         df = tidy_table(df)
         if df.empty:
             st.warning("The file contains no rows to process.")
@@ -803,6 +829,7 @@ with tab_file:
 
         _step("4. Convert")
         if st.button("Convert coordinates", type="primary"):
+            st.session_state.pop("swaps_kept", None)
             with st.spinner("Converting..."):
                 st.session_state.result = build_result(
                     df, lat_col, lon_col, decimals, add_dms,
@@ -953,7 +980,22 @@ with tab_file:
                     st.button(f"Switch region to {best}", key="switch_region",
                               on_click=_select_region, args=(best,))
 
-            if n_swap:
+            # The question is asked once per set of rows in doubt, and until
+            # it is answered - inverted, or kept as written - nothing can be
+            # downloaded. It is the one thing standing between a hurried user
+            # and a file with its latitude and longitude the wrong way round.
+            suspects = tuple(i for i, s in enumerate(labels)
+                             if s in ("swap_range", "swap_cluster", "swap_axis"))
+            kept = bool(suspects) and st.session_state.get("swaps_kept") == suspects
+            review_pending = bool(suspects) and not kept
+
+            if n_swap and kept:
+                st.info(f"{n_swap} possible swapped coordinate(s) kept as written. "
+                        f"The downloads are open.")
+                if st.button("Review them again", key="review_again"):
+                    st.session_state.pop("swaps_kept", None)
+                    st.rerun()
+            elif n_swap:
                 cluster_idx = [i for i, s in enumerate(labels) if s == "swap_cluster"]
                 range_idx = [i for i, s in enumerate(labels) if s == "swap_range"]
                 # Proof rather than suggestion: the hemisphere letter names an
@@ -984,7 +1026,11 @@ with tab_file:
                             "Invert cluster suggestion (the main cluster is the swapped side)",
                             value=False)
                     target = axis_idx + range_idx + (ok_idx if invert else cluster_idx)
-                    if st.button(f"Apply swap to {len(target)} row(s)", type="primary"):
+                    b1, b2 = st.columns(2)
+                    if b2.button("Keep them as written", key="keep_swaps"):
+                        st.session_state.swaps_kept = suspects
+                        st.rerun()
+                    if b1.button(f"Apply swap to {len(target)} row(s)", type="primary"):
                         st.session_state.result = apply_swaps(result, target, add_dms)
                         # The row is settled. Its raw cell still reads "W", but
                         # it is no longer sitting in the latitude column, so the
@@ -1007,7 +1053,8 @@ with tab_file:
                 render_summary(result, labels, lat_col, lon_col)
             with t_download:
                 base = sanitize_filename(st.session_state.get("file_name", "converted"))
-                render_downloads(result, st.session_state.get("name_key"), base)
+                render_downloads(result, st.session_state.get("name_key"), base,
+                                 pending=review_pending)
 
 
 with tab_quick:

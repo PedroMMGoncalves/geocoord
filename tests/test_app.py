@@ -240,17 +240,58 @@ def test_a_southern_file_written_unsigned_can_be_placed_by_its_region():
     assert (lats < 0).all()
 
 
+def downloads(at):
+    return [(d.proto.label, d.proto.disabled) for d in at.get("download_button")]
+
+
+def test_the_downloads_wait_while_a_row_is_in_doubt():
+    # The same gate as the page: nothing can be taken while a row may have its
+    # latitude and longitude the other way round.
+    at = load(start(), "amostras.csv", ONE_REVERSED)
+    convert(at)
+    assert metrics(at)["Possible swaps"] == "1"
+    assert said(at, "warning", r"Answer the swap review first")
+    assert downloads(at) and all(disabled for _, disabled in downloads(at))
+
+
 def test_a_reversed_row_is_offered_for_review_and_fixed():
     at = load(start(), "amostras.csv", ONE_REVERSED)
     convert(at)
     assert metrics(at)["Possible swaps"] == "1"
 
     press(at, "Apply swap to 1 row(s)")
+    assert not any(disabled for _, disabled in downloads(at))
 
     m = metrics(at)
     assert (m["Possible swaps"], m["In region"]) == ("0", "7")
     fixed = result(at).iloc[6]
     assert float(fixed["Latitude_DD"]) == pytest.approx(38.73)
+
+
+def test_keeping_a_row_as_written_is_an_answer_too():
+    # A user who has looked and decided the data is right must not be left
+    # holding a page that will not give them the file.
+    at = load(start(), "amostras.csv", ONE_REVERSED)
+    convert(at)
+    press(at, "Keep them as written")
+
+    assert not any(disabled for _, disabled in downloads(at))
+    assert said(at, "info", r"kept as written")
+    assert float(result(at).iloc[6]["Latitude_DD"]) == pytest.approx(-9.14)
+
+    # And it can be taken back.
+    press(at, "Review them again")
+    assert all(disabled for _, disabled in downloads(at))
+
+
+def test_an_answer_does_not_carry_over_to_the_next_file():
+    at = load(start(), "amostras.csv", ONE_REVERSED)
+    convert(at)
+    press(at, "Keep them as written")
+
+    load(at, "outras.csv", ONE_REVERSED)
+    convert(at)
+    assert all(disabled for _, disabled in downloads(at))
 
 
 def test_a_second_system_adds_its_own_columns():
@@ -276,18 +317,39 @@ def test_a_geojson_is_read_and_its_lines_are_counted_not_converted():
     assert metrics(at)["In region"] == "3"
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "The desktop still warns that it converts WGS84 degrees only when a GeoJSON "
-    "declares a projected system - written before it had a system picker - and "
-    "does not choose the declared system, as the page does. Strict, so the day "
-    "it is fixed this fails and the marker comes off."))
 def test_a_geojson_that_declares_its_system_has_it_chosen():
+    # What QGIS still writes: the 2008 crs member, and metres. The desktop used
+    # to say it read WGS84 only - a message from before it had a system picker.
     features = [point(-86000.0, -104000.0, nome="A"),
                 point(-85500.0, -103200.0, nome="B"),
                 point(-86400.0, -104900.0, nome="C")]
     content = geojson(features, crs="urn:ogc:def:crs:EPSG::3763")
     at = load(start(), "tm06.geojson", content, "application/geo+json")
     assert "3763" in picker(at, "System the file is in").value
+    assert said(at, "info", r"declares the EPSG:3763 system, and it has been chosen")
+    assert picker(at, "X column").value == "X"
+    assert picker(at, "Y column").value == "Y"
+    convert(at)
+    assert metrics(at)["In region"] == "3"
+
+
+def test_the_declared_system_is_taken_once_and_can_be_changed():
+    features = [point(-86000.0, -104000.0), point(-85500.0, -103200.0),
+                point(-86400.0, -104900.0)]
+    at = load(start(), "tm06.geojson", geojson(features, crs="EPSG:3763"),
+              "application/geo+json")
+    choose(at, "System the file is in", "EPSG:20790")
+    at.run()
+    assert "20790" in picker(at, "System the file is in").value
+
+
+def test_a_system_this_build_does_not_know_is_named_and_left_to_the_user():
+    features = [point(400000.0, 4500000.0), point(400100.0, 4500100.0),
+                point(400200.0, 4500200.0)]
+    at = load(start(), "grego.geojson", geojson(features, crs="EPSG:2100"),
+              "application/geo+json")
+    assert said(at, "warning", r"declares the EPSG:2100 system, which this build does not know")
+    assert "4326" in picker(at, "System the file is in").value
 
 
 def test_one_column_asks_for_two_instead_of_failing():

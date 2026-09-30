@@ -19,19 +19,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The desktop application has tests. They run `app.py` whole through
   Streamlit's own simulator - a file uploaded, the pickers chosen, the buttons
   pressed, the page read back - because its faults have been in the order its
-  steps run and in what each rerun keeps, not in any one function. Twelve
+  steps run and in what each rerun keeps, not in any one function. Eighteen
   scenarios, every file synthetic, in a CI job of their own; the faults this
   application has had are among them, and putting any of them back fails the
-  job. One known gap is pinned as an expected failure: a GeoJSON that declares
-  a projected system is still told the desktop reads WGS84 only, a message from
-  before it had a system picker, and its system is not chosen for it.
+  job.
 
 ### Changed
 
+- The desktop application holds its downloads while a row may have its latitude
+  and longitude the other way round, as the page does. It offered the review
+  and let the file be taken regardless; now every download waits for an answer,
+  and *Keep them as written* is one - a user who has looked and decided the
+  data is right must not be left without the file. The answer belongs to the
+  rows it was given for, and does not carry over to the next file.
 - The desktop application needs Streamlit 1.49 or later. `use_container_width`,
   which it passed to twelve elements, is deprecated with a removal date already
   past; `width="stretch"` replaces it, and 1.49 is the first release that
   accepts it for all three kinds of element involved.
+
+### Fixed
+
+- A GeoJSON that declares its system has it chosen on the desktop too. The
+  desktop told such a file that it read WGS84 degrees only - a message from
+  before it had a system picker - and sent the user to the browser. Now a
+  system this build knows is chosen when the file arrives, and can still be
+  changed; one it does not know is named, with the two ways to supply it.
+- Blank cells in a text column are recognised under pandas 3. pandas 3 gives
+  text its own dtype, which `select_dtypes("object")` still includes only as a
+  deprecated courtesy; when that goes, whitespace-only rows would have stopped
+  being dropped. The pandas-2 `string` dtype was already missed the same way.
 
 ## [1.1.0] - 2026-09-30
 

@@ -232,6 +232,18 @@ def test_tidy_table_drops_empty_column_and_rows():
     assert len(tidy) == 2  # the all-empty middle row is dropped
 
 
+def test_tidy_table_blank_cells_are_empty_in_a_text_dtype_too():
+    # pandas 3 gives text its own dtype, and select_dtypes("object") includes it
+    # only as a deprecated courtesy. The pandas-2 "string" dtype is the same
+    # case, and was already missed: a whitespace-only row survived.
+    df = pd.DataFrame({
+        "lat": ["39.0", "   ", "38.9"],
+        "lon": ["-8.0", "", "-7.9"],
+    }, dtype="string")
+    tidy = tidy_table(df)
+    assert len(tidy) == 2
+
+
 def test_tidy_table_leaves_clean_table_unchanged():
     df = pd.DataFrame({"lat": [39.0, 38.9], "lon": [-8.0, -7.9]})
     tidy = tidy_table(df)

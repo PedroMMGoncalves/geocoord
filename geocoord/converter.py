@@ -532,8 +532,13 @@ def tidy_table(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
     # Treat blank / whitespace-only string cells as missing so they count as
-    # empty for the row/column drops below.
-    for c in df.select_dtypes(include="object").columns:
+    # empty for the row/column drops below. Text columns are object columns in
+    # pandas 2 but have their own dtype in pandas 3, which select_dtypes("object")
+    # still includes only as a deprecated courtesy - so both are asked for by
+    # name, in a form both versions accept.
+    text_columns = [c for c in df.columns
+                    if df[c].dtype == object or pd.api.types.is_string_dtype(df[c].dtype)]
+    for c in text_columns:
         stripped = df[c].astype(str).str.strip()
         df[c] = df[c].where(~stripped.isin(["", "nan", "None"]), np.nan)
 
