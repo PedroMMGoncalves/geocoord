@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-30
+
+### Added
+
+- A grid file written in kilometres is noticed. The margin of a 1:25000
+  military sheet prints its grid in kilometres, so a table typed from one is
+  routinely in kilometres where the system's units are metres - and that is not
+  an error a transformation can raise: `M 252,52` is a real easting, 252 m from
+  the false origin, so the row converts, stays valid, and lands in the sea off
+  Cabo de São Vicente instead of inland. When a projected file falls outside the
+  declared region as written and inside it multiplied by a thousand, both
+  applications say so and offer the reading as a button; the reading stays on
+  screen and can be taken back, and it does not carry over to the next file.
+  Only the factor of a thousand is offered: it is the one scale error with a
+  habit behind it, and every other factor would widen the space in which the
+  application can guess wrong. `suggest_scale` joins the parity contract (292
+  cases across 26 sections).
+
+### Fixed
+
+- **The desktop application crossed the axes of a projected file whenever its
+  system was chosen after the file was loaded** - which is the order its six
+  steps ask for. The column pickers are drawn before the system is chosen, and a
+  Streamlit widget keeps the value it has - so the pair guessed while the file
+  was read as degrees survived the switch to a grid, and the picker labelled
+  *Easting* went on pointing at the column of northings. The points were valid
+  and somewhere else, with nothing on screen to say so. The pair is now
+  re-derived whenever the kind of system changes. Found by driving the
+  application with the kilometre table above; the browser was not affected.
+
 ## [1.0.0] - 2026-09-09
 
 Version 1.0.0 is not a claim that the work is finished — software is never
@@ -42,9 +72,8 @@ cite it.
   conversion, the review panel holding the downloads, and the region offered to
   a file that reads as Sudan. The coordinates are invented and the generator
   that makes them is in `scripts/`. The first proposal was to shoot them with
-  the two real workbooks, which are gold sampling sites and a national mine
-  register - a colleague's unpublished field data, in a public README, on a
-  tool whose whole promise is that the file never leaves the machine.
+  real workbooks - unpublished field data, in a public README, on a tool whose
+  whole promise is that the file never leaves the machine.
 - The citation and the DOI badge use the **concept DOI**
   (`10.5281/zenodo.20596870`) rather than v0.1.0's own
   (`...871`). The concept DOI always resolves to the newest release; the
@@ -84,10 +113,10 @@ cite it.
 - A file whose coordinates land nowhere is asked about rather than left as it
   is. A field notebook from the southern hemisphere is routinely written
   unsigned, because the survey knew which side of the equator it stood on, and
-  read literally Tete is Sudan. The application already fixes that, but only
-  against the region the user *declared* - the only place the information can
-  come from - so a user who never touched the region picker got the default's
-  answer to a question they did not know was being asked. Now, when the chosen
+  read literally central Moçambique is Sudan. The application already fixes
+  that, but only against the region the user *declared* - the only place the
+  information can come from - so a user who never touched the region picker got
+  the default's answer to a question they did not know was being asked. Now, when the chosen
   region leaves the points nowhere known and one known region's sign would take
   nearly all of them, that region is named with the numbers and a button:
   *"Estes valores caem fora de Portugal Continental. Se forem coordenadas de

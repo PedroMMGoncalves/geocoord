@@ -8,9 +8,9 @@ authors:
     affiliation: "LNEG - Laboratório Nacional de Energia e Geologia"
 repository-code: "https://github.com/PedroMMGoncalves/geocoord"
 license: Apache-2.0
-version: "1.0.0"
+version: "1.1.0"
 doi: "10.5281/zenodo.20596870"
-date-released: "2026-09-09"
+date-released: "2026-09-30"
 keywords:
   - coordinates
   - DMS

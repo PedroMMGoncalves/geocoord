@@ -17,6 +17,7 @@ import {
   tidyTable,
   unsignedOutsideRegion,
   suggestRegion,
+  suggestScale,
 } from '../src/core/converter.js'
 
 describe('parity fixtures', () => {
@@ -106,7 +107,7 @@ describe('guessCoordinateColumns', () => {
 
 describe('unsignedOutsideRegion', () => {
   // The sign a southern-hemisphere file does not carry. Read literally, an
-  // unsigned latitude from Tete is in Sudan.
+  // unsigned latitude from central Moçambique is in Sudan.
   it.each(cases('unsigned_outside_region'))('%s', (_id, c) => {
     expect(unsignedOutsideRegion(c.values, c.axis, c.mask)).toEqual(c.expected)
   })
@@ -192,5 +193,14 @@ describe('suggestRegion', () => {
   // point inside a country it knows.
   it.each(fixtures.suggest_region.map((c) => [c.id, c]))('%s', (_id, c) => {
     expect(suggestRegion(c.lat, c.lon, c.regions, c.chosen)).toEqual(c.expected)
+  })
+})
+
+describe('suggestScale', () => {
+  // A grid coordinate written in kilometres converts: 252.52 is a valid
+  // easting a few hundred metres from the false origin, so the row is fine and
+  // the point is a hundred kilometres from where it belongs.
+  it.each(cases('suggest_scale'))('%s', (_id, c) => {
+    expect(suggestScale(c.as_written, c.scaled, c.mask)).toEqual(c.expected)
   })
 })

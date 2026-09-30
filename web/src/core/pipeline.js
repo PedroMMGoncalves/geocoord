@@ -11,6 +11,7 @@
  * and a value out.
  */
 import {
+  KILOMETRE,
   LAT_CANDIDATES,
   LON_CANDIDATES,
   axisMismatch,
@@ -18,6 +19,7 @@ import {
   inRange,
   parseCoordinate,
   parseProjected,
+  suggestScale,
   unsignedOutsideRegion,
 } from './converter.js'
 
@@ -112,6 +114,7 @@ export async function buildResult(table, xCol, yCol, {
   output = null,
   regionMask = null,
   applyRegionSign = false,
+  scale = 1,
 } = {}) {
   const keep = table.columns
     .map((c, i) => [c, i])
@@ -146,6 +149,18 @@ export async function buildResult(table, xCol, yCol, {
   const flip = (v, yes) => (yes && v !== null ? -v : v)
   let firsts = rawX.map((v, i) => flip(read(v), applyRegionSign && signable.lat[i]))
   let seconds = rawY.map((v, i) => flip(read(v), applyRegionSign && signable.lon[i]))
+  // A grid coordinate typed off a map sheet is routinely in kilometres - the
+  // margin of a 1:25000 sheet prints them that way - and it is not an error the
+  // transformation can raise: the value converts, and the point lands a hundred
+  // kilometres from where it belongs. The factor multiplies the projected values
+  // before they are transformed. Degrees have no unit to get wrong, so a
+  // geographic file ignores it.
+  const factor = projected ? scale : 1
+  if (factor !== 1) {
+    firsts = firsts.map((v) => (v === null ? null : v * factor))
+    seconds = seconds.map((v) => (v === null ? null : v * factor))
+  }
+
   let lats
   let lons
   if (input === null || input.proj4 === WGS84_PROJ4) {
@@ -167,6 +182,26 @@ export async function buildResult(table, xCol, yCol, {
   lats = lats.map((v) => roundHalfEven(v, decimals))
   lons = lons.map((v) => roundHalfEven(v, decimals))
 
+  // Whether the file would read better in kilometres. Only worth asking of a
+  // projected file being read as it stands, and only with a region to check it
+  // against: the same points are transformed a second time, multiplied, and
+  // the two readings go to suggestScale, which decides and changes nothing.
+  let scaleSuggestion = null
+  if (projected && scale === 1 && regionMask !== null && input.proj4 !== WGS84_PROJ4) {
+    const scaled = await transformAll(
+      firsts.map((v, i) => [
+        v === null ? null : v * KILOMETRE,
+        seconds[i] === null ? null : seconds[i] * KILOMETRE,
+      ]),
+      input.proj4, WGS84_PROJ4,
+    )
+    scaleSuggestion = suggestScale(
+      lats.map((lat, i) => [lat, lons[i]]),
+      scaled.map(([x, y]) => [y, x]),
+      regionMask,
+    )
+  }
+
   const mismatch = projected ? rows.map(() => false) : axisMismatch(rawX, rawY)
   const extra = await outputColumns(lats, lons, output)
 
@@ -174,6 +209,8 @@ export async function buildResult(table, xCol, yCol, {
     ...withDerived({ columns, rows }, lats, lons, addDms, extra),
     axisMismatch: mismatch,
     output,
+    // Non-null when the values look like kilometres: {inside, was, readable}.
+    scaleSuggestion,
     // How many rows the region could sign, whether or not it was asked to -
     // the interface needs the count to know whether to offer at all.
     signable: signable.lat.filter(Boolean).length + signable.lon.filter(Boolean).length,

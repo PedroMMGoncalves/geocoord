@@ -249,6 +249,35 @@ export default {
   },
   'file.suggestRegionUse': { pt: 'Usar {region}', en: 'Use {region}' },
 
+  // The kilometre offer. The first line is file.suggestRegion above - the fact
+  // is the same one, the file is not where it says it is - and only the second
+  // differs, because here the application is not guessing at a place. It has a
+  // system, a region, and one factor that would reconcile them.
+  //
+  // "Se estiverem" and not "Se forem": what is in question is the unit the
+  // values were written in, not what they are.
+  'file.suggestScaleFit': {
+    pt: 'Se estiverem em quilómetros e não em metros, os {readable} registos '
+      + 'ficam dentro da região.',
+    en: 'If they are in kilometres rather than metres, all {readable} records '
+      + 'fall inside the region.',
+  },
+  'file.suggestScaleFitSome': {
+    pt: 'Se estiverem em quilómetros e não em metros, {inside} dos {readable} '
+      + 'registos ficam dentro da região.',
+    en: 'If they are in kilometres rather than metres, {inside} of the {readable} '
+      + 'records fall inside the region.',
+  },
+  'file.suggestScaleUse': { pt: 'Ler como quilómetros', en: 'Read as kilometres' },
+  // Once taken, the offer has to stay visible and stay reversible: multiplying
+  // a column by a thousand is not something to leave a reader to infer from
+  // the numbers.
+  'file.scaleOn': {
+    pt: 'A ler os valores como quilómetros: multiplicados por 1000 antes de converter.',
+    en: 'Reading the values as kilometres: multiplied by 1000 before converting.',
+  },
+  'file.scaleOff': { pt: 'Ler como metros', en: 'Read as metres' },
+
   'file.swapsFound': {
     pt: '{n} linhas parecem ter a latitude e a longitude trocadas.',
     ptOne: 'Uma linha parece ter a latitude e a longitude trocadas.',

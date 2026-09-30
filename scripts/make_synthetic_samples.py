@@ -11,7 +11,7 @@ anybody's sampling sites.
 
 Two files:
 
-  amostras_sinteticas.xlsx  unsigned magnitudes in the Tete shape, so the
+  amostras_sinteticas.xlsx  unsigned southern-hemisphere magnitudes, so the
                             application reads them as Sudan and offers the
                             region whose sign would place them
   ensaios_sinteticos.xlsx   points around Portugal with a third of the rows

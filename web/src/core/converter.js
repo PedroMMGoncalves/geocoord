@@ -288,7 +288,7 @@ function orderByRegion(first, second, mask) {
  * Which two columns hold the coordinates. Returns [latIndex, lonIndex].
  *
  * Names first, because a column called Latitude is not a guess. But names run
- * out quickly on real files: a spreadsheet from Tete had its two columns
+ * out quickly on real files: a real spreadsheet had its two columns
  * labelled "Condenadas" - a misspelling of Coordenadas, spanning both - and
  * "Unnamed: 2", and matching on names put the *village name* in the latitude
  * slot and reported every one of its rows as unreadable. No list of candidate
@@ -300,9 +300,9 @@ function orderByRegion(first, second, mask) {
  * is that a coordinate looks like an angle. See columnScore.
  *
  * Which of the two is the latitude is decided by the declared region when there
- * is one - in Tete the magnitudes are 15 and 33, and only one of those is a
- * latitude between 10 and 27 degrees - and otherwise by magnitude and column
- * order. Falls back to the first two columns when neither names nor values
+ * is one - in central Moçambique the magnitudes are 19 and 34, and only one of
+ * those is a latitude between 10 and 27 degrees - and otherwise by magnitude
+ * and column order. Falls back to the first two columns when neither names nor values
  * are any use, which is what it did before.
  *
  * Mirrors guess_coordinate_columns() in geocoord/converter.py.
@@ -323,7 +323,7 @@ export function guessCoordinateColumns(columns, rows, mask = null) {
   let scored = measured.filter((m) => fitsRegion(m[2], mask))
   let ordering = mask
   // A region that fits nothing is the wrong region, not a reason to give up:
-  // the default is Portugal, and a file from Tete arrives with every column
+  // the default is Portugal, and a file from Moçambique arrives with every column
   // outside it. Falling through to the first two columns there put the village
   // name in the latitude slot until the user noticed and changed the region.
   if (scored.length < 2) {
@@ -356,7 +356,7 @@ function axisBounds(mask, axis) {
  *
  * A hard case that has nothing to do with parsing and everything to do with
  * what the file leaves out. Field notebooks from the southern hemisphere are
- * routinely written unsigned - `15 22 23` for a latitude in Tete, because
+ * routinely written unsigned - `18 55 18` for a latitude in Moçambique, because
  * everyone on the survey knew which side of the equator they were standing on
  * - and nothing in the value says south. Read literally it is Sudan.
  *
@@ -741,10 +741,10 @@ export function detectSwaps(lats, lons, options = {}) {
  *
  * A field notebook from the southern hemisphere is routinely written without
  * signs, because the survey knew which side of the equator it stood on. Read
- * literally, Tete is Sudan. unsignedOutsideRegion fixes that, but only against
- * the region the user has *declared* - it is the only place the information can
- * come from - so a user who never touches the region picker gets the default's
- * answer to a question they did not know was being asked.
+ * literally, central Moçambique is Sudan. unsignedOutsideRegion fixes that,
+ * but only against the region the user has *declared* - it is the only place
+ * the information can come from - so a user who never touches the region picker
+ * gets the default's answer to a question they did not know was being asked.
  *
  * This does not answer it either. It asks it. For each known region it applies
  * that region's sign to the unsigned values and counts how many rows would then
@@ -801,6 +801,58 @@ export function suggestRegion(latValues, lonValues, regions, chosen = null,
     }
   }
   return best
+}
+
+/**
+ * Grid coordinates are read off the margin of a map sheet in kilometres -
+ * "M 252,52" is what is printed there - so a table typed from one is routinely
+ * in kilometres where the system's units are metres. It is the only scale
+ * error with a habit behind it, and every extra factor offered would widen the
+ * space in which this can guess wrong.
+ */
+export const KILOMETRE = 1000
+
+/**
+ * Whether a projected file reads better with its values multiplied.
+ *
+ * The dangerous thing about a grid coordinate written in kilometres is that it
+ * converts. 252.52 in the 1:25000 military grid is a real easting - 252 m east
+ * of the false origin - so the transformation succeeds, the row is valid, and
+ * the point lands in the Atlantic instead of inland. Nothing fails.
+ *
+ * This does not divide anything. It is handed the same points transformed
+ * twice - once from the values as they stand, once from the values multiplied
+ * - and reports whether the second reading puts them inside the declared
+ * region while the first does not. The caller does the projecting; keeping it
+ * out of here leaves this module free of proj4 and makes the decision, which
+ * is the part worth pinning, testable on its own.
+ *
+ * Mirrors suggest_scale() in geocoord/converter.py.
+ */
+export function suggestScale(asWritten, scaled, mask, minRows = 3, minShare = 0.8) {
+  if (mask === null || mask === undefined) return null
+  const readable = []
+  asWritten.forEach((p, i) => {
+    if (p && p[0] !== null && p[0] !== undefined && p[1] !== null && p[1] !== undefined) {
+      readable.push(i)
+    }
+  })
+  if (readable.length < minRows || scaled.length !== asWritten.length) return null
+
+  const count = (points) => {
+    let n = 0
+    for (const i of readable) {
+      const p = points[i]
+      if (!p || p[0] === null || p[0] === undefined || p[1] === null || p[1] === undefined) continue
+      if (pointInMask(p[0], p[1], mask)) n += 1
+    }
+    return n
+  }
+
+  const was = count(asWritten)
+  const inside = count(scaled)
+  if (inside <= was || inside < minShare * readable.length) return null
+  return { inside, was, readable: readable.length }
 }
 
 export function regionCheck(lats, lons, labels, regions, options = {}) {

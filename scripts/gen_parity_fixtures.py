@@ -34,6 +34,7 @@ sys.path.insert(0, str(ROOT))
 
 from geocoord.converter import (
     suggest_region,
+    suggest_scale,
     axis_mismatch,
     detect_swaps,
     guess_coordinate_columns,
@@ -413,26 +414,27 @@ for _zone, _south, _lon, _lat, _where in [
 
 # The sign a file from the southern hemisphere does not carry. Field notebooks
 # are routinely written unsigned - everyone on the survey knew which side of the
-# equator they were standing on - and read literally, Tete is in Sudan.
+# equator they were standing on - and read literally, central Moçambique is
+# in Sudan.
 UNSIGNED_REGION_INPUTS = [
-    ("unsigned_dms_outside_becomes_inside", ["15 22 23"], "lat", [MZ]),
-    ("unsigned_number_outside_becomes_inside", [15.373056], "lat", [MZ]),
-    ("already_inside_is_left_alone", [-15.37], "lat", [MZ]),
-    ("explicit_hemisphere_is_never_contradicted", ["15 22 23 N"], "lat", [MZ]),
-    ("explicit_minus_is_never_contradicted", ["-15 22 23"], "lat", [MZ]),
-    ("longitude_already_east_is_left_alone", ["33 53 11"], "lon", [MZ]),
+    ("unsigned_dms_outside_becomes_inside", ["18 55 18"], "lat", [MZ]),
+    ("unsigned_number_outside_becomes_inside", [18.921800], "lat", [MZ]),
+    ("already_inside_is_left_alone", [-18.92], "lat", [MZ]),
+    ("explicit_hemisphere_is_never_contradicted", ["18 55 18 N"], "lat", [MZ]),
+    ("explicit_minus_is_never_contradicted", ["-18 55 18"], "lat", [MZ]),
+    ("longitude_already_east_is_left_alone", ["33 51 41"], "lon", [MZ]),
     ("portuguese_latitude_needs_nothing", ["38 42 30"], "lat", [PT]),
     ("portuguese_longitude_is_west_and_unsigned", ["9 8 12"], "lon", [PT]),
     ("outside_both_ways_is_left_alone", ["75 0 0"], "lat", [PT]),
     ("unreadable_is_left_alone", ["texto"], "lat", [MZ]),
     ("empty_is_left_alone", [""], "lat", [MZ]),
-    ("no_mask_means_no_inference", ["15 22 23"], "lat", []),
+    ("no_mask_means_no_inference", ["18 55 18"], "lat", []),
     ("a_whole_column_at_once",
-     ["15 22 23", "15 22 23 S", "-15.5", "38.7", "texto"], "lat", [MZ]),
+     ["18 55 18", "18 55 18 S", "-15.5", "38.7", "texto"], "lat", [MZ]),
 ]
 
 # Which two columns hold the coordinates. Names first, then the values - the
-# second half exists because on a real file from Tete the columns were called
+# second half exists because on a real file the columns were called
 # "Condenadas" and "Unnamed: 2", and matching on names put the village name in
 # the latitude slot and called every row unreadable.
 GUESS_COLUMN_INPUTS = [
@@ -444,16 +446,16 @@ GUESS_COLUMN_INPUTS = [
      [["38.7", "-9.1", "120.5"]] * 4, []),
     ("misspelled_and_unnamed_headers_fall_back_to_the_values",
      ["povoado", "Condenadas", "Unnamed: 2", "minerais"],
-     [["Katsabola", "15 22 23", "33 53 11", "Ouro"],
-      ["Chivula", "15 03 47", "30 26 15", "Ouro"],
-      ["Catete", "15 15 55", "33 02 37", "Ouro"],
-      ["tambica", "15 25 31", "31 18 24", "Ouro"]], []),
+     [["Aldeia A", "18 55 18", "33 51 41", "Quartzo"],
+      ["Aldeia B", "18 36 36", "34 17 16", "Quartzo"],
+      ["Aldeia C", "19 07 04", "33 33 00", "Quartzo"],
+      ["aldeia d", "19 10 10", "33 24 01", "Quartzo"]], []),
     ("the_region_says_which_magnitude_is_the_latitude",
      ["povoado", "a", "b"],
-     [["Katsabola", "15 22 23", "33 53 11"],
-      ["Chivula", "15 03 47", "30 26 15"],
-      ["Catete", "15 15 55", "33 02 37"],
-      ["tambica", "15 25 31", "31 18 24"]], [MZ]),
+     [["Aldeia A", "18 55 18", "33 51 41"],
+      ["Aldeia B", "18 36 36", "34 17 16"],
+      ["Aldeia C", "19 07 04", "33 33 00"],
+      ["aldeia d", "19 10 10", "33 24 01"]], [MZ]),
     ("a_column_of_row_numbers_must_not_win",
      ["id", "a", "b"],
      [[str(i), f"38\u00b0 4{i}' 30\" N", f"9\u00b0 {i}' 12\" W"] for i in range(1, 7)], []),
@@ -463,14 +465,14 @@ GUESS_COLUMN_INPUTS = [
     ("a_magnitude_past_90_can_only_be_a_longitude",
      ["A", "B"],
      [["15.3", "133.8"], ["15.4", "133.9"], ["15.5", "134.0"], ["15.6", "134.1"]], []),
-    # The default region is Portugal and this file is from Tete: nothing fits,
+    # The default region is Portugal and this file is from Moçambique: nothing fits,
     # and the guess must still find the coordinates rather than take column one.
     ("a_region_that_fits_nothing_is_set_aside",
      ["povoado", "a", "b"],
-     [["Katsabola", "15 22 23", "33 53 11"],
-      ["Chivula", "15 03 47", "30 26 15"],
-      ["Catete", "15 15 55", "33 02 37"],
-      ["tambica", "15 25 31", "31 18 24"]], [PT]),
+     [["Aldeia A", "18 55 18", "33 51 41"],
+      ["Aldeia B", "18 36 36", "34 17 16"],
+      ["Aldeia C", "19 07 04", "33 33 00"],
+      ["aldeia d", "19 10 10", "33 24 01"]], [PT]),
     ("nothing_usable_falls_back_to_the_first_two",
      ["a", "b", "c"], [["x", "y", "z"]] * 4, []),
     ("a_single_column_does_not_go_out_of_bounds",
@@ -564,6 +566,45 @@ POINT_IN_MASK_INPUTS = [
 # The regions travel with each case rather than being imported: the masks live
 # in app.py and pipeline.js, and a contract that read one of them would pin the
 # two implementations against a single copy instead of against each other.
+# suggest_scale decides; it does not project. It is handed the same points
+# transformed twice - as written, and multiplied - so the cases carry pairs of
+# degrees and no proj4 at all. The projection itself is pinned by the
+# crs_transform section; what is pinned here is the judgement.
+#
+# Synthetic points around Castelo Branco, in the shape of a table typed off a
+# 1:25000 military sheet, whose margin prints the grid in kilometres. As metres
+# those values sit a few hundred metres from the grid's false origin, which in
+# Lisboa / Hayford-Gauss Militar is in the Atlantic some 120 km west of Cabo de
+# São Vicente - a valid coordinate, successfully transformed, and wrong.
+PT_MASK = [[36.8, 42.2, -9.6, -6.1]]
+_AS_METRES = [(36.9473, -10.3754), (36.9473, -10.3754), (36.9473, -10.3754),
+              (36.9474, -10.3754), (36.9473, -10.3754), (36.9473, -10.3753)]
+_AS_KILOMETRES = [(39.8031, -7.5198), (39.7942, -7.5171), (39.8171, -7.5342),
+                  (39.8483, -7.4570), (39.8047, -7.4886), (39.7986, -7.4234)]
+_ELSEWHERE = [(12.0, 40.0), (13.0, 41.0), (14.0, 42.0)]
+
+SUGGEST_SCALE_INPUTS = [
+    ("kilometres_on_a_military_sheet", _AS_METRES, _AS_KILOMETRES, PT_MASK),
+    ("already_in_metres_suggests_nothing",
+     _AS_KILOMETRES[:5],
+     [(52.9, 12.4), (53.1, 12.9), (53.0, 12.7), (52.8, 12.2), (52.95, 12.55)],
+     PT_MASK),
+    ("no_region_declared", _AS_METRES[:4], _AS_KILOMETRES[:4], None),
+    ("too_few_rows_is_not_evidence", _AS_METRES[:2], _AS_KILOMETRES[:2], PT_MASK),
+    ("one_stray_row_does_not_break_the_share",
+     _AS_METRES, _AS_KILOMETRES[:5] + _ELSEWHERE[:1], PT_MASK),
+    ("half_the_rows_is_not_enough",
+     _AS_METRES, _AS_KILOMETRES[:3] + _ELSEWHERE, PT_MASK),
+    ("unreadable_rows_are_not_counted",
+     [_AS_METRES[0], None, _AS_METRES[1], (None, None), _AS_METRES[2], _AS_METRES[3]],
+     [_AS_KILOMETRES[0], None, _AS_KILOMETRES[1], (None, None),
+      _AS_KILOMETRES[2], _AS_KILOMETRES[3]],
+     PT_MASK),
+    # Multiplying a file that is already right takes it out of the region, so
+    # there is nothing to offer and no chance of offering it.
+    ("already_inside_gains_nothing", _AS_KILOMETRES[:4], _AS_KILOMETRES[:4], PT_MASK),
+]
+
 SUGGEST_REGIONS = {
     "Portugal mainland": [
         [
@@ -638,16 +679,16 @@ SUGGEST_REGIONS = {
 }
 
 SUGGEST_INPUTS = [
-    ('tete_unsigned_against_portugal', ['15 22 23', '15 22 37', '15 15 22', '15 22 23', '15 15 55', '15 25 31', '15 03 47', '15 04 47', '14 59 34', '15 34 24'], ['33 53 11', '33 48 37', '33 05 27', '33 53 11', '33 02 37', '31 18 24', '30 26 15', '30 24 54', '30 15 08', '30 32 19'], 'Portugal mainland'),
+    ('mozambique_unsigned_against_portugal', ['18 55 18', '19 07 52', '18 49 29', '18 55 18', '19 07 04', '19 10 10', '18 36 36', '19 07 09', '18 38 21', '18 52 44'], ['33 51 41', '34 14 48', '34 00 20', '33 51 41', '33 33 00', '33 24 01', '34 17 16', '33 39 05', '33 33 13', '34 13 32'], 'Portugal mainland'),
     ('portuguese_file_suggests_nothing', ['41.1496', '38.7083', '37.8781', '40.1717', '41.5', '39.2'], ['-8.6104', '-9.1367', '-8.1653', '-7.7560', '-8.4', '-8.9'], 'Portugal mainland'),
-    ('already_signed_needs_no_flip', ['-15.373', '-15.377', '-15.256', '-15.373', '-15.265', '-15.425'], ['33.886', '33.810', '33.090', '33.886', '33.043', '31.306'], 'Portugal mainland'),
+    ('already_signed_needs_no_flip', ['-18.922', '-19.131', '-18.825', '-18.922', '-19.118', '-19.169'], ['33.861', '34.247', '33.090', '33.861', '33.550', '31.306'], 'Portugal mainland'),
     ('angola_unsigned', ['8 50 00', '9 10 00', '8 30 00', '9 00 00', '8 45 00', '9 20 00'], ['13 14 00', '13 30 00', '13 00 00', '13 20 00', '13 10 00', '13 40 00'], 'Portugal mainland'),
-    ('too_few_rows_is_not_evidence', ['15 22 23', '15 22 37'], ['33 53 11', '33 48 37'], 'Portugal mainland'),
-    ('one_stray_row_does_not_break_the_share', ['15 22 23', '15 22 37', '15 15 22', '15 22 23', '15 15 55', '88.0'], ['33 53 11', '33 48 37', '33 05 27', '33 53 11', '33 02 37', '179.0'], 'Portugal mainland'),
-    ('half_the_rows_is_not_enough', ['15 22 23', '15 22 37', '15 15 22', '88.0', '87.0', '86.0'], ['33 53 11', '33 48 37', '33 05 27', '179.0', '178.0', '177.0'], 'Portugal mainland'),
-    ('unreadable_rows_are_not_counted', ['15 22 23', 'n/d', '15 15 22', '', '15 15 55', '15 25 31'], ['33 53 11', 'n/d', '33 05 27', '', '33 02 37', '31 18 24'], 'Portugal mainland'),
-    ('the_chosen_region_is_never_suggested', ['15 22 23', '15 22 37', '15 15 22', '15 22 23', '15 15 55'], ['33 53 11', '33 48 37', '33 05 27', '33 53 11', '33 02 37'], 'Moçambique'),
-    ('no_region_chosen_at_all', ['15 22 23', '15 22 37', '15 15 22', '15 22 23', '15 15 55'], ['33 53 11', '33 48 37', '33 05 27', '33 53 11', '33 02 37'], None),
+    ('too_few_rows_is_not_evidence', ['18 55 18', '19 07 52'], ['33 51 41', '34 14 48'], 'Portugal mainland'),
+    ('one_stray_row_does_not_break_the_share', ['18 55 18', '19 07 52', '18 49 29', '18 55 18', '19 07 04', '88.0'], ['33 51 41', '34 14 48', '34 00 20', '33 51 41', '33 33 00', '179.0'], 'Portugal mainland'),
+    ('half_the_rows_is_not_enough', ['18 55 18', '19 07 52', '18 49 29', '88.0', '87.0', '86.0'], ['33 51 41', '34 14 48', '34 00 20', '179.0', '178.0', '177.0'], 'Portugal mainland'),
+    ('unreadable_rows_are_not_counted', ['18 55 18', 'n/d', '18 49 29', '', '19 07 04', '19 10 10'], ['33 51 41', 'n/d', '34 00 20', '', '33 33 00', '33 24 01'], 'Portugal mainland'),
+    ('the_chosen_region_is_never_suggested', ['18 55 18', '19 07 52', '18 49 29', '18 55 18', '19 07 04'], ['33 51 41', '34 14 48', '34 00 20', '33 51 41', '33 33 00'], 'Moçambique'),
+    ('no_region_chosen_at_all', ['18 55 18', '19 07 52', '18 49 29', '18 55 18', '19 07 04'], ['33 51 41', '34 14 48', '34 00 20', '33 51 41', '33 33 00'], None),
     ('sao_tome_unsigned_south_of_the_equator', ['0 02 00', '0 03 30', '0 01 00', '0 04 00', '0 02 30'], ['6 31 00', '6 33 00', '6 30 00', '6 35 00', '6 32 00'], 'Portugal mainland'),
 ]
 
@@ -740,7 +781,7 @@ READ_GEO_INPUTS = [
      '<rtept lat="41.2" lon="-8.7"><name>R2</name></rtept></rte></gpx>'),
     ("geojson_collection", "a.geojson",
      '{"type":"FeatureCollection","features":[{"type":"Feature","id":"A1",'
-     '"properties":{"nome":"Katsabola","tipo":"Ouro"},'
+     '"properties":{"nome":"Aldeia A","tipo":"Quartzo"},'
      '"geometry":{"type":"Point","coordinates":[33.5921,-16.1564,214]}}]}'),
     # Every way a number can be written, which is where the two languages part
     # company if nothing is done about it.
@@ -768,7 +809,7 @@ READ_GEO_INPUTS = [
      '{"type":"Feature","properties":{"n":"vazio"},"geometry":null},'
      '{"type":"Feature","properties":{"n":"multi","extra":{"a":1,"b":[2,3]}},'
      '"geometry":{"type":"MultiPoint","coordinates":'
-     '[[31.3067,-15.4254],[31.4,-15.5]]}}]}'),
+     '[[33.4003,-19.1694],[31.4,-15.5]]}}]}'),
     ("geojson_bare_geometry", "a.json",
      '{"type":"Point","coordinates":[-8.1653,37.8781]}'),
 ]
@@ -1235,6 +1276,7 @@ def build():
         "read_csv": [],
         "read_geospatial": [],
         "suggest_region": [],
+        "suggest_scale": [],
         "tidy_table": [],
     }
 
@@ -1301,6 +1343,15 @@ def build():
             "chosen": chosen,
             "regions": SUGGEST_REGIONS,
             "expected": suggest_region(lat, lon, SUGGEST_REGIONS, chosen),
+        })
+
+    for case_id, as_written, scaled, mask in SUGGEST_SCALE_INPUTS:
+        data["suggest_scale"].append({
+            "id": case_id,
+            "as_written": as_written,
+            "scaled": scaled,
+            "mask": mask,
+            "expected": suggest_scale(as_written, scaled, mask),
         })
 
     for case in TIDY_INPUTS:

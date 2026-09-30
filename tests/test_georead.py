@@ -333,11 +333,11 @@ def test_gpx_with_no_points_at_all_gives_an_empty_table():
 def test_geojson_reads_a_feature_collection():
     result = read_geojson_bytes(
         b'{"type":"FeatureCollection","features":[{"type":"Feature",'
-        b'"properties":{"nome":"Katsabola"},'
+        b'"properties":{"nome":"Aldeia A"},'
         b'"geometry":{"type":"Point","coordinates":[33.5921,-16.1564]}}]}')
     columns, rows = columns_and_rows(result)
     assert columns == ["Latitude", "Longitude", "nome"]
-    assert rows == [["-16.1564", "33.5921", "Katsabola"]]
+    assert rows == [["-16.1564", "33.5921", "Aldeia A"]]
 
 
 def test_geojson_reads_a_bare_feature_and_a_bare_geometry():
@@ -418,8 +418,8 @@ def test_geojson_skips_what_has_no_position_and_counts_it():
 def test_geojson_a_multipoint_is_read_as_its_first_point():
     result = read_geojson_bytes(
         b'{"type":"Feature","properties":{},"geometry":'
-        b'{"type":"MultiPoint","coordinates":[[31.3067,-15.4254],[31.4,-15.5]]}}')
-    assert result.table.values.tolist() == [["-15.4254", "31.3067"]]
+        b'{"type":"MultiPoint","coordinates":[[33.4003,-19.1694],[31.4,-15.5]]}}')
+    assert result.table.values.tolist() == [["-19.1694", "33.4003"]]
 
 
 def test_geojson_a_byte_order_mark_is_not_part_of_the_json():

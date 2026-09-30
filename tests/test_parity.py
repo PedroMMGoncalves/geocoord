@@ -34,6 +34,7 @@ from geocoord.converter import (
     point_in_mask,
     region_check,
     suggest_region,
+    suggest_scale,
     tidy_table,
 )
 from geocoord.georead import read_geospatial_bytes
@@ -144,6 +145,18 @@ def test_region_check(case):
     )
     assert out_idx == case["expected"]["out_idx"]
     assert [[k, v] for k, v in detected.items()] == case["expected"]["detected"]
+
+
+@pytest.mark.parametrize(
+    "case", FIXTURES["suggest_scale"], ids=ids(FIXTURES["suggest_scale"])
+)
+def test_suggest_scale(case):
+    # A grid coordinate written in kilometres converts: it is a valid easting a
+    # few hundred metres from the false origin. Nothing fails, and the point is
+    # a hundred kilometres from where it belongs.
+    as_written = [tuple(p) if p is not None else None for p in case["as_written"]]
+    scaled = [tuple(p) if p is not None else None for p in case["scaled"]]
+    assert suggest_scale(as_written, scaled, case["mask"]) == case["expected"]
 
 
 @pytest.mark.parametrize(

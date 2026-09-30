@@ -283,7 +283,7 @@ def guess_coordinate_columns(columns, rows, mask=None):
     """Which two columns hold the coordinates. Returns ``(lat_index, lon_index)``.
 
     Names first, because a column called Latitude is not a guess. But names run
-    out quickly on real files: a spreadsheet from Tete had its two columns
+    out quickly on real files: a real spreadsheet had its two columns
     labelled ``Condenadas`` - a misspelling of Coordenadas, spanning both - and
     ``Unnamed: 2``, and matching on names put the *village name* in the latitude
     slot and reported every one of its rows as unreadable. No list of candidate
@@ -296,9 +296,9 @@ def guess_coordinate_columns(columns, rows, mask=None):
     prime, a hemisphere letter, or at least a fraction. See ``_column_score``.
 
     Which of the two is the latitude is decided by the declared region when
-    there is one - in Tete the magnitudes are 15 and 33, and only one of those
-    is a latitude between 10 and 27 degrees - and otherwise by magnitude and
-    column order.
+    there is one - in central Moçambique the magnitudes are 19 and 34, and only
+    one of those is a latitude between 10 and 27 degrees - and otherwise by
+    magnitude and column order.
 
     Falls back to the first two columns, which is what it did before, when
     neither the names nor the values are any use.
@@ -316,7 +316,7 @@ def guess_coordinate_columns(columns, rows, mask=None):
 
     scored = [m for m in measured if _fits_region(m[2], mask)]
     # A region that fits nothing is the wrong region, not a reason to give up:
-    # the default is Portugal, and a file from Tete arrives with every column
+    # the default is Portugal, and a file from Moçambique arrives with every column
     # outside it. Falling through to the first two columns there put the
     # village name in the latitude slot until the user noticed and changed the
     # region. The values still know which columns they are.
@@ -376,7 +376,7 @@ def unsigned_outside_region(values, axis: str, mask) -> list:
 
     A hard case that has nothing to do with parsing and everything to do with
     what the file leaves out. Field notebooks from the southern hemisphere are
-    routinely written unsigned - ``15 22 23`` for a latitude in Tete, because
+    routinely written unsigned - ``18 55 18`` for a latitude in Moçambique, because
     everyone on the survey knew which side of the equator they were standing on
     - and nothing in the value says south. Read literally it is Sudan.
 
@@ -745,10 +745,11 @@ def suggest_region(lat_values, lon_values, regions, chosen=None,
 
     A field notebook from the southern hemisphere is routinely written without
     signs, because the survey knew which side of the equator it stood on. Read
-    literally, Tete is Sudan. :func:`unsigned_outside_region` fixes that, but
-    only against the region the user has *declared* - it is the only place the
-    information can come from - so a user who never touches the region picker
-    gets the default's answer to a question they did not know was being asked.
+    literally, central Moçambique is Sudan. :func:`unsigned_outside_region`
+    fixes that, but only against the region the user has *declared* - it is the
+    only place the information can come from - so a user who never touches the
+    region picker gets the default's answer to a question they did not know was
+    being asked.
 
     This does not answer it either. It asks it. For each known region it
     applies that region's sign to the unsigned values and counts how many rows
@@ -815,6 +816,57 @@ def suggest_region(lat_values, lon_values, regions, chosen=None,
             best = {"region": name, "inside": inside,
                     "readable": len(readable), "flips": flips}
     return best
+
+
+#: Grid coordinates are read off the margin of a map sheet in kilometres -
+#: "M 252,52" is what is printed there - so a table typed from one is routinely
+#: in kilometres where the system's units are metres. It is the only scale
+#: error with a habit behind it, and every extra factor offered would widen the
+#: space in which this can guess wrong.
+KILOMETRE = 1000.0
+
+
+def suggest_scale(as_written, scaled, mask, min_rows=3, min_share=0.8):
+    """Whether a projected file reads better with its values multiplied.
+
+    The dangerous thing about a grid coordinate written in kilometres is that
+    it converts. 252.52 in the 1:25000 military grid is a real easting - 252 m
+    east of the false origin - so the transformation succeeds, the row is
+    valid, and the point lands in the Atlantic instead of inland. Nothing fails.
+
+    This does not divide anything. It is handed the same points transformed
+    twice - once from the values as they stand, once from the values
+    multiplied - and reports whether the second reading puts them inside the
+    declared region while the first does not. The caller does the projecting;
+    keeping it out of here leaves this module free of pyproj and makes the
+    decision, which is the part worth pinning, testable on its own.
+
+    ``as_written`` and ``scaled`` are lists of ``(lat, lon)`` or ``None``.
+    ``mask`` is the declared region. Returns ``{"inside", "was", "readable"}``
+    or ``None``.
+    """
+    if mask is None:
+        return None
+    readable = [i for i, p in enumerate(as_written)
+                if p is not None and p[0] is not None and p[1] is not None]
+    if len(readable) < min_rows or len(scaled) != len(as_written):
+        return None
+
+    def count(points):
+        n = 0
+        for i in readable:
+            p = points[i]
+            if p is None or p[0] is None or p[1] is None:
+                continue
+            if point_in_mask(p[0], p[1], mask):
+                n += 1
+        return n
+
+    was = count(as_written)
+    inside = count(scaled)
+    if inside <= was or inside < min_share * len(readable):
+        return None
+    return {"inside": inside, "was": was, "readable": len(readable)}
 
 
 def region_check(lats, lons, labels, regions, mask=None, reference=None,

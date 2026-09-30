@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from geocoord.converter import (
+    KILOMETRE,
     axis_mismatch,
     guess_coordinate_columns,
     detect_swaps,
@@ -15,6 +16,7 @@ from geocoord.converter import (
     parse_projected,
     region_check,
     suggest_region,
+    suggest_scale,
     unsigned_outside_region,
     tidy_table,
 )
@@ -300,16 +302,20 @@ def crs_controls():
 
 
 def build_result(df, lat_col, lon_col, decimals, add_dms, region_mask=None,
-                 source=None, target=None):
+                 source=None, target=None, scale=1.0):
     """The converted table.
 
     ``region_mask`` is the declared region, and it is optional for a reason
     worth stating: it is the only place a *missing* sign can come from. A field
     notebook from the southern hemisphere is routinely written unsigned,
     because the survey knew which side of the equator it stood on, so read
-    literally Tete is Sudan. Where a value carries no sign and no hemisphere
-    letter, its magnitude is outside the region, and the negated magnitude is
-    inside, the sign is supplied. A value the file signed is never touched.
+    literally central Moçambique is Sudan. Where a value carries no sign and
+    no hemisphere letter, its magnitude is outside the region, and the negated
+    magnitude is inside, the sign is supplied. A value the file signed is never touched.
+
+    ``scale`` multiplies the projected values before they are transformed, for
+    the table typed off a map sheet whose margin prints kilometres. Degrees have
+    no unit to get wrong, so a geographic file ignores it.
     """
     result = df.copy().reset_index(drop=True)
     lat_raw = result[lat_col].tolist()
@@ -341,6 +347,11 @@ def build_result(df, lat_col, lon_col, decimals, add_dms, region_mask=None,
     firsts = read(lat_raw, sign_lat)
     seconds = read(lon_raw, sign_lon)
 
+    factor = scale if projected else 1.0
+    if factor != 1.0:
+        firsts = [None if v is None else v * factor for v in firsts]
+        seconds = [None if v is None else v * factor for v in seconds]
+
     if source is None or source["proj4"] == crs.WGS84_PROJ4:
         lats, lons = firsts, seconds
     elif projected:
@@ -358,6 +369,41 @@ def build_result(df, lat_col, lon_col, decimals, add_dms, region_mask=None,
     result["Latitude_DD"] = [_round(v, decimals) for v in lats]
     result["Longitude_DD"] = [_round(v, decimals) for v in lons]
     return add_derived(result, add_dms, target=target)
+
+
+def projected_points(df, x_col, y_col, source, factor=1.0):
+    """The two chosen columns read as a grid and transformed, as (lat, lon)."""
+    xs = [parse_projected(v) for v in df[x_col].tolist()]
+    ys = [parse_projected(v) for v in df[y_col].tolist()]
+    out = []
+    for x, y in zip(xs, ys):
+        if x is None or y is None:
+            out.append(None)
+            continue
+        lon, lat = crs.to_wgs84(x * factor, y * factor, source["proj4"])
+        out.append((lat, lon))
+    return out
+
+
+def scale_offer(df, x_col, y_col, region_mask, source):
+    """Whether this grid file reads better in kilometres.
+
+    A grid coordinate written in kilometres converts: 252,52 in the 1:25000
+    military grid is a real easting, 252 m east of the false origin, so the
+    transformation succeeds, the row is valid, and the point lands in the sea
+    some 120 km west of Cabo de São Vicente instead of inland. Nothing fails.
+    The file is transformed twice and the two readings are compared against the
+    declared region - the same function the browser calls, same guards.
+    """
+    if source is None or source["kind"] != "projected" or region_mask is None:
+        return None
+    if source["proj4"] == crs.WGS84_PROJ4:
+        return None
+    return suggest_scale(
+        projected_points(df, x_col, y_col, source),
+        projected_points(df, x_col, y_col, source, KILOMETRE),
+        region_mask,
+    )
 
 
 def signable_count(df, lat_col, lon_col, region_mask):
@@ -611,12 +657,17 @@ with tab_file:
 
     if uploaded is None:
         st.session_state.pop("result", None)
+        st.session_state.pop("scale", None)
         st.info("Load a CSV, an Excel workbook, or a KML, KMZ, GeoJSON or GPX "
                 "file to begin.")
     else:
         if st.session_state.get("file_name") != uploaded.name:
             st.session_state.file_name = uploaded.name
             st.session_state.pop("result", None)
+            # The kilometre factor belongs to the file that needed it. Carried
+            # over, the next file converts a thousandfold wrong and nothing on
+            # screen says why.
+            st.session_state.pop("scale", None)
 
         name = uploaded.name.lower()
         notes: list[dict] = []
@@ -706,6 +757,20 @@ with tab_file:
             guess_lat, guess_lon = guess_lon, guess_lat
         lat_label = "X column (Easting, metres)" if projected_input else "Latitude column (DMS)"
         lon_label = "Y column (Northing, metres)" if projected_input else "Longitude column (DMS)"
+        # A Streamlit widget keeps the value it has, and ``index`` is only the
+        # first render's default - so the pair chosen while the file was being
+        # read as degrees survived the switch to a grid, and the picker labelled
+        # Easting went on pointing at the column of northings. Every projected
+        # conversion came out with its axes crossed, with nothing on screen to
+        # say so: the points are valid, they are simply somewhere else. The pair
+        # is re-derived whenever the kind of system changes, and whenever the
+        # file no longer has the column that was chosen.
+        stale = (st.session_state.get("lat_col") not in cols
+                 or st.session_state.get("lon_col") not in cols)
+        if stale or st.session_state.get("proj_kind") != projected_input:
+            st.session_state.proj_kind = projected_input
+            st.session_state.lat_col = cols[guess_lat]
+            st.session_state.lon_col = cols[guess_lon]
         lat_col = c1.selectbox(lat_label, cols, index=guess_lat, key="lat_col")
         lon_col = c2.selectbox(lon_label, cols, index=guess_lon, key="lon_col")
 
@@ -739,7 +804,8 @@ with tab_file:
             with st.spinner("Converting..."):
                 st.session_state.result = build_result(
                     df, lat_col, lon_col, decimals, add_dms,
-                    source=source, target=target)
+                    source=source, target=target,
+                    scale=st.session_state.get("scale", 1.0))
                 # Which rows carry a hemisphere letter that contradicts the
                 # column it sits in. Computed here, where the raw cells are
                 # still in hand: build_result converts them to numbers and the
@@ -781,15 +847,55 @@ with tab_file:
                     st.session_state.result = build_result(
                         df, lat_col, lon_col, decimals, add_dms, region_mask=mask,
                         source=st.session_state.get("crs_source"),
+                        target=st.session_state.get("crs_target"),
+                        scale=st.session_state.get("scale", 1.0))
+                    st.rerun()
+
+            # A grid file whose values are kilometres. Same shape as the
+            # offer above and mutually exclusive with it - that one is about a
+            # missing sign in a geographic file, this one about the unit of a
+            # projected one - and, like it, a rebuild rather than a silent fix.
+            scale_now = st.session_state.get("scale", 1.0)
+            if scale_now != 1.0:
+                st.info(
+                    f"Reading the values as kilometres: multiplied by "
+                    f"{KILOMETRE:.0f} before converting."
+                )
+                if st.button("Read as metres", key="drop_km"):
+                    st.session_state.scale = 1.0
+                    st.session_state.result = build_result(
+                        df, lat_col, lon_col, decimals, add_dms,
+                        source=st.session_state.get("crs_source"),
                         target=st.session_state.get("crs_target"))
                     st.rerun()
+            else:
+                km = scale_offer(df, lat_col, lon_col, mask,
+                                 st.session_state.get("crs_source"))
+                if km is not None:
+                    fits = ("all " if km["inside"] == km["readable"]
+                            else f"{km['inside']} of the ")
+                    st.warning(
+                        f"These values fall outside **{region_label}**. If they are "
+                        f"in kilometres rather than metres, {fits}{km['readable']} "
+                        f"records fall inside the region. A table typed off a "
+                        f"1:25000 sheet is routinely in kilometres - that is what "
+                        f"the margin prints."
+                    )
+                    if st.button("Read as kilometres", key="use_km"):
+                        st.session_state.scale = KILOMETRE
+                        st.session_state.result = build_result(
+                            df, lat_col, lon_col, decimals, add_dms,
+                            source=st.session_state.get("crs_source"),
+                            target=st.session_state.get("crs_target"),
+                            scale=KILOMETRE)
+                        st.rerun()
 
             # Which region's sign would place a file the declared region leaves
             # nowhere. A field notebook from the southern hemisphere is written
             # unsigned - the survey knew which side of the equator it stood on -
-            # so read literally, Tete is Sudan. This does not decide that; it
-            # says what one sign flip would do and offers the region as a
-            # button. Same function the browser calls, same guards.
+            # so read literally, central Moçambique is Sudan. This does not
+            # decide that; it says what one sign flip would do and offers the
+            # region as a button. Same function the browser calls, same guards.
             offer = suggest_region(
                 df[lat_col].tolist(), df[lon_col].tolist(), REGION_MASKS,
                 region_label if region_label in REGION_MASKS else None,

@@ -175,6 +175,16 @@ in [`geocoord/crs_registry.json`](geocoord/crs_registry.json), generated from
 the EPSG database and read by both sides, and 51 control points are pinned in
 the shared contract.
 
+**A grid written in kilometres.** The margin of a 1:25000 military sheet prints
+its grid in kilometres — `M 252,52` — so a table typed from one is routinely in
+kilometres where the system's units are metres. This is not an error a
+transformation can raise: 252,52 is a real easting, 252 m from the grid's false
+origin, so the row converts, stays valid, and lands a hundred kilometres from
+where the sample was collected. When a projected file falls outside the declared
+region as written and inside it multiplied by a thousand, the application says
+so and offers the reading as a button. It changes nothing on its own, and the
+reading can be taken back.
+
 **EPSG:2191 (Madeira 1936) is deprecated and EPSG publishes no datum
 transformation for it** — only a ballpark offset of unknown accuracy. It is
 offered, marked, and its note says plainly that it is enough to recognise a
@@ -315,8 +325,8 @@ application, and in JavaScript, for the browser. That is a translation, not a
 rewrite, and translations drift.
 
 So both are held to one frozen file,
-[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 284 cases across
-25 sections, read by pytest and by vitest alike. A divergence on any pinned
+[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 292 cases across
+26 sections, read by pytest and by vitest alike. A divergence on any pinned
 case fails both suites, and CI additionally fails if the committed contract and
 its generator disagree.
 
@@ -419,6 +429,9 @@ in the contract, so the desktop and the browser refuse the same files.
   taken as East.
 - **Some rows did not convert.** The first column of each row says why: not a
   coordinate, outside the valid range, or a suspected swap awaiting review.
+- **A projected file converted and landed in the wrong place.** Check the units.
+  Values read off a map sheet's margin are in kilometres, not metres, and the
+  application will offer to read them that way once a region is declared.
 - **A sample code lost its leading zero.** It should not — every cell is read as
   text on both paths. If it happens, it is a bug worth reporting.
 - **The map is empty.** The tiles need a connection; the points do not. Pick
@@ -437,7 +450,7 @@ If you use this software, please cite it using the metadata in
 [`CITATION.cff`](CITATION.cff):
 
 > Gonçalves, P. (2026). *GeoCoord — coordinate converter for field data*
-> (Version 1.0.0) [Computer software]. LNEG — Laboratório Nacional de Energia e
+> (Version 1.1.0) [Computer software]. LNEG — Laboratório Nacional de Energia e
 > Geologia. <https://doi.org/10.5281/zenodo.20596870>
 
 ## License

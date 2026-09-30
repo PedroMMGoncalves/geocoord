@@ -212,21 +212,21 @@ describe('region names', () => {
 })
 
 describe('the region suggestion', () => {
-  // Unsigned magnitudes near 15 N and 33 E: Sudan as written, Moçambique with
+  // Unsigned magnitudes near 19 N and 34 E: Sudan as written, Moçambique with
   // the sign. The application offers the question and changes nothing itself.
-  const TETE = [
+  const UNSIGNED = [
     'nome,lat,lon',
-    'A,15.37,33.88',
-    'B,15.38,33.81',
-    'C,15.26,33.09',
-    'D,15.27,33.04',
-    'E,15.43,31.31',
-    'F,15.06,30.44',
+    'A,18.92,33.88',
+    'B,18.79,34.25',
+    'C,18.82,34.01',
+    'D,19.12,33.55',
+    'E,19.17,33.40',
+    'F,18.61,34.29',
   ].join('\n')
 
   it('offers the region whose sign would place the file, and changes nothing until asked', async () => {
     show()
-    await load(TETE)
+    await load(UNSIGNED)
 
     const offer = await screen.findByRole('button', { name: /Usar Moçambique/ })
     expect(document.getElementById('region').value).toBe('Portugal mainland')
@@ -327,5 +327,96 @@ describe('the table filter', () => {
 
     await waitFor(() => expect(rows().length).toBeGreaterThan(1))
     expect(screen.queryByText(/Só as linhas a rever/)).toBeNull()
+  })
+})
+
+describe('reading a projected file as kilometres', () => {
+  // Synthetic M and P around Castelo Branco, in the kilometres a 1:25000
+  // military sheet's margin prints. Read as metres they sit a few hundred
+  // metres from the grid's false origin, which is in the Atlantic west of Cabo
+  // de São Vicente - a valid coordinate, successfully transformed, and hundreds
+  // of kilometres from where the data was collected. Nothing fails, which is
+  // why the application has to notice.
+  const KM = [
+    'nome,X,Y',
+    'A,252.52,315.15',
+    'B,252.76,314.16',
+    'C,251.28,316.70',
+    'D,257.86,320.21',
+    'E,255.19,315.35',
+    'F,260.78,314.71',
+  ].join('\n')
+
+  const METRES = KM.split('\n').map((line, i) => (
+    i === 0 ? line : line.split(',').map((f, j) => (j === 0 ? f : String(Number(f) * 1000))).join(',')
+  )).join('\n')
+
+  /** Lisboa / Hayford-Gauss Militar - the Carta Militar grid. */
+  const militar = () => fireEvent.change(
+    document.getElementById('crs-in'), { target: { value: '20790' } },
+  )
+  const offered = () => screen.queryByRole('button', { name: /Ler como quilómetros/ })
+  const centroid = () => [...document.querySelectorAll('.readout dl.sum dd')].pop().textContent
+
+  it('offers the reading, and changes nothing until it is taken', async () => {
+    show()
+    await load(KM)
+    militar()
+
+    const offer = await screen.findByRole('button', { name: /Ler como quilómetros/ })
+    // Still read as written while the offer stands: in the Atlantic, not inland.
+    expect(centroid()).toMatch(/^36\./)
+
+    fireEvent.click(offer)
+
+    await waitFor(() => expect(centroid()).toMatch(/^39\./))
+    expect(offered()).toBeNull()
+  })
+
+  it('says what it is doing and takes it back', async () => {
+    // Multiplying a column by a thousand is not something to leave a reader to
+    // infer from the numbers, and not something to leave them stuck with.
+    show()
+    await load(KM)
+    militar()
+    fireEvent.click(await screen.findByRole('button', { name: /Ler como quilómetros/ }))
+    await waitFor(() => expect(centroid()).toMatch(/^39\./))
+    expect(screen.getByText(/multiplicados por 1000/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Ler como metros/ }))
+
+    await waitFor(() => expect(centroid()).toMatch(/^36\./))
+    expect(offered()).toBeTruthy()
+  })
+
+  it('says nothing about a file already in metres', async () => {
+    show()
+    await load(METRES)
+    militar()
+    await waitFor(() => expect(centroid()).toMatch(/^39\./))
+    expect(offered()).toBeNull()
+  })
+
+  it('says nothing about a file read as degrees', async () => {
+    // Degrees have no unit to get wrong. The question only exists for a grid.
+    show()
+    await load(CLEAN)
+    await waitFor(() => expect(downloads().length).toBe(6))
+    expect(offered()).toBeNull()
+  })
+
+  it('drops the reading when another file is loaded', async () => {
+    // The factor belongs to the file that needed it. Carried over, the next
+    // file converts a thousandfold wrong and nothing on screen says why.
+    show()
+    await load(KM)
+    militar()
+    fireEvent.click(await screen.findByRole('button', { name: /Ler como quilómetros/ }))
+    await waitFor(() => expect(centroid()).toMatch(/^39\./))
+
+    await load(METRES, 'outro.csv')
+
+    await waitFor(() => expect(centroid()).toMatch(/^39\./))
+    expect(screen.queryByText(/multiplicados por 1000/)).toBeNull()
   })
 })

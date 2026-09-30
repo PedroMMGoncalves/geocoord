@@ -272,10 +272,10 @@ describe('readGeoJsonBytes', () => {
   it('reads a feature collection', () => {
     const r = readGeoJsonBytes(bytes(
       '{"type":"FeatureCollection","features":[{"type":"Feature",'
-      + '"properties":{"nome":"Katsabola"},'
+      + '"properties":{"nome":"Aldeia A"},'
       + '"geometry":{"type":"Point","coordinates":[33.5921,-16.1564]}}]}'))
     expect(r.table.columns).toEqual(['Latitude', 'Longitude', 'nome'])
-    expect(r.table.rows).toEqual([['-16.1564', '33.5921', 'Katsabola']])
+    expect(r.table.rows).toEqual([['-16.1564', '33.5921', 'Aldeia A']])
   })
 
   it('reads a bare feature and a bare geometry', () => {
@@ -352,8 +352,8 @@ describe('readGeoJsonBytes', () => {
   it('reads a MultiPoint as its first point', () => {
     const r = readGeoJsonBytes(bytes(
       '{"type":"Feature","properties":{},"geometry":'
-      + '{"type":"MultiPoint","coordinates":[[31.3067,-15.4254],[31.4,-15.5]]}}'))
-    expect(r.table.rows).toEqual([['-15.4254', '31.3067']])
+      + '{"type":"MultiPoint","coordinates":[[33.4003,-19.1694],[31.4,-15.5]]}}'))
+    expect(r.table.rows).toEqual([['-19.1694', '33.4003']])
   })
 
   it('does not take a byte-order mark for part of the JSON', () => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PointsMap, { COLOR_OK, COLOR_SUSPECT } from './PointsMap.jsx'
 import {
+  KILOMETRE,
   detectSwaps,
   inRange,
   parseCoordinate,
@@ -298,6 +299,8 @@ export default function FileConvert() {
   // none. Set automatically the first time a file turns out to need it,
   // because the people this is for do not know to look for the option.
   const [applyRegionSign, setApplyRegionSign] = useState(true)
+  // 1, or KILOMETRE once the reader has agreed that the values are kilometres.
+  const [scale, setScale] = useState(1)
   const [accepted, setAccepted] = useState(() => new Set())
 
   // The coordinate systems. 'utm' and 'custom' are the two escape hatches: a
@@ -451,6 +454,7 @@ export default function FileConvert() {
     setConverted(null)
     setFinal(null)
     setAccepted(new Set())
+    setScale(1)
     setNotice(null)
     touched.current = new Set()
     setOpenCards({ 1: true, 2: true, 3: true, 4: true })
@@ -506,6 +510,7 @@ export default function FileConvert() {
     setBytes(data)
     setSource({ name: file.name, table })
     setAccepted(new Set())
+    setScale(1)
     setPasting(false)
     // A new file starts the sequence over: the file card folds to its
     // summary and the rest open as they are reached.
@@ -555,6 +560,7 @@ export default function FileConvert() {
     setSheets([])
     setSource({ name: 'colado.csv', table })
     setAccepted(new Set())
+    setScale(1)
     setPasting(false)
     touched.current = new Set()
     rvTouched.current = false
@@ -574,6 +580,7 @@ export default function FileConvert() {
         if (cancelled) return
         setSource((s) => (s === null ? s : { ...s, table }))
         setAccepted(new Set())
+        setScale(1)
       } catch (e) {
         if (!cancelled) reportReadError(e)
       }
@@ -624,6 +631,7 @@ export default function FileConvert() {
       output: outputCrs,
       regionMask: region === 'auto' ? null : REGION_MASKS[region],
       applyRegionSign,
+      scale,
     }).then((result) => {
       if (cancelled) return
       setConverted(result)
@@ -636,7 +644,7 @@ export default function FileConvert() {
     return () => { cancelled = true }
     // inputCrs/outputCrs are rebuilt every render; their proj4 is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, latCol, lonCol, decimals, addDms, region, applyRegionSign,
+  }, [source, latCol, lonCol, decimals, addDms, region, applyRegionSign, scale,
       inputCrs?.proj4, inputCrs?.kind, outputCrs?.proj4, outputCrs?.suffix])
 
   const detection = useMemo(() => {
@@ -1149,11 +1157,17 @@ export default function FileConvert() {
                   one the suggestion below is about, so it is dropped when
                   there is a suggestion rather than said twice in two stacked
                   boxes. Entries naming another region stay: they are a
-                  different fact. */}
+                  different fact.
+
+                  The kilometre offer counts as a suggestion here for the same
+                  reason: driving the page showed the two stacked, the first
+                  saying twelve coordinates are nowhere known and the second
+                  saying what would put them somewhere. */}
               {(() => {
                 const chosenName = regionLabel(region)
                 const entries = [...detection.detected]
-                  .filter(([name]) => name !== null || suggestion === null)
+                  .filter(([name]) => name !== null
+                    || (suggestion === null && !converted?.scaleSuggestion))
                 if (entries.length === 0) return null
                 return (
                   <p className="notice">
@@ -1196,6 +1210,49 @@ export default function FileConvert() {
                     onClick={() => setRegion(suggestion.region)}
                   >
                     {t('file.suggestRegionUse', { region: regionLabel(suggestion.region) })}
+                  </button>
+                </div>
+              )}
+
+              {/* The same shape as the region offer above, and mutually
+                  exclusive with it: that one is about a missing sign in a
+                  geographic file, this one about the unit of a projected one.
+                  A file cannot be both. */}
+              {converted?.scaleSuggestion && (
+                <div className="notice">
+                  <p className="m-0">
+                    {t('file.suggestRegion', { chosen: regionLabel(region) })}
+                  </p>
+                  <p className="mt-1">
+                    {t(
+                      converted.scaleSuggestion.inside === converted.scaleSuggestion.readable
+                        ? 'file.suggestScaleFit'
+                        : 'file.suggestScaleFitSome',
+                      {
+                        inside: converted.scaleSuggestion.inside,
+                        readable: converted.scaleSuggestion.readable,
+                      },
+                    )}
+                  </p>
+                  <button
+                    type="button"
+                    className="btn sm accent-line mt-2"
+                    onClick={() => setScale(KILOMETRE)}
+                  >
+                    {t('file.suggestScaleUse')}
+                  </button>
+                </div>
+              )}
+
+              {scale !== 1 && (
+                <div className="notice">
+                  <p className="m-0">{t('file.scaleOn')}</p>
+                  <button
+                    type="button"
+                    className="btn sm mt-2"
+                    onClick={() => setScale(1)}
+                  >
+                    {t('file.scaleOff')}
                   </button>
                 </div>
               )}
