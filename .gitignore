@@ -18,3 +18,7 @@ Thumbs.db
 # seeded, so running it reproduces them exactly; there is no reason to carry
 # spreadsheets in the repository.
 docs/screenshots/samples/
+
+# The desktop installer's lock. package.json pins the one package that decides
+# its runtime, @stlite/desktop, exactly; the web app keeps its own lock in web/.
+/package-lock.json

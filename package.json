@@ -21,7 +21,8 @@
       "output": "dist"
     },
     "win": {
-      "target": ["nsis"]
+      "target": ["nsis"],
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
@@ -29,16 +30,16 @@
     }
   },
   "devDependencies": {
-    "@stlite/desktop": "^0.79.5",
+    "@stlite/desktop": "0.102.2",
     "cross-env": "^7.0.3",
     "electron": "34.3.0",
     "electron-builder": "^25.1.8"
   },
   "stlite": {
     "desktop": {
-      "files": ["app.py", "geocoord/__init__.py", "geocoord/converter.py", "geocoord/geoexport.py", ".streamlit/config.toml"],
+      "files": ["app.py", "geocoord/*.py", "geocoord/*.json", ".streamlit/config.toml"],
       "entrypoint": "app.py",
-      "dependencies": ["numpy", "pandas", "openpyxl", "xlrd", "pyshp"]
+      "dependencies": ["numpy", "pandas", "openpyxl", "xlrd", "pyshp>=3.1.6", "pyproj"]
     }
   }
 }

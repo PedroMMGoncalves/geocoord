@@ -303,8 +303,15 @@ npm run dump       # download Pyodide + wheels
 npm run app:dist   # build the installer into dist/
 ```
 
-`scripts\build_exe.bat` runs those steps. Only pure-Python packages work in that
-mode; `.xls` support is best-effort there.
+`scripts\build_exe.bat` runs those steps. The installer runs the application in
+the Python that stlite bundles (0.102.2: Streamlit 1.62, Pyodide 0.29), which
+sees only the files `package.json` lists and installs only the packages it
+names. The list is written as globs over `geocoord/`, and
+[`tests/test_packaging.py`](tests/test_packaging.py) fails if a module, the
+system registry or an imported package is missing from it. The executable is
+not stamped or signed (`signAndEditExecutable: false`): the stamping tool comes
+in an archive of symbolic links, which Windows will not unpack without
+Developer Mode, and the build failed on it.
 
 ### As a Python package
 
@@ -444,8 +451,6 @@ in the contract, so the desktop and the browser refuse the same files.
   longitude are swapped, and the question has not been answered. Open the
   review panel in step 3 and choose — *Inverter todas*, *Não inverter
   nenhuma*, or row by row. Either answer unlocks the downloads.
-- **`.xls` fails in the packaged desktop build.** That runtime bundles only
-  pure-Python wheels. Convert to `.xlsx` or CSV, or use the web application.
 
 ## Citation
 

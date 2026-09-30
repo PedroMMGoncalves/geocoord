@@ -39,6 +39,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The Windows installer starts again.** It runs the application in the
+  Python that stlite bundles, which sees only the files `package.json` lists -
+  and the list still named the three modules the application used when it was
+  written. Since 5 September the application has also imported the reader,
+  and since 9 September the coordinate systems (with their registry and
+  `pyproj`) and the geospatial readers, so the installer failed on its first
+  import, with nothing on any check to say so. The list is now globs over
+  `geocoord/`; `pyproj` and `pyshp>=3.1.6` are declared (the bundled Python
+  ships pyshp 2.3, older than the shapefiles are pinned against); stlite moves
+  from 0.79 to 0.102.2, pinned exactly, which brings Streamlit 1.62 - the
+  desktop now needs 1.49. A packaged build was driven end to end: a table in
+  kilometres read as such, all six formats downloaded and opened, an `.xlsx`
+  with a reversed row held at the review, and an `.xls` read, which the
+  README had said the installer could not do. `tests/test_packaging.py` checks
+  the list against the imports on every change, which is the part that was
+  missing.
 - A GeoJSON that declares its system has it chosen on the desktop too. The
   desktop told such a file that it read WGS84 degrees only - a message from
   before it had a system picker - and sent the user to the browser. Now a
