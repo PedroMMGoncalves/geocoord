@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them, it took the sheet number for the northing. `M` and `P` are now tried
   after `X` and `Y`, and only when the file is read in a projected system - in a
   geochemistry table, `P` is phosphorus.
+- The desktop application has tests. They run `app.py` whole through
+  Streamlit's own simulator - a file uploaded, the pickers chosen, the buttons
+  pressed, the page read back - because its faults have been in the order its
+  steps run and in what each rerun keeps, not in any one function. Twelve
+  scenarios, every file synthetic, in a CI job of their own; the faults this
+  application has had are among them, and putting any of them back fails the
+  job. One known gap is pinned as an expected failure: a GeoJSON that declares
+  a projected system is still told the desktop reads WGS84 only, a message from
+  before it had a system picker, and its system is not chosen for it.
+
+### Changed
+
+- The desktop application needs Streamlit 1.49 or later. `use_container_width`,
+  which it passed to twelve elements, is deprecated with a removal date already
+  past; `width="stretch"` replaces it, and 1.49 is the first release that
+  accepts it for all three kinds of element involved.
 
 ## [1.1.0] - 2026-09-30
 

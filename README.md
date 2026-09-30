@@ -357,7 +357,8 @@ sides now write plain decimal, and both are pinned.
 ## Development
 
 ```bash
-python -m pytest                 # the engine, the readers, the writers, the contract
+python -m pytest                 # the engine, the readers, the writers, the contract,
+                                 # and the desktop app driven end to end (needs Streamlit)
 cd web && npm install
 npm test                         # the same, and the file tab's own behaviour
 npm run dev                      # http://localhost:5173

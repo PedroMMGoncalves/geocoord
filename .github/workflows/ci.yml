@@ -33,6 +33,28 @@ jobs:
       - name: Run tests
         run: python -m pytest
 
+  desktop:
+    # The desktop application driven through Streamlit's own simulator: a file
+    # uploaded, the pickers chosen, the buttons pressed. Its own job because it
+    # needs Streamlit, which the engine's tests above deliberately do without.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Drive the desktop application
+        # Set so that a missing Streamlit fails the job instead of skipping
+        # every test in it.
+        env:
+          GEOCOORD_DESKTOP_TESTS: "1"
+        run: python -m pytest tests/test_app.py
+
   web:
     runs-on: ubuntu-latest
     steps:

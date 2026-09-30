@@ -558,7 +558,7 @@ def render_summary(result, labels, lat_col, lon_col):
         st.dataframe(
             bad[[c for c in (lat_col, lon_col, "Latitude_DD", "Longitude_DD", "status")
                  if c in bad.columns]],
-            use_container_width=True)
+            width="stretch")
 
 
 def render_downloads(result, name_key, base):
@@ -578,27 +578,27 @@ def render_downloads(result, name_key, base):
     d = st.columns(6)
     if want["CSV"]:
         d[0].download_button("Download CSV", export_csv(result),
-                             f"{base}.csv", "text/csv", use_container_width=True)
+                             f"{base}.csv", "text/csv", width="stretch")
     if want["Excel"]:
         d[1].download_button("Download Excel", export_excel(result), f"{base}.xlsx",
                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                             use_container_width=True)
+                             width="stretch")
     if want["GeoJSON"]:
         d[2].download_button("Download GeoJSON", export_geojson(result),
                              f"{base}.geojson", "application/geo+json",
-                             disabled=not has_points, use_container_width=True)
+                             disabled=not has_points, width="stretch")
     if want["KML"]:
         d[3].download_button("Download KML", export_kml(result, name_key),
                              f"{base}.kml", "application/vnd.google-earth.kml+xml",
-                             disabled=not has_points, use_container_width=True)
+                             disabled=not has_points, width="stretch")
     if want["Shapefile"]:
         d[4].download_button("Download Shapefile (.zip)", export_shapefile(result, base),
                              f"{base}.zip", "application/zip",
-                             disabled=not has_points, use_container_width=True)
+                             disabled=not has_points, width="stretch")
     if want["GPX"]:
         d[5].download_button("Download GPX", export_gpx(result, name_key),
                              f"{base}.gpx", "application/gpx+xml",
-                             disabled=not has_points, use_container_width=True)
+                             disabled=not has_points, width="stretch")
 
 
 def _select_region(name):
@@ -628,7 +628,7 @@ def swap_detection_controls():
 # ---------------------------------------------------------------------------
 with st.sidebar:
     if os.path.exists(LOGO):
-        st.image(LOGO, use_container_width=True)
+        st.image(LOGO, width="stretch")
     st.markdown(f"### {APP_NAME}")
     st.caption("DMS to decimal degrees coordinate converter (WGS84 / EPSG:4326).")
     decimals = st.slider("Decimal places in the result", 2, 10, 6)
@@ -735,7 +735,7 @@ with tab_file:
 
         df = df.reset_index(drop=True)
         with st.expander("File preview", expanded=False):
-            st.dataframe(df.head(20), use_container_width=True)
+            st.dataframe(df.head(20), width="stretch")
 
         _step("2. Choose the coordinate columns")
         cols = list(df.columns)
@@ -771,8 +771,10 @@ with tab_file:
             st.session_state.proj_kind = projected_input
             st.session_state.lat_col = cols[guess_lat]
             st.session_state.lon_col = cols[guess_lon]
-        lat_col = c1.selectbox(lat_label, cols, index=guess_lat, key="lat_col")
-        lon_col = c2.selectbox(lon_label, cols, index=guess_lon, key="lon_col")
+        # No ``index``: the value is always in session state by now, and passing
+        # both makes Streamlit log a warning with a stack trace on every start.
+        lat_col = c1.selectbox(lat_label, cols, key="lat_col")
+        lon_col = c2.selectbox(lon_label, cols, key="lon_col")
 
         st.caption("Conversion preview (first rows):")
         if lat_col == lon_col:
@@ -789,7 +791,7 @@ with tab_file:
         preview = df[[lat_col, lon_col]].head(5).copy()
         preview["-> Latitude_DD"] = [parse_coordinate(v) for v in preview[lat_col]]
         preview["-> Longitude_DD"] = [parse_coordinate(v) for v in preview[lon_col]]
-        st.dataframe(preview, use_container_width=True)
+        st.dataframe(preview, width="stretch")
 
         _step("3. Coordinate system")
         source, target = crs_controls()
@@ -975,7 +977,7 @@ with tab_file:
                     st.dataframe(
                         susp[[c for c in (lat_col, lon_col, "Latitude_DD", "Longitude_DD", "status")
                               if c in susp.columns]],
-                        use_container_width=True)
+                        width="stretch")
                     invert = False
                     if is_auto and cluster_idx and ok_idx:
                         invert = st.checkbox(
@@ -998,7 +1000,7 @@ with tab_file:
             t_table, t_map, t_summary, t_download = st.tabs(
                 ["Table", "Map", "Summary", "Download"])
             with t_table:
-                st.dataframe(result, use_container_width=True, height=460)
+                st.dataframe(result, width="stretch", height=460)
             with t_map:
                 render_map(result, labels)
             with t_summary:
