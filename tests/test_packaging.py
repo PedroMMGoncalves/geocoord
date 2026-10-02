@@ -12,6 +12,7 @@ none, so that is what this does.
 import ast
 import fnmatch
 import json
+import re
 import pathlib
 import sys
 
@@ -82,6 +83,20 @@ def test_every_package_the_application_imports_is_installed():
     missing = sorted(DISTRIBUTION.get(n, n) for n in third_party
                      if DISTRIBUTION.get(n, n).lower() not in declared)
     assert not missing, f"not in package.json stlite.desktop.dependencies: {missing}"
+
+
+def test_every_place_that_states_the_version_states_the_same_one():
+    # The downloads record the version, from geocoord.__version__; the page
+    # takes it from web/package.json, the installer from package.json.
+    import geocoord
+    stated = {
+        "geocoord/__init__.py": geocoord.__version__,
+        "package.json": json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"],
+        "web/package.json": json.loads((ROOT / "web" / "package.json").read_text(encoding="utf-8"))["version"],
+        "CITATION.cff": re.search(r'^version: "([^"]+)"', (ROOT / "CITATION.cff").read_text(encoding="utf-8"),
+                                  re.M).group(1),
+    }
+    assert len(set(stated.values())) == 1, stated
 
 
 def test_the_installer_asks_for_the_pyshp_the_contract_was_written_against():

@@ -48,6 +48,7 @@ import {
   readWorkbook,
   workbookSheets,
 } from '../core/reader.js'
+import { provenance, today } from '../core/provenance.js'
 import { useT } from '../i18n.jsx'
 
 const SPREADSHEET = /\.(xlsx|xlsm|xlsb|xls|ods)$/i
@@ -1054,6 +1055,25 @@ export default function FileConvert() {
     return { features, fieldNames }
   }, [output])
 
+  // What each download records about where it came from (core/provenance.js),
+  // built at the moment of the download, so the date is the file's own.
+  const metadata = useCallback(() => {
+    const island = rowInput ? crs.REGISTRY[azoresSystem] : null
+    return provenance(t, {
+      version: import.meta.env.APP_VERSION,
+      date: today(),
+      fileName: source?.name ?? '',
+      sheet: sheets.length > 1 ? sheet : null,
+      input: inputCrs,
+      output: outputCrs,
+      scale: projectedInput ? scale : 1,
+      swaps: accepted.size,
+      sheetFixes: rowFixes.size,
+      azores: island ? { count: rowInput.rows.size, system: { label: island.pt, epsg: island.epsg } } : null,
+    })
+  }, [t, source, sheets, sheet, inputCrs, outputCrs, projectedInput, scale, accepted, rowFixes,
+    rowInput, azoresSystem])
+
   // The popup for a point: what it is, where its file says it is, where it is.
   const details = useCallback((i) => {
     const c = sheetCheck?.[i]
@@ -1796,7 +1816,7 @@ export default function FileConvert() {
                   primary
                   disabled={reviewPending}
                   onClick={async () => download(
-                    await toExcelBytes(output),
+                    await toExcelBytes(output, metadata()),
                     `${baseName}_convertido.xlsx`,
                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                   )}
@@ -1820,7 +1840,7 @@ export default function FileConvert() {
                   file={`${baseName}.geojson`}
                   disabled={reviewPending || exportable.features.length === 0}
                   onClick={() => download(
-                    new TextEncoder().encode(toGeoJSON(exportable.features)),
+                    new TextEncoder().encode(toGeoJSON(exportable.features, metadata())),
                     `${baseName}.geojson`,
                     'application/geo+json',
                   )}
@@ -1831,7 +1851,7 @@ export default function FileConvert() {
                   file={`${baseName}.kml`}
                   disabled={reviewPending || exportable.features.length === 0}
                   onClick={() => download(
-                    new TextEncoder().encode(toKML(exportable.features, exportable.fieldNames[0] ?? null)),
+                    new TextEncoder().encode(toKML(exportable.features, exportable.fieldNames[0] ?? null, metadata())),
                     `${baseName}.kml`,
                     'application/vnd.google-earth.kml+xml',
                   )}
@@ -1847,7 +1867,7 @@ export default function FileConvert() {
                     // too: a .prj that names a system the coordinates are not in
                     // is worse than none.
                     await toShapefileZip(exportable.features, exportable.fieldNames, baseName,
-                      crs.esriWkt(crs.WGS84).wkt),
+                      crs.esriWkt(crs.WGS84).wkt, metadata()),
                     `${baseName}_shapefile.zip`,
                     'application/zip',
                   )}
@@ -1858,7 +1878,7 @@ export default function FileConvert() {
                   file={`${baseName}.gpx`}
                   disabled={reviewPending || exportable.features.length === 0}
                   onClick={() => download(
-                    new TextEncoder().encode(toGpx(exportable.features, exportable.fieldNames[0] ?? null)),
+                    new TextEncoder().encode(toGpx(exportable.features, exportable.fieldNames[0] ?? null, metadata())),
                     `${baseName}.gpx`,
                     'application/gpx+xml',
                   )}

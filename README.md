@@ -335,14 +335,29 @@ dashed line to where it would put the point.
 
 ## Exports
 
-| Format | System | Contents |
-| --- | --- | --- |
-| CSV | every column | Every row, failures included — the row that would not convert is the one its author needs to see. Byte-order mark, so Excel opens the accents correctly |
-| Excel (.xlsx) | every column | The same, as a workbook |
-| GeoJSON | WGS84 | Valid points only, per RFC 7946 |
-| KML | WGS84 | Valid points only; the format admits nothing else |
-| GPX | WGS84 | Waypoints, for a handheld GPS |
-| Shapefile (.zip) | WGS84 | `.shp`/`.shx`/`.dbf`/`.prj`, deflated |
+| Format | System | Contents | Where it came from |
+| --- | --- | --- | --- |
+| CSV | every column | Every row, failures included — the row that would not convert is the one its author needs to see. Byte-order mark, so Excel opens the accents correctly | — |
+| Excel (.xlsx) | every column | The same, as a workbook | a `metadata` sheet |
+| GeoJSON | WGS84 | Valid points only, per RFC 7946 | a top-level `metadata` member |
+| KML | WGS84 | Valid points only; the format admits nothing else | the Document's `ExtendedData` |
+| GPX | WGS84 | Waypoints, for a handheld GPS | `<metadata><desc>` |
+| Shapefile (.zip) | WGS84 | `.shp`/`.shx`/`.dbf`/`.prj`, deflated | a `.txt` beside the layer |
+
+**Every download that has room for it says where it came from**: the version
+and the day it was converted, the file and sheet read, the system it was in,
+the transformation that moved it onto WGS 84 and whose it is — *DGT's NTv2
+grid DLx_ETRS89_geo: mean residual 0.09 m* — the proj4 definition used, whether
+it was read in kilometres, how many rows were corrected and by which review,
+and the second system if one was added. In the reader's language on the page,
+in English on the desktop. A converted table outlives the session that made it,
+and this is what somebody checking it a year later needs. CSV is the exception:
+a line above the header would break every program that reads one.
+
+A second system's columns are projected from the coordinates as converted, not
+from the degrees as rounded for display. Six decimals of a degree are 11 cm, and
+a survey written to the millimetre came out of the second system 5 cm from
+where DGT puts it.
 
 Output files are named after the input file, sanitised for GIS: accents
 transliterated, spaces and punctuation replaced. A cell that begins with `=`,
@@ -417,7 +432,7 @@ application, and in JavaScript, for the browser. That is a translation, not a
 rewrite, and translations drift.
 
 So both are held to one frozen file,
-[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 296 cases across
+[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 303 cases across
 26 sections, read by pytest and by vitest alike. A divergence on any pinned
 case fails both suites, and CI additionally fails if the committed contract and
 its generator disagree.
@@ -485,6 +500,7 @@ geocoord/                 The engine, as an importable package
   reader.py               CSV and Excel reading, size limits
   geoexport.py            GeoJSON / KML / Shapefile / Excel writers
   crs.py                  Coordinate systems
+  provenance.py           What a download records about where it came from
   crs_registry.json       The system definitions, read by both languages
   grids/                  DGT's NTv2 grids for Lisboa and Datum 73
 web/                      The browser application
@@ -522,7 +538,12 @@ in the contract, so the desktop and the browser refuse the same files.
 
 - **Messy spreadsheet exports load fine.** A blank first line, a leading empty
   index column, empty rows, decimal commas inside quoted fields (`"33,6603"`),
-  ragged rows, a UTF-16 export from Excel: all handled. Columns named `X`/`Y`
+  ragged rows, a UTF-16 export from Excel: all handled. So is a header in two
+  rows — `COORDENADAS` merged over `M` and `P`, beside `Data` merged down
+  through both: each column takes its lower label, or its upper one where it
+  has none. Only when the second row has no digit in it, a column merged down
+  through both rows, and labels over numbers: a first row of data that merely
+  resembles one is read as data. Columns named `X`/`Y`
   are recognised (`Y` = latitude, `X` = longitude). In a projected system, so
   are `M` and `P` — the military grid's distances to the *Meridiana* and the
   *Perpendicular*, that is, the easting and the northing.

@@ -41,7 +41,7 @@ describe('toGeoJSON', () => {
   // The text, not the parsed object: parsing hoists the integer-like keys
   // again, which cancelled out a real ordering divergence inside the test.
   it.each(cases('to_geojson'))('%s', (_id, c) => {
-    expect(toGeoJSON(withOrder(c))).toBe(c.expected)
+    expect(toGeoJSON(withOrder(c), c.metadata ?? null)).toBe(c.expected)
   })
 
   it('keeps the column order a plain object would destroy', () => {
@@ -53,7 +53,7 @@ describe('toGeoJSON', () => {
 
 describe('toKML', () => {
   it.each(cases('to_kml'))('%s', (_id, c) => {
-    expect(toKML(withOrder(c), c.name_key)).toBe(c.expected)
+    expect(toKML(withOrder(c), c.name_key, c.metadata ?? null)).toBe(c.expected)
   })
 
   it('hoists an integer-like key when given a plain object, which is why Maps are used', () => {
@@ -88,7 +88,7 @@ async function shapefileComponents(zipBytes) {
 
 describe('toShapefileZip', () => {
   it.each(cases('to_shapefile_zip'))('%s', async (_id, c) => {
-    const data = await toShapefileZip(c.features, c.field_names, c.base_name)
+    const data = await toShapefileZip(c.features, c.field_names, c.base_name, undefined, c.metadata ?? null)
     expect(await shapefileComponents(data)).toEqual(c.expected)
 
     // Not compared above: the zip container itself isn't reproducible
@@ -97,7 +97,8 @@ describe('toShapefileZip', () => {
     const layer = sanitizeFilename(c.base_name, 'coordinates')
     const zip = await JSZip.loadAsync(data)
     expect(Object.keys(zip.files).sort()).toEqual(
-      [`${layer}.shp`, `${layer}.shx`, `${layer}.dbf`, `${layer}.prj`].sort(),
+      [`${layer}.shp`, `${layer}.shx`, `${layer}.dbf`, `${layer}.prj`,
+        ...(c.metadata ? [`${layer}.txt`] : [])].sort(),
     )
   })
 
@@ -125,7 +126,7 @@ describe('csvSafe', () => {
 
 describe('the GPX contract', () => {
   it.each(cases('to_gpx'))('%s', (_id, c) => {
-    expect(toGpx(withOrder(c), c.name_key)).toBe(c.expected)
+    expect(toGpx(withOrder(c), c.name_key, c.metadata ?? null)).toBe(c.expected)
   })
 
   it('takes a plain object as well as a Map', () => {

@@ -74,6 +74,13 @@ UNSIGNED_SOUTH = csv("nome,lat,lon",
                      "C,18 49 29,34 00 20", "D,19 07 04,33 33 00",
                      "E,19 10 10,33 24 01", "F,18 36 36,34 17 16")
 
+# Points DGT's own transformation service moved from the military grid to
+# PT-TM06, written to the millimetre as the grid's originals are.
+_DGT = [c for c in json.loads(
+    (pathlib.Path(__file__).parent / "fixtures" / "dgt_reference.json").read_text(encoding="utf-8")
+)["cases"] if (c["source"], c["target"], c["method"]) == ("20790", "3763", "grelhas")][:6]
+MILLIMETRES = csv("nome,M,P", *(f"{c['id']},{c['x']},{c['y']}" for c in _DGT))
+
 # One column: what a wrongly guessed separator produces.
 ONE_COLUMN = csv("coordenadas", "38.7 -9.1", "38.8 -9.2", "38.6 -9.0")
 
@@ -266,6 +273,30 @@ def test_a_reversed_row_is_offered_for_review_and_fixed():
     assert (m["Possible swaps"], m["In region"]) == ("0", "7")
     fixed = result(at).iloc[6]
     assert float(fixed["Latitude_DD"]) == pytest.approx(38.73)
+
+
+def test_the_second_system_is_computed_before_the_degrees_are_rounded():
+    # Six decimals of a degree are 11 cm of latitude. Projected from the
+    # rounded degrees, a millimetre survey came out of the second system 5 cm
+    # from where DGT puts it - half of what the grid itself is good for.
+    at = load(start(), "milimetros.csv", MILLIMETRES)
+    choose(at, "System the file is in", "EPSG:20790")
+    choose(at, "Extra system in the output", "EPSG:3763")
+    convert(at)
+    table = result(at)
+    for case, (_, row) in zip(_DGT, table.iterrows()):
+        assert abs(float(row["X_3763"]) - case["x_dgt"]) < 0.0015
+        assert abs(float(row["Y_3763"]) - case["y_dgt"]) < 0.0015
+
+
+def test_the_second_system_survives_a_swap():
+    at = load(start(), "amostras.csv", ONE_REVERSED)
+    choose(at, "Extra system in the output", "EPSG:3763")
+    convert(at)
+    press(at, "Apply swap to 1 row(s)")
+    table = result(at)
+    assert table["X_3763"].notna().all()
+    assert table["WKT_3763"].notna().all()
 
 
 def test_keeping_a_row_as_written_is_an_answer_too():

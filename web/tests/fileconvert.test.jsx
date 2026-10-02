@@ -561,3 +561,28 @@ describe('the map sheets', () => {
     expect(screen.queryByText(/fora da sua folha/)).toBeNull()
   })
 })
+
+describe('what a download records', () => {
+  it('writes where the file came from into the file', async () => {
+    // jsdom has no object URLs; the blob handed to one is the file the user
+    // would have saved.
+    const saved = []
+    URL.createObjectURL = vi.fn((blob) => { saved.push(blob); return 'blob:x' })
+    URL.revokeObjectURL = vi.fn()
+    show()
+    await load(CLEAN)
+    await waitFor(() => expect(downloads().length).toBe(6))
+    fireEvent.click(downloads().find((b) => b.textContent.includes('GeoJSON')))
+    await waitFor(() => expect(saved.length).toBe(1))
+    const text = await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.readAsText(saved[0])
+    })
+    const doc = JSON.parse(text)
+    expect(doc.metadata['Ficheiro de origem']).toBe('amostras.csv')
+    expect(doc.metadata['Sistema de origem']).toBe('WGS 84 (EPSG:4326)')
+    expect(doc.metadata['Data da conversão']).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(doc.features.length).toBe(6)
+  })
+})

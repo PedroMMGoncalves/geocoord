@@ -17,6 +17,7 @@ import {
 import { toGpx } from '../src/core/geoexport.js'
 import { get as crsGet } from '../src/core/crs.js'
 import { readWorkbook } from '../src/core/reader.js'
+import dgt from '../../tests/fixtures/dgt_reference.json' with { type: 'json' }
 
 const TABLE = {
   columns: ['amostra', 'lat', 'lon'],
@@ -386,6 +387,30 @@ describe('coordinate systems in the pipeline', () => {
     const swapped = await applySwaps(r, [0])
     const x = swapped.rows[0][swapped.columns.indexOf('X_3763')]
     expect(Math.abs(x - -87503.439)).toBeLessThan(0.01)
+  })
+
+  it('projects the second system from the degrees before they are rounded', async () => {
+    // Six decimals of a degree are 11 cm of latitude. Projected from the
+    // rounded degrees, a millimetre survey came out of the second system 5 cm
+    // from where DGT puts it - half of what the grid itself is good for.
+    const cases = dgt.cases
+      .filter((c) => c.source === '20790' && c.target === '3763' && c.method === 'grelhas')
+      .slice(0, 6)
+    const table = { columns: ['M', 'P'], rows: cases.map((c) => [String(c.x), String(c.y)]) }
+    const output = { proj4: TM06.proj4, suffix: '3763' }
+    const r = await buildResult(table, 'M', 'P', {
+      input: { proj4: crsGet(20790).proj4, kind: 'projected' },
+      output,
+    })
+    // The degrees themselves are still rounded as asked.
+    expect(String(r.lats[0]).split('.')[1].length).toBeLessThanOrEqual(6)
+    cases.forEach((c, i) => {
+      expect(Math.abs(r.rows[i][r.columns.indexOf('X_3763')] - c.x_dgt)).toBeLessThan(dgt.tolerance_m)
+      expect(Math.abs(r.rows[i][r.columns.indexOf('Y_3763')] - c.y_dgt)).toBeLessThan(dgt.tolerance_m)
+    })
+    // And an inversion elsewhere in the table does not lose that.
+    const swapped = await applySwaps(r, [])
+    expect(swapped.rows[0][swapped.columns.indexOf('X_3763')]).toBe(r.rows[0][r.columns.indexOf('X_3763')])
   })
 
   it('carries a row that could not be read through as empty, not as zero', async () => {

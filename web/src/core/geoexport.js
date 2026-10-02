@@ -75,6 +75,20 @@ function propGet(props, key) {
 }
 
 /**
+ * Where a file came from, as lines of `label: value`.
+ *
+ * `metadata` is the same in every writer here: an ordered array of
+ * [label, value] pairs the application builds - when it was converted, from
+ * what system, by which transformation - in the reader's language. The writers
+ * only place it, each where its format has room, and a writer given none
+ * writes exactly what it wrote before. Mirrors metadata_text() in
+ * geocoord/geoexport.py.
+ */
+export function metadataText(metadata) {
+  return metadata.map(([label, value]) => `${label}: ${value}`).join('\n')
+}
+
+/**
  * GeoJSON FeatureCollection of points, as a string.
  * Mirrors to_geojson() in geocoord/geoexport.py. Coordinates are written as
  * JSON numbers, not through pyFloat: GeoJSON coordinates must be numbers, and
@@ -82,7 +96,7 @@ function propGet(props, key) {
  * Python's and JavaScript's differing number-to-string rendering never enters
  * the comparison here.
  */
-export function toGeoJSON(features) {
+export function toGeoJSON(features, metadata = null) {
   // The properties object is written out by hand rather than through
   // JSON.stringify. JavaScript hoists integer-like keys to the front of an
   // object, so a table with a column named "1" came out of Object.fromEntries
@@ -102,7 +116,12 @@ export function toGeoJSON(features) {
     return '{"type":"Feature","geometry":{"type":"Point","coordinates":'
       + `${coords}},"properties":{${entries}}}`
   }).join(',')
-  return `{"type":"FeatureCollection","features":[${body}]}`
+  // A top-level foreign member, before the features: RFC 7946 admits it, and
+  // a reader that does not know it passes over it.
+  const meta = metadata && metadata.length > 0
+    ? `"metadata":{${metadata.map(([k, v]) => `${JSON.stringify(String(k))}:${JSON.stringify(String(v))}`).join(',')}},`
+    : ''
+  return `{"type":"FeatureCollection",${meta}"features":[${body}]}`
 }
 
 /**
@@ -232,12 +251,16 @@ export function gpxNumber(value) {
  *
  * Mirrors to_gpx() in geocoord/geoexport.py.
  */
-export function toGpx(features, nameKey = null) {
+export function toGpx(features, nameKey = null, metadata = null) {
   const parts = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<gpx version="1.1" creator="GeoCoord" '
     + 'xmlns="http://www.topografix.com/GPX/1/1">',
   ]
+  // The description in the file's own metadata element, which GPX 1.1 puts first.
+  if (metadata && metadata.length > 0) {
+    parts.push(`<metadata><desc>${escapeXml(metadataText(metadata))}</desc></metadata>`)
+  }
   for (const [lon, lat, props] of features) {
     // propGet, not props.get: this used to require a Map and threw
     // "props.get is not a function" on the plain object every other writer
@@ -257,11 +280,17 @@ export function toGpx(features, nameKey = null) {
  * (unlike toGeoJSON) it is compared byte for byte against the contract, and
  * pyFloat is what keeps the coordinates matching Python's rendering.
  */
-export function toKML(features, nameKey = null) {
+export function toKML(features, nameKey = null, metadata = null) {
   const parts = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
   ]
+  // The Document's own ExtendedData, ahead of its placemarks.
+  if (metadata && metadata.length > 0) {
+    parts.push(`<ExtendedData>${metadata
+      .map(([k, v]) => `<Data name="${escapeAttr(String(k))}"><value>${escapeXml(String(v))}</value></Data>`)
+      .join('')}</ExtendedData>`)
+  }
   for (const [lon, lat, props] of features) {
     let name = ''
     const nameValue = nameKey === null || nameKey === undefined ? null : propGet(props, nameKey)
@@ -375,7 +404,7 @@ export function dbfValue(v) {
  * asynchronous, unlike Python's zipfile.
  */
 export async function toShapefileZip(features, fieldNames, baseName = 'coordinates',
-  prj = WGS84_ESRI_WKT) {
+  prj = WGS84_ESRI_WKT, metadata = null) {
   // JSZip is fetched on demand, like SheetJS: it is a hundred kilobytes that
   // only the Shapefile download needs, and most visitors take the CSV.
   const { default: JSZip } = await import('jszip')
@@ -393,6 +422,8 @@ export async function toShapefileZip(features, fieldNames, baseName = 'coordinat
   zip.file(`${layer}.shx`, writeShx(points))
   zip.file(`${layer}.dbf`, writeDbf(dbfNames, records))
   zip.file(`${layer}.prj`, prj)
+  // The metadata, as a text file beside the layer under the same name.
+  if (metadata && metadata.length > 0) zip.file(`${layer}.txt`, `${metadataText(metadata)}\n`)
   // DEFLATE, matching the Python side, which has always passed ZIP_DEFLATED.
   // Without it the archive was merely a container: a five-thousand-point survey
   // came out at 9 MB where the desktop wrote 0.07 MB, and the whole thing was

@@ -49,39 +49,41 @@ CONTINENTE = ("DGT, Parâmetros de Transformação para Portugal Continental (Ju
 ACORES_MADEIRA = ("DGT, Parâmetros de Transformação para os Arquipélagos dos Açores "
                   "e da Madeira (Maio 2009)")
 
-#: code -> (grid or None, Bursa-Wolf to ETRS89/PTRA08, source, accuracy note)
+#: code -> (grid or None, Bursa-Wolf to ETRS89/PTRA08, source, accuracy note).
+#: The note is English, as the registry's notes are; the page says it in
+#: Portuguese too (crs.transformation.<code> in web/src/i18n/dict.file.js).
 BEST = {
     "20790": ("DLX_ETRS89_geo.gsb",
               "-283.088,-70.693,117.445,-1.157,0.059,-0.652,-4.058",
               CONTINENTE,
-              "grelha NTv2 da DGT: resíduo médio 0,09 m, máximo 0,30 m; fora da grelha, "
-              "Bursa-Wolf da DGT (1,4 m)"),
+              "DGT's NTv2 grid DLx_ETRS89_geo: mean residual 0.09 m, max 0.30 m; outside "
+              "the grid, DGT's seven parameters (1.4 m)"),
     "27493": ("D73_ETRS89_geo.gsb",
               "-230.994,102.591,25.199,0.633,-0.239,0.900,1.950",
               CONTINENTE,
-              "grelha NTv2 da DGT: resíduo médio 0,06 m, máximo 0,16 m; fora da grelha, "
-              "Bursa-Wolf da DGT (0,4 m)"),
+              "DGT's NTv2 grid D73_ETRS89_geo: mean residual 0.06 m, max 0.16 m; outside "
+              "the grid, DGT's seven parameters (0.4 m)"),
     # Observatório (Flores), the western group, onto PTRA08 / UTM 25N.
     "2188": (None, "-487.978,-226.275,102.787,-0.743,1.677,2.087,1.485",
-             ACORES_MADEIRA, "Bursa-Wolf da DGT, grupo ocidental: 0,03 m"),
+             ACORES_MADEIRA, "DGT's seven parameters, western group: 0.03 m"),
     # Base SW (Graciosa), the central group.
     "2189": (None, "-185.391,122.266,35.989,0.120,3.180,2.046,-1.053",
-             ACORES_MADEIRA, "Bursa-Wolf da DGT, grupo central: 0,18 m"),
+             ACORES_MADEIRA, "DGT's seven parameters, central group: 0.18 m"),
     # S. Brás (São Miguel), the eastern group.
     "2190": (None, "-269.089,186.247,155.667,2.005,3.606,-0.366,0.097",
-             ACORES_MADEIRA, "Bursa-Wolf da DGT, grupo oriental: 0,02 m"),
+             ACORES_MADEIRA, "DGT's seven parameters, eastern group: 0.02 m"),
     # Base SE (Porto Santo), Madeira and Porto Santo. DGT's own service
     # applies these to EPSG:2942; EPSG attaches DGT's numbers for the same
     # datum to Porto Santo 1995, and its transformations for that datum agree
     # with these to between 1 and 13 cm. The two realisations of the Base SE
     # datum are taken as one, as DGT takes them.
     "2942": (None, "-160.410,-21.066,-99.282,2.437,-17.250,-7.446,0.168",
-             ACORES_MADEIRA, "Bursa-Wolf da DGT, Base SE: 0,05 m"),
+             ACORES_MADEIRA, "DGT's seven parameters, Base SE: 0.05 m"),
     "3061": (None, "-160.410,-21.066,-99.282,2.437,-17.250,-7.446,0.168",
-             ACORES_MADEIRA, "Bursa-Wolf da DGT, Base SE: 0,05 m"),
+             ACORES_MADEIRA, "DGT's seven parameters, Base SE: 0.05 m"),
     # Retired by EPSG in favour of 2942 for Madeira and Porto Santo.
     "2191": (None, "-160.410,-21.066,-99.282,2.437,-17.250,-7.446,0.168",
-             ACORES_MADEIRA, "Bursa-Wolf da DGT, Base SE: 0,05 m"),
+             ACORES_MADEIRA, "DGT's seven parameters, Base SE: 0.05 m"),
 }
 
 #: The note each system's picker shows, where the transformation needs saying.

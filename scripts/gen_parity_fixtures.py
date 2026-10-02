@@ -949,6 +949,39 @@ TIDY_INPUTS = [
         },
     },
     {
+        # A header in two rows, as a register typed from paper heads its
+        # columns: COORDENADAS merged over M and P, the sheet over its number
+        # and name, Ponto and Data merged down through both rows.
+        "id": "two_row_header_read_as_one",
+        "table": {
+            "columns": ["Ponto", "Data", "CARTA 1:25000", "Unnamed: 3", "Unnamed: 4",
+                        "COORDENADAS", "Unnamed: 6"],
+            "rows": [
+                [None, None, "Nº", "NOME", "NOME", "M", "P"],
+                ["A-1", "2001-05-03", "282", "Lugar um", "Sítio", "252520", "315150"],
+                ["A-2", "2001-05-04", "292", "Lugar dois", None, "257860", "320210"],
+            ],
+        },
+    },
+    {
+        # A first row of data with no number in it, under a blank header cell,
+        # over a column of numbers - but filled across, with nothing merged
+        # down through it. It stays data.
+        "id": "two_row_header_needs_a_column_merged_down",
+        "table": {
+            "columns": ["Amostra", "Unnamed: 1", "Au"],
+            "rows": [["S-a", "obs", "n.d."], ["S-b", "x", "12"], ["S-c", "y", "7"]],
+        },
+    },
+    {
+        # A row with a digit in it is data, whatever else it looks like.
+        "id": "two_row_header_has_no_digits",
+        "table": {
+            "columns": ["Ponto", "COORDENADAS", "Unnamed: 2"],
+            "rows": [[None, "M1", "P1"], ["A", "252520", "315150"]],
+        },
+    },
+    {
         "id": "all_empty_returns_empty_shape",
         "table": {
             "columns": ["a", "b"],
@@ -1008,6 +1041,16 @@ SAFE_FIELD_NAMES_INPUTS = [
 # distinction, but JavaScript has a single number type and cannot reproduce
 # it, so a float attribute would be an unresolvable ambiguity between the two
 # ports.
+# Where a file came from, as the applications write it beside the data. The
+# writers only place it, so one set serves every format: an ampersand, angle
+# brackets and a quote for each format's escaping, and an accent.
+EXPORT_METADATA = [
+    ["Convertido com", "GeoCoord 1.1.0"],
+    ["Data da conversão", "2026-10-03"],
+    ["Sistema de origem", "Lisboa / Hayford-Gauss Militar (EPSG:20790)"],
+    ["Transformação", 'grelha NTv2 da DGT <DLx_ETRS89_geo> & "Bursa-Wolf"'],
+]
+
 EXPORT_FEATURES = [
     (
         "two_points_text_and_int",
@@ -1153,7 +1196,7 @@ def df_to_table(df):
     }
 
 
-def _shapefile_components(features, field_names, base_name):
+def _shapefile_components(features, field_names, base_name, metadata=None):
     """The four shapefile parts, hex-encoded, with the DBF write date zeroed.
 
     pyshp stamps bytes 1..3 of the DBF header with today's date and
@@ -1161,7 +1204,7 @@ def _shapefile_components(features, field_names, base_name):
     .zip nor the raw .dbf is reproducible. The parts are compared instead,
     with the date masked.
     """
-    data = to_shapefile_zip(features, field_names, base_name=base_name)
+    data = to_shapefile_zip(features, field_names, base_name=base_name, metadata=metadata)
     out = {}
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         for name in z.namelist():
@@ -1263,6 +1306,14 @@ def build():
                 "prop_order": [list(props.keys()) for _, _, props in feats],
             }
             for i, feats, _name_key in EXPORT_FEATURES
+        ] + [
+            {
+                "id": "with_metadata",
+                "features": EXPORT_FEATURES[0][1],
+                "metadata": EXPORT_METADATA,
+                "expected": to_geojson(EXPORT_FEATURES[0][1], EXPORT_METADATA).decode("utf-8"),
+                "prop_order": [list(props.keys()) for _, _, props in EXPORT_FEATURES[0][1]],
+            },
         ],
         "to_kml": [
             {
@@ -1275,6 +1326,16 @@ def build():
                 "prop_order": [list(props.keys()) for _, _, props in feats],
             }
             for i, feats, name_key in EXPORT_FEATURES
+        ] + [
+            {
+                "id": "with_metadata",
+                "features": EXPORT_FEATURES[0][1],
+                "name_key": "name",
+                "metadata": EXPORT_METADATA,
+                "expected": to_kml(EXPORT_FEATURES[0][1], name_key="name",
+                                   metadata=EXPORT_METADATA).decode("utf-8"),
+                "prop_order": [list(props.keys()) for _, _, props in EXPORT_FEATURES[0][1]],
+            },
         ],
         # GPX carries the point name and nothing else, so the same feature sets
         # exercise a different thing here than in to_kml: the coordinate
@@ -1288,6 +1349,16 @@ def build():
                 "prop_order": [list(props.keys()) for _, _, props in feats],
             }
             for i, feats, name_key in EXPORT_FEATURES
+        ] + [
+            {
+                "id": "with_metadata",
+                "features": EXPORT_FEATURES[0][1],
+                "name_key": "name",
+                "metadata": EXPORT_METADATA,
+                "expected": to_gpx(EXPORT_FEATURES[0][1], name_key="name",
+                                   metadata=EXPORT_METADATA).decode("utf-8"),
+                "prop_order": [list(props.keys()) for _, _, props in EXPORT_FEATURES[0][1]],
+            },
         ],
         "to_shapefile_zip": [
             {
@@ -1298,6 +1369,15 @@ def build():
                 "expected": _shapefile_components(feats, field_names, base_name),
             }
             for i, feats, field_names, base_name in SHAPEFILE_INPUTS
+        ] + [
+            {
+                "id": "with_metadata",
+                "features": SHAPEFILE_INPUTS[0][1],
+                "field_names": SHAPEFILE_INPUTS[0][2],
+                "base_name": SHAPEFILE_INPUTS[0][3],
+                "metadata": EXPORT_METADATA,
+                "expected": _shapefile_components(*SHAPEFILE_INPUTS[0][1:], metadata=EXPORT_METADATA),
+            },
         ],
         "detect_swaps": [],
         "region_check": [],

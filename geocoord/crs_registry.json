@@ -172,7 +172,7 @@
     "fallback": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=-8.13190611111111 +k=1 +x_0=180.598 +y_0=-86.99 +ellps=intl +units=m +no_defs +towgs84=-230.994,102.591,25.199,0.633,-0.239,0.900,1.950",
     "transformation": {
       "source": "DGT, Parâmetros de Transformação para Portugal Continental (Jul. 2009); grelhas NTv2 DLx_ETRS89_geo e D73_ETRS89_geo",
-      "accuracy": "grelha NTv2 da DGT: resíduo médio 0,06 m, máximo 0,16 m; fora da grelha, Bursa-Wolf da DGT (0,4 m)"
+      "accuracy": "DGT's NTv2 grid D73_ETRS89_geo: mean residual 0.06 m, max 0.16 m; outside the grid, DGT's seven parameters (0.4 m)"
     }
   },
   "20790": {
@@ -206,7 +206,7 @@
     "fallback": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=1 +k=1 +x_0=200000 +y_0=300000 +ellps=intl +pm=lisbon +units=m +no_defs +towgs84=-283.088,-70.693,117.445,-1.157,0.059,-0.652,-4.058",
     "transformation": {
       "source": "DGT, Parâmetros de Transformação para Portugal Continental (Jul. 2009); grelhas NTv2 DLx_ETRS89_geo e D73_ETRS89_geo",
-      "accuracy": "grelha NTv2 da DGT: resíduo médio 0,09 m, máximo 0,30 m; fora da grelha, Bursa-Wolf da DGT (1,4 m)"
+      "accuracy": "DGT's NTv2 grid DLx_ETRS89_geo: mean residual 0.09 m, max 0.30 m; outside the grid, DGT's seven parameters (1.4 m)"
     }
   },
   "5014": {
@@ -298,7 +298,7 @@
     "note": null,
     "transformation": {
       "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
-      "accuracy": "Bursa-Wolf da DGT, grupo ocidental: 0,03 m"
+      "accuracy": "DGT's seven parameters, western group: 0.03 m"
     }
   },
   "2189": {
@@ -327,7 +327,7 @@
     "note": null,
     "transformation": {
       "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
-      "accuracy": "Bursa-Wolf da DGT, grupo central: 0,18 m"
+      "accuracy": "DGT's seven parameters, central group: 0.18 m"
     }
   },
   "2190": {
@@ -352,7 +352,7 @@
     "note": null,
     "transformation": {
       "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
-      "accuracy": "Bursa-Wolf da DGT, grupo oriental: 0,02 m"
+      "accuracy": "DGT's seven parameters, eastern group: 0.02 m"
     }
   },
   "2191": {
@@ -377,7 +377,7 @@
     "note": "EPSG retired this code as a duplicate of Porto Santo 1936 (2942): the same Base SE datum, and the same DGT parameters. Prefer 2942 or, better, PTRA08 (5016).",
     "transformation": {
       "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
-      "accuracy": "Bursa-Wolf da DGT, Base SE: 0,05 m"
+      "accuracy": "DGT's seven parameters, Base SE: 0.05 m"
     }
   },
   "2942": {
@@ -402,7 +402,7 @@
     "note": null,
     "transformation": {
       "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
-      "accuracy": "Bursa-Wolf da DGT, Base SE: 0,05 m"
+      "accuracy": "DGT's seven parameters, Base SE: 0.05 m"
     }
   },
   "3061": {
@@ -427,7 +427,7 @@
     "note": null,
     "transformation": {
       "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
-      "accuracy": "Bursa-Wolf da DGT, Base SE: 0,05 m"
+      "accuracy": "DGT's seven parameters, Base SE: 0.05 m"
     }
   }
 }

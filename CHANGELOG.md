@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Every download says where it came from.** The Excel workbook gains a
+  `metadata` sheet, the GeoJSON a `metadata` member, the KML the Document's
+  `ExtendedData`, the GPX its `<metadata>`, the Shapefile a `.txt` beside the
+  layer: the version and the day, the file and sheet read, the source system,
+  the transformation to WGS 84 and whose it is, the proj4 definition, a
+  kilometre reading, the rows corrected and by which review, and the second
+  system. In the reader's language on the page, in English on the desktop. CSV
+  carries none - a line above the header would break the programs that read
+  it. Given no metadata, every writer writes exactly what it wrote before; the
+  placement is pinned in the contract.
+- **A header in two rows is read as one.** A register typed from paper heads
+  its coordinates `COORDENADAS` over `M` and `P`, and read with one header row
+  they were `COORDENADAS` and an unnamed column, `M` and `P` were the first row of
+  data, and nothing found the columns by name. Each column now takes its lower
+  label, or its upper one where it has none. Only when all four signs agree: no
+  digit in the second row, a label under a blank header cell, a column merged
+  down through both rows, and labels over numbers.
+
 - **Map sheets, in the web application.** A table that says which 1:25 000 or
   1:50 000 sheet each point was read off is checked against it: the sheet
   columns are found by agreement with the coordinates, and a row outside its
@@ -72,6 +90,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A second system lost up to 5 cm.** Its columns were projected from the
+  degrees after they were rounded for display, and six decimals of a degree are
+  11 cm: a survey written to the millimetre came out of PT-TM06 5 cm from where
+  DGT puts it, in both applications. They are projected from the coordinates as
+  converted, and match DGT to the millimetre.
+- **On the desktop, accepting a swap dropped the second system's columns**, and
+  the downloads went out without them. They are rebuilt, as on the page. Their
+  WKT is written to the millimetre, as on the page, rather than with every
+  digit of the float.
 - `transform` between two systems neither of which is WGS84 - Lisboa to PT-TM06,
   say - now goes through WGS84 on both sides. In Python, PROJ asked to go
   straight from one to the other applied no datum shift at all, 180 m out

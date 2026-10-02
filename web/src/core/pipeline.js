@@ -211,6 +211,10 @@ export async function buildResult(table, xCol, yCol, {
     lats = wgs.map((p) => p[1])
   }
 
+  // The second system is projected from these, not from the rounded degrees:
+  // six decimals of a degree are 11 cm, and a survey written to the
+  // millimetre came out of it 5 cm from where DGT puts it.
+  const exact = { lats, lons }
   lats = lats.map((v) => roundHalfEven(v, decimals))
   lons = lons.map((v) => roundHalfEven(v, decimals))
 
@@ -235,10 +239,11 @@ export async function buildResult(table, xCol, yCol, {
   }
 
   const mismatch = projected ? rows.map(() => false) : axisMismatch(rawX, rawY)
-  const extra = await outputColumns(lats, lons, output)
+  const extra = await outputColumns(exact.lats, exact.lons, output)
 
   return {
     ...withDerived({ columns, rows }, lats, lons, addDms, extra),
+    exact,
     axisMismatch: mismatch,
     output,
     // Non-null when the values look like kilometres: {inside, was, readable}.
@@ -306,13 +311,17 @@ function withDerived(table, lats, lons, addDms, extra = null) {
  */
 export async function applySwaps(result, indices, { addDms = true } = {}) {
   const swap = new Set(indices)
-  const lats = result.lats.map((v, i) => (swap.has(i) ? result.lons[i] : v))
-  const lons = result.lons.map((v, i) => (swap.has(i) ? result.lats[i] : v))
+  const flip = (a, b) => a.map((v, i) => (swap.has(i) ? b[i] : v))
+  const lats = flip(result.lats, result.lons)
+  const lons = flip(result.lons, result.lats)
+  const from = result.exact ?? { lats: result.lats, lons: result.lons }
+  const exact = { lats: flip(from.lats, from.lons), lons: flip(from.lons, from.lats) }
 
   const base = stripDerived(result)
-  const extra = await outputColumns(lats, lons, result.output ?? null)
+  const extra = await outputColumns(exact.lats, exact.lons, result.output ?? null)
   return {
     ...withDerived(base, lats, lons, addDms, extra),
+    exact,
     axisMismatch: result.axisMismatch,
     output: result.output ?? null,
     signable: result.signable ?? 0,
@@ -487,7 +496,7 @@ const ILLEGAL_IN_XLSX_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g
  * SheetJS writes what it is given. The check is in the tests so that a future
  * version changing its mind does not go unnoticed.
  */
-export async function toExcelBytes(table) {
+export async function toExcelBytes(table, metadata = null) {
   const XLSX = await loadSheetJs()
   const clean = (v) => {
     if (v === null || v === undefined) return ''
@@ -498,6 +507,11 @@ export async function toExcelBytes(table) {
   const sheet = XLSX.utils.aoa_to_sheet(aoa)
   const book = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(book, sheet, 'converted')
+  // Where the file came from, a label and a value to a row (see metadataText).
+  if (metadata && metadata.length > 0) {
+    const rows = metadata.map(([k, v]) => [clean(String(k)), clean(String(v))])
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(rows), 'metadata')
+  }
   return new Uint8Array(XLSX.write(book, { type: 'array', bookType: 'xlsx' }))
 }
 

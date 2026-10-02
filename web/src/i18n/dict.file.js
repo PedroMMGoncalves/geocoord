@@ -413,6 +413,84 @@ export default {
     en: 'EPSG retired this code as a duplicate of Porto Santo 1936 (2942): the same Base SE datum, and the same DGT parameters. Prefer 2942 or, better, PTRA08 (5016).',
   },
 
+  // How each Portuguese datum is moved onto ETRS89. The registry says it in
+  // English; the page says it in the reader's language.
+  'crs.transformation.20790': {
+    pt: "grelha NTv2 da DGT DLx_ETRS89_geo: resíduo médio 0,09 m, máximo 0,30 m; fora da grelha, sete parâmetros da DGT (1,4 m)",
+    en: "DGT's NTv2 grid DLx_ETRS89_geo: mean residual 0.09 m, max 0.30 m; outside the grid, DGT's seven parameters (1.4 m)",
+  },
+  'crs.transformation.27493': {
+    pt: "grelha NTv2 da DGT D73_ETRS89_geo: resíduo médio 0,06 m, máximo 0,16 m; fora da grelha, sete parâmetros da DGT (0,4 m)",
+    en: "DGT's NTv2 grid D73_ETRS89_geo: mean residual 0.06 m, max 0.16 m; outside the grid, DGT's seven parameters (0.4 m)",
+  },
+  'crs.transformation.2188': {
+    pt: "sete parâmetros da DGT, grupo ocidental: 0,03 m",
+    en: "DGT's seven parameters, western group: 0.03 m",
+  },
+  'crs.transformation.2189': {
+    pt: "sete parâmetros da DGT, grupo central: 0,18 m",
+    en: "DGT's seven parameters, central group: 0.18 m",
+  },
+  'crs.transformation.2190': {
+    pt: "sete parâmetros da DGT, grupo oriental: 0,02 m",
+    en: "DGT's seven parameters, eastern group: 0.02 m",
+  },
+  'crs.transformation.2191': {
+    pt: "sete parâmetros da DGT, Base SE: 0,05 m",
+    en: "DGT's seven parameters, Base SE: 0.05 m",
+  },
+  'crs.transformation.2942': {
+    pt: "sete parâmetros da DGT, Base SE: 0,05 m",
+    en: "DGT's seven parameters, Base SE: 0.05 m",
+  },
+  'crs.transformation.3061': {
+    pt: "sete parâmetros da DGT, Base SE: 0,05 m",
+    en: "DGT's seven parameters, Base SE: 0.05 m",
+  },
+
+  // ------------------------------------------------- what a download records
+  // Written into the files themselves (core/provenance.js), not shown on the page.
+  'meta.app': { pt: 'Convertido com', en: 'Converted with' },
+  'meta.date': { pt: 'Data da conversão', en: 'Converted on' },
+  'meta.file': { pt: 'Ficheiro de origem', en: 'Source file' },
+  'meta.fileSheet': { pt: '{name}, folha {sheet}', en: '{name}, sheet {sheet}' },
+  'meta.input': { pt: 'Sistema de origem', en: 'Source system' },
+  'meta.transformation': { pt: 'Transformação para WGS 84', en: 'Transformation to WGS 84' },
+  'meta.source': { pt: 'Fonte da transformação', en: 'Source of the transformation' },
+  'meta.proj4': { pt: 'Definição proj4', en: 'proj4 definition' },
+  'meta.noShift': { pt: 'nenhuma: já em WGS 84', en: 'none: already WGS 84' },
+  'meta.asWgs84': {
+    pt: 'ETRS89 / PTRA08 tomado como WGS 84 (diferença inferior a 1 m)',
+    en: 'ETRS89 / PTRA08 taken as WGS 84 (under 1 m apart)',
+  },
+  'meta.ownShift': { pt: 'a da própria definição', en: "the definition's own" },
+  'meta.km': { pt: 'Unidade lida', en: 'Unit read' },
+  'meta.kmValue': { pt: 'quilómetros (valores multiplicados por 1000)', en: 'kilometres (values multiplied by 1000)' },
+  'meta.azores': { pt: 'Linhas noutro sistema', en: 'Rows in another system' },
+  'meta.azoresValue': {
+    pt: '{n} linhas lidas em {system}', ptOne: '{n} linha lida em {system}',
+    en: '{n} rows read in {system}', enOne: '{n} row read in {system}',
+  },
+  'meta.fixes': { pt: 'Correções aceites', en: 'Corrections accepted' },
+  'meta.swaps': {
+    pt: '{n} linhas com latitude e longitude trocadas', ptOne: '{n} linha com latitude e longitude trocadas',
+    en: '{n} rows with latitude and longitude swapped', enOne: '{n} row with latitude and longitude swapped',
+  },
+  'meta.sheetFixes': {
+    pt: '{n} linhas corrigidas pela folha', ptOne: '{n} linha corrigida pela folha',
+    en: '{n} rows corrected by their sheet', enOne: '{n} row corrected by its sheet',
+  },
+  'meta.degrees': { pt: 'Graus e geometria', en: 'Degrees and geometry' },
+  'meta.degreesValue': {
+    pt: 'Latitude_DD, Longitude_DD e a geometria em WGS 84 (EPSG:4326)',
+    en: 'Latitude_DD, Longitude_DD and the geometry in WGS 84 (EPSG:4326)',
+  },
+  'meta.output': { pt: 'Sistema adicional', en: 'Extra system' },
+  'meta.outputValue': {
+    pt: '{system}, nas colunas {x} e {y}; a partir de WGS 84: {how}',
+    en: '{system}, in columns {x} and {y}; from WGS 84: {how}',
+  },
+
   'sheet.col25': { pt: 'Folha 1:25 000 (carta militar)', en: '1:25 000 sheet (military map)' },
   'sheet.col50': { pt: 'Folha 1:50 000 (carta geológica)', en: '1:50 000 sheet (geological map)' },
   'sheet.colNone': { pt: '— nenhuma —', en: '— none —' },

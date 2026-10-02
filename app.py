@@ -1,3 +1,4 @@
+import datetime
 import io
 import re
 import os
@@ -31,6 +32,7 @@ from geocoord.geoexport import (
 )
 from geocoord import crs
 from geocoord.georead import is_geospatial, read_geospatial_bytes
+from geocoord.provenance import provenance
 from geocoord.reader import read_csv_bytes, read_excel_bytes, workbook_sheets
 
 APP_NAME = "GeoCoord"
@@ -150,6 +152,10 @@ def read_csv(uploaded, sep, decimal):
     return read_csv_bytes(uploaded.read(), sep=sep, decimal=decimal)
 
 
+def _present(value):
+    return value is not None and not (isinstance(value, float) and pd.isna(value))
+
+
 def _round(value, decimals):
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return value
@@ -168,7 +174,15 @@ DERIVED = ["X_DD", "Y_DD", "status", "WKT", "Latitude_GMS", "Longitude_GMS"]
 _EXTRA_COLUMN_RE = re.compile(r"^(X|Y|WKT)_[A-Za-z0-9]+$")
 
 
-def add_derived(result, add_dms, target=None):
+def add_derived(result, add_dms, target=None, exact=None):
+    """Append the columns derived from Latitude_DD and Longitude_DD.
+
+    ``exact`` is the unrounded (lats, lons) the DD columns were rounded from.
+    The second system is projected from it, not from the DD columns: six
+    decimals of a degree are 11 cm, and a survey written to the millimetre came
+    out of the second system 5 cm from where DGT puts it. Both are kept on the
+    table, so a swap applied later rebuilds the same columns.
+    """
     result = result.drop(columns=[c for c in DERIVED if c in result.columns])
     result = result.drop(columns=[c for c in result.columns
                                   if _EXTRA_COLUMN_RE.match(str(c))])
@@ -184,17 +198,23 @@ def add_derived(result, add_dms, target=None):
     if add_dms:
         result["Latitude_GMS"] = [format_dms(v, "lat") for v in lat]
         result["Longitude_GMS"] = [format_dms(v, "lon") for v in lon]
+    if exact is None:
+        exact = (lat, lon)
+    result.attrs["target"] = target
+    result.attrs["exact"] = (list(exact[0]), list(exact[1]))
     # A second system as extra columns. Three decimals: these are metres for a
     # projected target, and a millimetre is already past what any of this is
-    # good for.
+    # good for. The WKT carries the same rounded values, as on the page.
     if target is not None and target["proj4"] != crs.WGS84_PROJ4:
-        pairs = [crs.from_wgs84(x, y, target["proj4"]) if (x is not None and y is not None)
+        pairs = [crs.from_wgs84(x, y, target["proj4"]) if _present(x) and _present(y)
                  else (None, None)
-                 for x, y in zip(result["Longitude_DD"], result["Latitude_DD"])]
-        result[f"X_{target['suffix']}"] = [_round(p[0], 3) for p in pairs]
-        result[f"Y_{target['suffix']}"] = [_round(p[1], 3) for p in pairs]
+                 for y, x in zip(*exact)]
+        xs = [_round(p[0], 3) for p in pairs]
+        ys = [_round(p[1], 3) for p in pairs]
+        result[f"X_{target['suffix']}"] = xs
+        result[f"Y_{target['suffix']}"] = ys
         result[f"WKT_{target['suffix']}"] = [
-            f"POINT ({p[0]} {p[1]})" if p[0] is not None else None for p in pairs
+            f"POINT ({x} {y})" if x is not None else None for x, y in zip(xs, ys)
         ]
     return result
 
@@ -377,7 +397,9 @@ def build_result(df, lat_col, lon_col, decimals, add_dms, region_mask=None,
 
     result["Latitude_DD"] = [_round(v, decimals) for v in lats]
     result["Longitude_DD"] = [_round(v, decimals) for v in lons]
-    return add_derived(result, add_dms, target=target)
+    out = add_derived(result, add_dms, target=target, exact=(lats, lons))
+    out.attrs["swaps"] = 0
+    return out
 
 
 def projected_points(df, x_col, y_col, source, factor=1.0):
@@ -424,13 +446,21 @@ def signable_count(df, lat_col, lon_col, region_mask):
 
 
 def apply_swaps(result, idxs, add_dms):
+    """Swap Latitude_DD and Longitude_DD on the given rows and rebuild every
+    column derived from them, the second system's included - which used to be
+    dropped here and not rebuilt. Mirrors applySwaps() in pipeline.js."""
     r = result.copy()
     la_pos = r.columns.get_loc("Latitude_DD")
     lo_pos = r.columns.get_loc("Longitude_DD")
+    lats, lons = r.attrs.get("exact", (r["Latitude_DD"].tolist(), r["Longitude_DD"].tolist()))
+    lats, lons = list(lats), list(lons)
     for i in idxs:
         la, lo = r.iat[i, la_pos], r.iat[i, lo_pos]
         r.iat[i, la_pos], r.iat[i, lo_pos] = lo, la
-    return add_derived(r, add_dms)
+        lats[i], lons[i] = lons[i], lats[i]
+    out = add_derived(r, add_dms, target=r.attrs.get("target"), exact=(lats, lons))
+    out.attrs["swaps"] = result.attrs.get("swaps", 0) + len(idxs)
+    return out
 
 
 def features_in_range(result):
@@ -451,32 +481,32 @@ def export_csv(df):
 
 
 @st.cache_data(show_spinner=False)
-def export_excel(df):
-    return to_excel_bytes(df)
+def export_excel(df, metadata=None):
+    return to_excel_bytes(df, metadata=metadata)
 
 
 @st.cache_data(show_spinner=False)
-def export_geojson(df):
+def export_geojson(df, metadata=None):
     features, _ = features_in_range(df)
-    return to_geojson(features)
+    return to_geojson(features, metadata=metadata)
 
 
 @st.cache_data(show_spinner=False)
-def export_kml(df, name_key):
+def export_kml(df, name_key, metadata=None):
     features, _ = features_in_range(df)
-    return to_kml(features, name_key=name_key)
+    return to_kml(features, name_key=name_key, metadata=metadata)
 
 
 @st.cache_data(show_spinner=False)
-def export_gpx(df, name_key):
+def export_gpx(df, name_key, metadata=None):
     features, _ = features_in_range(df)
-    return to_gpx(features, name_key=name_key)
+    return to_gpx(features, name_key=name_key, metadata=metadata)
 
 
 @st.cache_data(show_spinner=False)
-def export_shapefile(df, base):
+def export_shapefile(df, base, metadata=None):
     features, fields = features_in_range(df)
-    return to_shapefile_zip(features, fields, base_name=base)
+    return to_shapefile_zip(features, fields, base_name=base, metadata=metadata)
 
 
 def guess_column(cols, candidates, fallback_index):
@@ -570,7 +600,7 @@ def render_summary(result, labels, lat_col, lon_col):
             width="stretch")
 
 
-def render_downloads(result, name_key, base, pending=False):
+def render_downloads(result, name_key, base, pending=False, metadata=None):
     _step("6. Download")
     if pending:
         st.warning("**Answer the swap review first.** Some rows may have their "
@@ -595,23 +625,23 @@ def render_downloads(result, name_key, base, pending=False):
                              f"{base}.csv", "text/csv", disabled=pending,
                              width="stretch")
     if want["Excel"]:
-        d[1].download_button("Download Excel", export_excel(result), f"{base}.xlsx",
+        d[1].download_button("Download Excel", export_excel(result, metadata), f"{base}.xlsx",
                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              disabled=pending, width="stretch")
     if want["GeoJSON"]:
-        d[2].download_button("Download GeoJSON", export_geojson(result),
+        d[2].download_button("Download GeoJSON", export_geojson(result, metadata),
                              f"{base}.geojson", "application/geo+json",
                              disabled=pending or not has_points, width="stretch")
     if want["KML"]:
-        d[3].download_button("Download KML", export_kml(result, name_key),
+        d[3].download_button("Download KML", export_kml(result, name_key, metadata),
                              f"{base}.kml", "application/vnd.google-earth.kml+xml",
                              disabled=pending or not has_points, width="stretch")
     if want["Shapefile"]:
-        d[4].download_button("Download Shapefile (.zip)", export_shapefile(result, base),
+        d[4].download_button("Download Shapefile (.zip)", export_shapefile(result, base, metadata),
                              f"{base}.zip", "application/zip",
                              disabled=pending or not has_points, width="stretch")
     if want["GPX"]:
-        d[5].download_button("Download GPX", export_gpx(result, name_key),
+        d[5].download_button("Download GPX", export_gpx(result, name_key, metadata),
                              f"{base}.gpx", "application/gpx+xml",
                              disabled=pending or not has_points, width="stretch")
 
@@ -686,6 +716,7 @@ with tab_file:
             st.session_state.pop("swaps_kept", None)
 
         name = uploaded.name.lower()
+        sheet_read = None  # the sheet, when a workbook has more than one
         notes: list[dict] = []
         try:
             # KML, KMZ, GeoJSON and GPX: the formats this application already
@@ -721,6 +752,7 @@ with tab_file:
                 sheet = sheets[0]
                 if len(sheets) > 1:
                     sheet = st.selectbox("Sheet", sheets)
+                    sheet_read = sheet
                 df = read_excel_bytes(data, name, sheet)
         except Exception as e:
             st.error(f"Could not read the file: {e}")
@@ -1025,20 +1057,20 @@ with tab_file:
                         invert = st.checkbox(
                             "Invert cluster suggestion (the main cluster is the swapped side)",
                             value=False)
-                    target = axis_idx + range_idx + (ok_idx if invert else cluster_idx)
+                    to_swap = axis_idx + range_idx + (ok_idx if invert else cluster_idx)
                     b1, b2 = st.columns(2)
                     if b2.button("Keep them as written", key="keep_swaps"):
                         st.session_state.swaps_kept = suspects
                         st.rerun()
-                    if b1.button(f"Apply swap to {len(target)} row(s)", type="primary"):
-                        st.session_state.result = apply_swaps(result, target, add_dms)
+                    if b1.button(f"Apply swap to {len(to_swap)} row(s)", type="primary"):
+                        st.session_state.result = apply_swaps(result, to_swap, add_dms)
                         # The row is settled. Its raw cell still reads "W", but
                         # it is no longer sitting in the latitude column, so the
                         # proof no longer applies and the suggestion must stop
                         # coming back.
                         settled = st.session_state.get("axis_mismatch")
                         if settled is not None:
-                            for i in target:
+                            for i in to_swap:
                                 if 0 <= i < len(settled):
                                     settled[i] = False
                         st.rerun()
@@ -1053,8 +1085,15 @@ with tab_file:
                 render_summary(result, labels, lat_col, lon_col)
             with t_download:
                 base = sanitize_filename(st.session_state.get("file_name", "converted"))
+                metadata = provenance(
+                    date=datetime.date.today().isoformat(),
+                    file_name=st.session_state.get("file_name", ""),
+                    sheet=sheet_read, source=source, target=target,
+                    scale=(st.session_state.get("scale", 1.0)
+                           if source is not None and source["kind"] == "projected" else 1.0),
+                    swaps=result.attrs.get("swaps", 0))
                 render_downloads(result, st.session_state.get("name_key"), base,
-                                 pending=review_pending)
+                                 pending=review_pending, metadata=metadata)
 
 
 with tab_quick:

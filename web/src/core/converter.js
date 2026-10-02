@@ -955,7 +955,51 @@ export function tidyTable(table) {
     const keepAfter = columns.map((_, c) => rows.some((row) => row[c] !== null))
     columns = columns.filter((_, c) => keepAfter[c])
     rows = rows.map((row) => row.filter((_, c) => keepAfter[c]))
+  } else if (secondHeaderRow(columns, rows)) {
+    // The header takes two rows. Each column is named by its lower label, or
+    // by its upper one where it has none, and a repeat gains a ".1".
+    const names = columns.map((name, c) => (rows[0][c] === null ? String(name) : String(rows[0][c]).trim()))
+    const seen = new Map()
+    columns = names.map((name) => {
+      const count = seen.get(name) ?? 0
+      seen.set(name, count + 1)
+      return count === 0 ? name : `${name}.${count}`
+    })
+    rows = rows.slice(1)
+    const keepAfter = columns.map((_, c) => rows.some((row) => row[c] !== null))
+    columns = columns.filter((_, c) => keepAfter[c])
+    rows = rows.map((row) => row.filter((_, c) => keepAfter[c]))
   }
 
   return { columns, rows }
+}
+
+/** Rows looked at below a second header row, to see what its labels stand over. */
+const HEADER_LOOKAHEAD = 50
+
+const DIGIT_RE = /[0-9]/
+
+/**
+ * Whether the first row of data is the lower half of a two-row header -
+ * `COORDENADAS` merged over `M` and `P`, beside `Data` merged down through
+ * both rows. Taking a row of data for a header loses the row and renames
+ * every column, so all four must hold: no digit anywhere in the row; a label
+ * under a blank header cell; a blank under a named header whose column has
+ * values below; and, below one of its labels, mostly values with digits.
+ * Mirrors _second_header_row() in converter.py.
+ */
+function secondHeaderRow(columns, rows) {
+  if (rows.length < 2) return false
+  const first = rows[0].map((v) => (v === null ? null : String(v).trim()))
+  const below = rows.slice(1, 1 + HEADER_LOOKAHEAD)
+  const filled = (c) => below.map((row) => row[c]).filter((v) => v !== null).map(String)
+
+  const labels = first.map((v, c) => (v ? c : -1)).filter((c) => c >= 0)
+  if (labels.length === 0 || labels.some((c) => DIGIT_RE.test(first[c]))) return false
+  if (!labels.some((c) => isPlaceholderName(columns[c]))) return false
+  if (!columns.some((name, c) => !first[c] && !isPlaceholderName(name) && filled(c).length > 0)) return false
+  return labels.some((c) => {
+    const values = filled(c)
+    return values.length > 0 && values.length <= 2 * values.filter((v) => DIGIT_RE.test(v)).length
+  })
 }

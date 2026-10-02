@@ -166,7 +166,8 @@ def test_to_gpx(case):
     # Byte for byte, like to_kml: it is built by concatenation, so there is
     # nothing to normalise and no reason to compare anything looser.
     feats = [(lon, lat, props) for lon, lat, props in case["features"]]
-    assert to_gpx(feats, name_key=case["name_key"]).decode("utf-8") == case["expected"]
+    got = to_gpx(feats, name_key=case["name_key"], metadata=case.get("metadata"))
+    assert got.decode("utf-8") == case["expected"]
 
 
 @pytest.mark.parametrize(
@@ -255,13 +256,14 @@ def test_safe_field_names(case):
 def test_to_geojson(case):
     # The text, not the parsed object. Parsing hoists integer-like keys to the
     # front on both sides, which cancelled out a real ordering divergence.
-    got = to_geojson(case["features"]).decode("utf-8")
+    got = to_geojson(case["features"], metadata=case.get("metadata")).decode("utf-8")
     assert got == case["expected"]
 
 
 @pytest.mark.parametrize("case", FIXTURES["to_kml"], ids=ids(FIXTURES["to_kml"]))
 def test_to_kml(case):
-    got = to_kml(case["features"], name_key=case["name_key"]).decode("utf-8")
+    got = to_kml(case["features"], name_key=case["name_key"],
+                 metadata=case.get("metadata")).decode("utf-8")
     assert got == case["expected"]
 
 
@@ -291,7 +293,8 @@ def _shapefile_components(data):
 )
 def test_to_shapefile_zip(case):
     data = to_shapefile_zip(
-        case["features"], case["field_names"], base_name=case["base_name"]
+        case["features"], case["field_names"], base_name=case["base_name"],
+        metadata=case.get("metadata"),
     )
     assert _shapefile_components(data) == case["expected"]
 @pytest.mark.parametrize(

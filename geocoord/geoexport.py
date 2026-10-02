@@ -125,7 +125,20 @@ def _json_safe(v):
 _ILLEGAL_IN_XLSX_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 
-def to_excel_bytes(df):
+def metadata_text(metadata) -> str:
+    """Where a file came from, as lines of ``label: value``.
+
+    ``metadata`` is the same in every writer here: an ordered list of
+    ``(label, value)`` pairs the application builds - when it was converted,
+    from what system, by which transformation - in the reader's language.
+    The writers only place it, each where its format has room, and a writer
+    given none writes exactly what it wrote before. CSV has no such place: a
+    line above the header would break every program that reads one.
+    """
+    return "\n".join(f"{label}: {value}" for label, value in metadata)
+
+
+def to_excel_bytes(df, metadata=None):
     """The frame as an .xlsx, with two things the format makes necessary.
 
     A cell whose text begins with ``=`` is written as a *formula* by openpyxl,
@@ -139,26 +152,40 @@ def to_excel_bytes(df):
     And a C0 control character makes openpyxl refuse the whole workbook, so one
     stray byte in a notes column meant no Excel download at all. They are
     dropped, which is what the format requires; every other export keeps them.
+
+    ``metadata`` (see :func:`metadata_text`) goes on a second sheet, a label
+    and a value to a row.
     """
-    cleaned = df.map(
-        lambda v: _ILLEGAL_IN_XLSX_RE.sub("", v) if isinstance(v, str) else v
-    )
+    clean = lambda v: _ILLEGAL_IN_XLSX_RE.sub("", v) if isinstance(v, str) else v  # noqa: E731
+    cleaned = df.map(clean)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
         cleaned.to_excel(writer, index=False, sheet_name="converted")
-        sheet = writer.book["converted"]
-        for row in sheet.iter_rows():
-            for cell in row:
-                if cell.data_type == "f":
-                    cell.data_type = "s"
+        sheets = ["converted"]
+        if metadata:
+            pd.DataFrame([[clean(str(k)), clean(str(v))] for k, v in metadata]).to_excel(
+                writer, index=False, header=False, sheet_name="metadata")
+            sheets.append("metadata")
+        for name in sheets:
+            for row in writer.book[name].iter_rows():
+                for cell in row:
+                    if cell.data_type == "f":
+                        cell.data_type = "s"
     output.seek(0)
     return output.getvalue()
 
 
-def to_geojson(features) -> bytes:
-    """GeoJSON FeatureCollection of points."""
-    fc = {
-        "type": "FeatureCollection",
+def to_geojson(features, metadata=None) -> bytes:
+    """GeoJSON FeatureCollection of points.
+
+    ``metadata`` (see :func:`metadata_text`) is a top-level ``metadata``
+    member, before the features: RFC 7946 admits foreign members, and a
+    reader that does not know this one passes over it.
+    """
+    fc = {"type": "FeatureCollection"}
+    if metadata:
+        fc["metadata"] = {str(k): str(v) for k, v in metadata}
+    fc.update({
         "features": [
             {
                 "type": "Feature",
@@ -167,7 +194,7 @@ def to_geojson(features) -> bytes:
             }
             for lon, lat, props in features
         ],
-    }
+    })
     # Compact separators: smaller files, and the byte-for-byte match with the
     # JavaScript port that lets the parity contract compare the text rather
     # than the parsed object. Comparing the parsed object hid a real defect -
@@ -176,12 +203,20 @@ def to_geojson(features) -> bytes:
                       separators=(",", ":")).encode("utf-8")
 
 
-def to_kml(features, name_key=None) -> bytes:
-    """KML document of points (Google Earth / generic GIS)."""
+def to_kml(features, name_key=None, metadata=None) -> bytes:
+    """KML document of points (Google Earth / generic GIS).
+
+    ``metadata`` (see :func:`metadata_text`) is the Document's own
+    ExtendedData, ahead of its placemarks.
+    """
     parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
     ]
+    if metadata:
+        parts.append("<ExtendedData>" + "".join(
+            f'<Data name="{_escape_attr(str(k))}"><value>{escape(str(v))}</value></Data>'
+            for k, v in metadata) + "</ExtendedData>")
     for lon, lat, props in features:
         name = ""
         if name_key is not None and props.get(name_key) is not None:
@@ -217,7 +252,7 @@ def gpx_number(value) -> str:
     return "0" if text in ("", "-", "-0") else text
 
 
-def to_gpx(features, name_key=None) -> bytes:
+def to_gpx(features, name_key=None, metadata=None) -> bytes:
     """The features as GPX 1.1 waypoints.
 
     A handheld receiver and every field application read GPX, which is where
@@ -227,12 +262,17 @@ def to_gpx(features, name_key=None) -> bytes:
 
     Only ``&``, ``<`` and ``>`` are escaped, which is what ``escape`` from
     :mod:`xml.sax.saxutils` does and what the KML writer above inherits.
+
+    ``metadata`` (see :func:`metadata_text`) is the description in the file's
+    own ``metadata`` element, which GPX 1.1 puts first.
     """
     parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<gpx version="1.1" creator="GeoCoord" '
         'xmlns="http://www.topografix.com/GPX/1/1">',
     ]
+    if metadata:
+        parts.append(f"<metadata><desc>{escape(metadata_text(metadata))}</desc></metadata>")
     for lon, lat, props in features:
         name = ""
         if name_key is not None and props.get(name_key) is not None:
@@ -296,7 +336,7 @@ def _dbf_value(v):
 
 
 def to_shapefile_zip(features, field_names, base_name: str = "coordinates",
-                     prj: str = WGS84_ESRI_WKT) -> bytes:
+                     prj: str = WGS84_ESRI_WKT, metadata=None) -> bytes:
     """Point shapefile (.shp/.shx/.dbf/.prj) bundled into a single .zip.
 
     ``base_name`` names the components inside the zip and therefore the layer
@@ -311,6 +351,9 @@ def to_shapefile_zip(features, field_names, base_name: str = "coordinates",
     caller keeps its behaviour; a caller writing geometry in another system
     passes that system's WKT. A .prj naming a system the coordinates are not
     in is worse than none at all.
+
+    ``metadata`` (see :func:`metadata_text`) is a text file beside the layer,
+    under the same name.
     """
     field_names = list(field_names)
     dbf_names = _safe_field_names(field_names)
@@ -331,4 +374,6 @@ def to_shapefile_zip(features, field_names, base_name: str = "coordinates",
         z.writestr(f"{layer}.shx", shx.getvalue())
         z.writestr(f"{layer}.dbf", dbf.getvalue())
         z.writestr(f"{layer}.prj", prj)
+        if metadata:
+            z.writestr(f"{layer}.txt", metadata_text(metadata) + "\n")
     return buf.getvalue()

@@ -525,6 +525,10 @@ def tidy_table(df: pd.DataFrame) -> pd.DataFrame:
     - When a blank first line was mistaken for the header (so every column is
       named ``Unnamed: N``), the first surviving row is promoted to be the
       header.
+    - When the header takes two rows - ``COORDENADAS`` over ``M`` and ``P`` -
+      the second is read as part of it (see :func:`_second_header_row`). Each
+      column is named by its lower label, or by its upper one where it has
+      none, and a repeat gains a ``.1``.
 
     Decimal commas inside the data (``"33,6603"``) are left as-is;
     :func:`parse_coordinate` already understands them.
@@ -559,8 +563,68 @@ def tidy_table(df: pd.DataFrame) -> pd.DataFrame:
             for i, h in enumerate(header)
         ]
         df = df.dropna(axis=1, how="all")
+    elif _second_header_row(df):
+        labels = [None if pd.isna(v) else str(v).strip() for v in df.iloc[0]]
+        names = [label or str(name) for label, name in zip(labels, df.columns)]
+        seen: dict = {}
+        unique = []
+        for name in names:
+            count = seen.get(name, 0)
+            seen[name] = count + 1
+            unique.append(name if count == 0 else f"{name}.{count}")
+        df = df.iloc[1:].copy()
+        df.columns = unique
+        df = df.dropna(axis=1, how="all")
 
     return df.reset_index(drop=True)
+
+
+#: Rows looked at below a second header row, to see what its labels stand over.
+_HEADER_LOOKAHEAD = 50
+
+_DIGIT_RE = re.compile(r"[0-9]")
+
+
+def _second_header_row(df: pd.DataFrame) -> bool:
+    """Whether the first row of data is the lower half of a two-row header.
+
+    A table typed from a register often heads its columns in two rows: a cell
+    reading ``COORDENADAS`` merged across two columns, with ``M`` and ``P``
+    beneath, beside ``Data`` and ``Nº`` merged down through both rows. Read
+    with one header row, the coordinates are ``COORDENADAS`` and
+    an ``Unnamed: N``, ``M`` and ``P`` are the first row of data, and nothing
+    finds the columns by name.
+
+    Taking a row of data for a header loses the row and renames every column,
+    so all four of these must hold, and a table that only resembles one is read
+    as it always was:
+
+    - the row has no digit anywhere - a row of data almost always has one, in
+      a code, a date or a value;
+    - it has a label under a blank header cell: the far side of a merged cell;
+    - it is blank under a named header whose column has values below: a header
+      merged down through both rows;
+    - below one of its labels, most values have digits: labels over data.
+    """
+    if len(df) < 2:
+        return False
+    names = list(df.columns)
+    first = [None if pd.isna(v) else str(v).strip() for v in df.iloc[0]]
+    below = df.iloc[1:1 + _HEADER_LOOKAHEAD]
+
+    def filled(i):
+        return [str(v) for v in below.iloc[:, i] if not pd.isna(v)]
+
+    labels = [i for i, v in enumerate(first) if v]
+    if not labels or any(_DIGIT_RE.search(first[i]) for i in labels):
+        return False
+    if not any(_is_placeholder_name(names[i]) for i in labels):
+        return False
+    if not any(not first[i] and not _is_placeholder_name(names[i]) and filled(i)
+               for i in range(len(names))):
+        return False
+    return any(0 < len(filled(i)) <= 2 * sum(bool(_DIGIT_RE.search(v)) for v in filled(i))
+               for i in labels)
 
 
 # ---------------------------------------------------------------------------
