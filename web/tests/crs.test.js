@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import fixtures from '../../tests/fixtures/parity.json' with { type: 'json' }
+import dgt from '../../tests/fixtures/dgt_reference.json' with { type: 'json' }
 import {
   REGISTRY,
   WGS84,
   esriWkt,
   fromWgs84,
   get,
+  projector,
   systems,
   toWgs84,
   transformAll,
@@ -30,6 +32,33 @@ describe('the contract for coordinate transformations', () => {
   })
 })
 
+describe("DGT's own answers", () => {
+  // The same synthetic points pytest holds pyproj to: DGT's transformation
+  // service's answers, frozen. Straight from one system to the other, as DGT
+  // does it; the bursaWolf cases take the seven parameters a point outside
+  // the grid falls back on. A millimetre and a half: DGT rounds to the
+  // millimetre.
+  const fallback = Object.fromEntries(systems().filter((s) => s.fallback).map((s) => [s.proj4, s.fallback]))
+  const definition = (code, method) => {
+    const def = get(code).proj4
+    return method === 'bursaWolf' ? (fallback[def] ?? def) : def
+  }
+  it.each(dgt.cases.map((c) => [c.id, c]))('%s', async (_id, c) => {
+    const forward = await projector(definition(c.source, c.method), definition(c.target, c.method))
+    const [x, y] = forward(c.x, c.y)
+    expect(Math.abs(x - c.x_dgt)).toBeLessThan(dgt.tolerance_m)
+    expect(Math.abs(y - c.y_dgt)).toBeLessThan(dgt.tolerance_m)
+  })
+
+  it('lands a point off the grid by the parameters it falls back on', async () => {
+    for (const code of [20790, 27493]) {
+      const entry = get(code)
+      const [x, y] = await fromWgs84(-10.6, 38.6, entry.fallback)
+      expect(await toWgs84(x, y, entry.proj4)).toEqual(await toWgs84(x, y, entry.fallback))
+    }
+  })
+})
+
 describe('the registry', () => {
   it('is the same file the Python side reads, with every field filled in', () => {
     expect(Object.keys(REGISTRY).length).toBeGreaterThanOrEqual(17)
@@ -48,11 +77,11 @@ describe('the registry', () => {
     expect(systems('geographic').map((s) => s.epsg)).toContain(4326)
   })
 
-  it('flags Madeira 1936, which EPSG deprecated and gives no transformation for', () => {
+  it('flags Madeira 1936, which EPSG retired as a duplicate of Porto Santo 1936', () => {
     const entry = get(2191)
     expect(entry.deprecated).toBe(true)
-    expect(entry.proj4).not.toContain('+towgs84')
-    expect(entry.note).toContain('ballpark')
+    expect(entry.proj4).toBe(get(2942).proj4)
+    expect(entry.note).toContain('2942')
   })
 
   it('does not flag the two island systems that are still current', () => {
@@ -68,8 +97,9 @@ describe('the registry', () => {
 describe('round trips', () => {
   // Out and back within a centimetre, not zero: a seven-parameter Helmert is
   // applied in its linearised form and inverted by flipping the signs rather
-  // than by the true matrix inverse, so it is not exact. The worst here is
-  // under a centimetre, against transformations published to one metre.
+  // than by the true matrix inverse, so it is not exact - DGT's own service
+  // inverts the same way. The worst here is 7 mm, on Madeira's Base SE datum,
+  // against parameters published to 5 cm.
   it.each(systems().map((s) => [`${s.epsg} ${s.pt}`, s]))('%s', async (_label, entry) => {
     for (const [lon, lat] of entry.control) {
       const [x, y] = await fromWgs84(lon, lat, entry.proj4)

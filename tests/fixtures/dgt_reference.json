@@ -1,0 +1,1566 @@
+{
+ "source": "DGT Web TransCoord (https://www3.dgterritorio.gov.pt/pt/transform/), answers to synthetic points; 2D, output rounded by DGT to the millimetre",
+ "tolerance_m": 0.0015,
+ "cases": [
+  {
+   "id": "lisboa_grid_0",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 255479.304,
+   "y": 6786.415,
+   "x_dgt": 55479.313,
+   "y_dgt": -293210.446
+  },
+  {
+   "id": "lisboa_grid_1",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 317149.443,
+   "y": 167944.674,
+   "x_dgt": 117150.301,
+   "y_dgt": -132054.918
+  },
+  {
+   "id": "lisboa_grid_2",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 256309.353,
+   "y": 296190.075,
+   "x_dgt": 56311.265,
+   "y_dgt": -3807.346
+  },
+  {
+   "id": "lisboa_grid_3",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 95802.093,
+   "y": 274020.613,
+   "x_dgt": -104196.639,
+   "y_dgt": -25977.797
+  },
+  {
+   "id": "lisboa_grid_4",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 258874.781,
+   "y": 432445.108,
+   "x_dgt": 58873.121,
+   "y_dgt": 132444.42
+  },
+  {
+   "id": "lisboa_grid_5",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 270597.541,
+   "y": 321832.094,
+   "x_dgt": 70598.566,
+   "y_dgt": 21834.5
+  },
+  {
+   "id": "lisboa_grid_6",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 128420.667,
+   "y": 176167.106,
+   "x_dgt": -71578.19,
+   "y_dgt": -123832.122
+  },
+  {
+   "id": "lisboa_grid_7",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 98386.034,
+   "y": 108498.365,
+   "x_dgt": -101611.784,
+   "y_dgt": -191500.389
+  },
+  {
+   "id": "lisboa_grid_8",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 176134.453,
+   "y": 207619.068,
+   "x_dgt": -23864.324,
+   "y_dgt": -92379.735
+  },
+  {
+   "id": "lisboa_grid_9",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 115952.729,
+   "y": 471916.89,
+   "x_dgt": -84044.108,
+   "y_dgt": 171912.242
+  },
+  {
+   "id": "lisboa_grid_10",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 170738.397,
+   "y": 125487.214,
+   "x_dgt": -29260.607,
+   "y_dgt": -174512.235
+  },
+  {
+   "id": "lisboa_grid_11",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 229380.838,
+   "y": 233661.042,
+   "x_dgt": 29382.983,
+   "y_dgt": -66337.345
+  },
+  {
+   "id": "lisboa_grid_12",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 355546.265,
+   "y": 298087.945,
+   "x_dgt": 155544.686,
+   "y_dgt": -1909.032
+  },
+  {
+   "id": "lisboa_grid_13",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 158913.798,
+   "y": 561329.938,
+   "x_dgt": -41086.815,
+   "y_dgt": 261321.747
+  },
+  {
+   "id": "lisboa_grid_14",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 236876.077,
+   "y": 294263.305,
+   "x_dgt": 36877.505,
+   "y_dgt": -5734.328
+  },
+  {
+   "id": "lisboa_grid_15",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 204189.667,
+   "y": 178027.634,
+   "x_dgt": 4191.083,
+   "y_dgt": -121971.846
+  },
+  {
+   "id": "lisboa_grid_16",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 339523.75,
+   "y": 132784.592,
+   "x_dgt": 139522.367,
+   "y_dgt": -167214.772
+  },
+  {
+   "id": "lisboa_grid_17",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 262581.802,
+   "y": 443865.209,
+   "x_dgt": 62579.791,
+   "y_dgt": 143864.184
+  },
+  {
+   "id": "lisboa_grid_18",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 303429.872,
+   "y": 288106.559,
+   "x_dgt": 103431.679,
+   "y_dgt": -11890.086
+  },
+  {
+   "id": "lisboa_grid_19",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 231922.718,
+   "y": 337251.351,
+   "x_dgt": 31923.315,
+   "y_dgt": 37252.503
+  },
+  {
+   "id": "lisboa_grid_20",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 277905.758,
+   "y": 101466.054,
+   "x_dgt": 77905.866,
+   "y_dgt": -198533.293
+  },
+  {
+   "id": "lisboa_grid_21",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 102386.143,
+   "y": 131810.131,
+   "x_dgt": -97612.228,
+   "y_dgt": -168188.935
+  },
+  {
+   "id": "lisboa_grid_22",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 202175.566,
+   "y": 108049.565,
+   "x_dgt": 2176.355,
+   "y_dgt": -191949.534
+  },
+  {
+   "id": "lisboa_grid_23",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 327553.393,
+   "y": 63621.024,
+   "x_dgt": 127551.074,
+   "y_dgt": -236377.003
+  },
+  {
+   "id": "lisboa_grid_24",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 203227.34,
+   "y": 306376.632,
+   "x_dgt": 3228.331,
+   "y_dgt": 6378.1
+  },
+  {
+   "id": "lisboa_grid_25",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 277296.468,
+   "y": 393566.457,
+   "x_dgt": 77295.209,
+   "y_dgt": 93567.413
+  },
+  {
+   "id": "lisboa_grid_26",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 222380.314,
+   "y": 116804.891,
+   "x_dgt": 22381.081,
+   "y_dgt": -183194.214
+  },
+  {
+   "id": "lisboa_grid_27",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 265007.452,
+   "y": 556742.677,
+   "x_dgt": 65002.24,
+   "y_dgt": 256737.879
+  },
+  {
+   "id": "lisboa_grid_28",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 266893.72,
+   "y": 203215.772,
+   "x_dgt": 66896.972,
+   "y_dgt": -96783.83
+  },
+  {
+   "id": "lisboa_grid_29",
+   "source": "20790",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 146542.666,
+   "y": 488285.701,
+   "x_dgt": -53455.647,
+   "y_dgt": 188280.674
+  },
+  {
+   "id": "datum73_grid_30",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -31912.932,
+   "y": 228099.487,
+   "x_dgt": -31917.382,
+   "y_dgt": 228096.117
+  },
+  {
+   "id": "datum73_grid_31",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -69140.741,
+   "y": 119084.097,
+   "x_dgt": -69141.865,
+   "y_dgt": 119081.219
+  },
+  {
+   "id": "datum73_grid_32",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -104761.858,
+   "y": -178172.59,
+   "x_dgt": -104757.516,
+   "y_dgt": -178172.991
+  },
+  {
+   "id": "datum73_grid_33",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 47595.87,
+   "y": -279236.615,
+   "x_dgt": 47600.212,
+   "y_dgt": -279235.228
+  },
+  {
+   "id": "datum73_grid_34",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -46233.991,
+   "y": 220673.973,
+   "x_dgt": -46238.042,
+   "y_dgt": 220670.319
+  },
+  {
+   "id": "datum73_grid_35",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 65664.698,
+   "y": -166923.163,
+   "x_dgt": 65667.632,
+   "y_dgt": -166921.414
+  },
+  {
+   "id": "datum73_grid_36",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 156313.857,
+   "y": -239134.272,
+   "x_dgt": 156314.543,
+   "y_dgt": -239130.033
+  },
+  {
+   "id": "datum73_grid_37",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 149099.29,
+   "y": 14391.363,
+   "x_dgt": 149097.053,
+   "y_dgt": 14394.708
+  },
+  {
+   "id": "datum73_grid_38",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 126756.207,
+   "y": -72016.669,
+   "x_dgt": 126756.25,
+   "y_dgt": -72013.62
+  },
+  {
+   "id": "datum73_grid_39",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -49072.388,
+   "y": 183992.111,
+   "x_dgt": -49075.586,
+   "y_dgt": 183988.943
+  },
+  {
+   "id": "datum73_grid_40",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 80846.467,
+   "y": 239948.08,
+   "x_dgt": 80840.584,
+   "y_dgt": 239947.737
+  },
+  {
+   "id": "datum73_grid_41",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 48618.036,
+   "y": -71653.942,
+   "x_dgt": 48619.46,
+   "y_dgt": -71652.707
+  },
+  {
+   "id": "datum73_grid_42",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 95598.637,
+   "y": 212550.848,
+   "x_dgt": 95593.443,
+   "y_dgt": 212551.095
+  },
+  {
+   "id": "datum73_grid_43",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -16586.12,
+   "y": 213604.326,
+   "x_dgt": -16590.385,
+   "y_dgt": 213601.56
+  },
+  {
+   "id": "datum73_grid_44",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 154443.472,
+   "y": 95205.285,
+   "x_dgt": 154439.54,
+   "y_dgt": 95208.324
+  },
+  {
+   "id": "datum73_grid_45",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -10397.646,
+   "y": -143027.482,
+   "x_dgt": -10394.886,
+   "y_dgt": -143026.894
+  },
+  {
+   "id": "datum73_grid_46",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 127993.985,
+   "y": -75607.74,
+   "x_dgt": 127994.02,
+   "y_dgt": -75604.644
+  },
+  {
+   "id": "datum73_grid_47",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -64233.112,
+   "y": 46003.446,
+   "x_dgt": -64233.15,
+   "y_dgt": 46001.616
+  },
+  {
+   "id": "datum73_grid_48",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 119483.924,
+   "y": -47979.138,
+   "x_dgt": 119483.901,
+   "y_dgt": -47976.474
+  },
+  {
+   "id": "datum73_grid_49",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -76166.713,
+   "y": -71067.827,
+   "x_dgt": -76164.532,
+   "y_dgt": -71068.608
+  },
+  {
+   "id": "datum73_grid_50",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -21619.74,
+   "y": -240132.799,
+   "x_dgt": -21615.813,
+   "y_dgt": -240132.218
+  },
+  {
+   "id": "datum73_grid_51",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 66609.766,
+   "y": -171416.944,
+   "x_dgt": 66612.751,
+   "y_dgt": -171415.192
+  },
+  {
+   "id": "datum73_grid_52",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -93360.076,
+   "y": -223522.303,
+   "x_dgt": -93355.501,
+   "y_dgt": -223522.441
+  },
+  {
+   "id": "datum73_grid_53",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -78831.992,
+   "y": 18456.438,
+   "x_dgt": -78831.302,
+   "y_dgt": 18454.712
+  },
+  {
+   "id": "datum73_grid_54",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 148412.884,
+   "y": 79862.555,
+   "x_dgt": 148409.52,
+   "y_dgt": 79865.52
+  },
+  {
+   "id": "datum73_grid_55",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -73695.785,
+   "y": -138372.121,
+   "x_dgt": -73692.832,
+   "y_dgt": -138372.368
+  },
+  {
+   "id": "datum73_grid_56",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -23124.409,
+   "y": -286981.198,
+   "x_dgt": -23119.919,
+   "y_dgt": -286980.504
+  },
+  {
+   "id": "datum73_grid_57",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": -46253.485,
+   "y": 177904.866,
+   "x_dgt": -46256.546,
+   "y_dgt": 177901.856
+  },
+  {
+   "id": "datum73_grid_58",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 135403.881,
+   "y": -217636.861,
+   "x_dgt": 135405.42,
+   "y_dgt": -217633.394
+  },
+  {
+   "id": "datum73_grid_59",
+   "source": "27493",
+   "target": "3763",
+   "method": "grelhas",
+   "x": 84380.616,
+   "y": 207734.652,
+   "x_dgt": 84375.632,
+   "y_dgt": 207734.66
+  },
+  {
+   "id": "lisboa_grid_inverse_60",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": -36836.622,
+   "y": -42661.862,
+   "x_dgt": 163162.107,
+   "y_dgt": 257336.628
+  },
+  {
+   "id": "lisboa_grid_inverse_61",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": 16778.46,
+   "y": 89527.591,
+   "x_dgt": 216778.315,
+   "y_dgt": 389528.051
+  },
+  {
+   "id": "lisboa_grid_inverse_62",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": -105885.068,
+   "y": 113066.517,
+   "x_dgt": 94110.597,
+   "y_dgt": 413068.94
+  },
+  {
+   "id": "lisboa_grid_inverse_63",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": -22919.168,
+   "y": 186152.266,
+   "x_dgt": 177080.723,
+   "y_dgt": 486156.744
+  },
+  {
+   "id": "lisboa_grid_inverse_64",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": 69135.302,
+   "y": -193554.659,
+   "x_dgt": 269135.038,
+   "y_dgt": 106444.757
+  },
+  {
+   "id": "lisboa_grid_inverse_65",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": 111594.408,
+   "y": 63382.239,
+   "x_dgt": 311595.47,
+   "y_dgt": 363379.7
+  },
+  {
+   "id": "lisboa_grid_inverse_66",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": -100195.712,
+   "y": 64401.521,
+   "x_dgt": 99800.761,
+   "y_dgt": 364401.958
+  },
+  {
+   "id": "lisboa_grid_inverse_67",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": 70133.598,
+   "y": -92285.88,
+   "x_dgt": 270130.08,
+   "y_dgt": 207713.57
+  },
+  {
+   "id": "lisboa_grid_inverse_68",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": 55090.423,
+   "y": -139562.255,
+   "x_dgt": 255088.638,
+   "y_dgt": 160437.517
+  },
+  {
+   "id": "lisboa_grid_inverse_69",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": 91461.187,
+   "y": -110797.318,
+   "x_dgt": 291458.17,
+   "y_dgt": 189202.619
+  },
+  {
+   "id": "lisboa_grid_inverse_70",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": -82402.224,
+   "y": -287398.838,
+   "x_dgt": 117595.348,
+   "y_dgt": 12598.167
+  },
+  {
+   "id": "lisboa_grid_inverse_71",
+   "source": "3763",
+   "target": "20790",
+   "method": "grelhas",
+   "x": -23413.874,
+   "y": 230239.797,
+   "x_dgt": 176586.886,
+   "y_dgt": 530246.211
+  },
+  {
+   "id": "datum73_grid_inverse_72",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": 147421.715,
+   "y": 252508.878,
+   "x_dgt": 147428.721,
+   "y_dgt": 252507.938
+  },
+  {
+   "id": "datum73_grid_inverse_73",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": -65690.262,
+   "y": 40714.29,
+   "x_dgt": -65690.342,
+   "y_dgt": 40716.089
+  },
+  {
+   "id": "datum73_grid_inverse_74",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": 118476.527,
+   "y": -158903.586,
+   "x_dgt": 118474.718,
+   "y_dgt": -158906.559
+  },
+  {
+   "id": "datum73_grid_inverse_75",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": 133895.574,
+   "y": -229400.845,
+   "x_dgt": 133893.869,
+   "y_dgt": -229404.407
+  },
+  {
+   "id": "datum73_grid_inverse_76",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": 155822.456,
+   "y": -287442.895,
+   "x_dgt": 155821.22,
+   "y_dgt": -287447.9
+  },
+  {
+   "id": "datum73_grid_inverse_77",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": -107183.049,
+   "y": -259924.691,
+   "x_dgt": -107188.511,
+   "y_dgt": -259924.436
+  },
+  {
+   "id": "datum73_grid_inverse_78",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": -60913.1,
+   "y": 21589.377,
+   "x_dgt": -60913.332,
+   "y_dgt": 21590.808
+  },
+  {
+   "id": "datum73_grid_inverse_79",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": 45689.019,
+   "y": -178100.224,
+   "x_dgt": 45685.947,
+   "y_dgt": -178101.667
+  },
+  {
+   "id": "datum73_grid_inverse_80",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": 133807.882,
+   "y": -19436.969,
+   "x_dgt": 133808.915,
+   "y_dgt": -19440.031
+  },
+  {
+   "id": "datum73_grid_inverse_81",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": 112687.209,
+   "y": 188537.56,
+   "x_dgt": 112692.111,
+   "y_dgt": 188536.672
+  },
+  {
+   "id": "datum73_grid_inverse_82",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": 47404.133,
+   "y": 134854.312,
+   "x_dgt": 47406.932,
+   "y_dgt": 134854.737
+  },
+  {
+   "id": "datum73_grid_inverse_83",
+   "source": "3763",
+   "target": "27493",
+   "method": "grelhas",
+   "x": -70558.66,
+   "y": -162649.896,
+   "x_dgt": -70561.922,
+   "y_dgt": -162649.827
+  },
+  {
+   "id": "lisboa_bursa_wolf_84",
+   "source": "20790",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 197621.439,
+   "y": 380202.385,
+   "x_dgt": -2378.864,
+   "y_dgt": 80201.123
+  },
+  {
+   "id": "lisboa_bursa_wolf_85",
+   "source": "20790",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 245002.884,
+   "y": 287144.469,
+   "x_dgt": 45002.652,
+   "y_dgt": -12855.26
+  },
+  {
+   "id": "lisboa_bursa_wolf_86",
+   "source": "20790",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 194848.75,
+   "y": 45397.302,
+   "x_dgt": -5149.236,
+   "y_dgt": -254599.848
+  },
+  {
+   "id": "lisboa_bursa_wolf_87",
+   "source": "20790",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 264022.416,
+   "y": 45466.081,
+   "x_dgt": 64023.633,
+   "y_dgt": -254530.621
+  },
+  {
+   "id": "lisboa_bursa_wolf_88",
+   "source": "20790",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 131258.263,
+   "y": 499073.055,
+   "x_dgt": -68742.02,
+   "y_dgt": 199069.717
+  },
+  {
+   "id": "lisboa_bursa_wolf_89",
+   "source": "20790",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 168299.157,
+   "y": 288600.01,
+   "x_dgt": -31700.119,
+   "y_dgt": -11400.279
+  },
+  {
+   "id": "lisboa_bursa_wolf_90",
+   "source": "20790",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 179741.022,
+   "y": 196218.142,
+   "x_dgt": -20257.768,
+   "y_dgt": -103780.913
+  },
+  {
+   "id": "lisboa_bursa_wolf_91",
+   "source": "20790",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 216184.315,
+   "y": 187272.408,
+   "x_dgt": 16185.14,
+   "y_dgt": -112726.291
+  },
+  {
+   "id": "datum73_bursa_wolf_92",
+   "source": "27493",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 40334.579,
+   "y": 176227.904,
+   "x_dgt": 40330.899,
+   "y_dgt": 176227.119
+  },
+  {
+   "id": "datum73_bursa_wolf_93",
+   "source": "27493",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 99087.577,
+   "y": 69691.592,
+   "x_dgt": 99085.538,
+   "y_dgt": 69692.655
+  },
+  {
+   "id": "datum73_bursa_wolf_94",
+   "source": "27493",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": -46768.489,
+   "y": -7959.067,
+   "x_dgt": -46768.095,
+   "y_dgt": -7960.222
+  },
+  {
+   "id": "datum73_bursa_wolf_95",
+   "source": "27493",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": -5732.767,
+   "y": -285035.897,
+   "x_dgt": -5727.6,
+   "y_dgt": -285034.505
+  },
+  {
+   "id": "datum73_bursa_wolf_96",
+   "source": "27493",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": -22623.56,
+   "y": -138036.613,
+   "x_dgt": -22620.937,
+   "y_dgt": -138036.457
+  },
+  {
+   "id": "datum73_bursa_wolf_97",
+   "source": "27493",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": -81460.627,
+   "y": 239742.686,
+   "x_dgt": -81464.648,
+   "y_dgt": 239739.109
+  },
+  {
+   "id": "datum73_bursa_wolf_98",
+   "source": "27493",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": -88099.175,
+   "y": -133843.198,
+   "x_dgt": -88096.198,
+   "y_dgt": -133844.258
+  },
+  {
+   "id": "datum73_bursa_wolf_99",
+   "source": "27493",
+   "target": "3763",
+   "method": "bursaWolf",
+   "x": 113447.158,
+   "y": -220675.16,
+   "x_dgt": 113450.446,
+   "y_dgt": -220672.008
+  },
+  {
+   "id": "islands_2188_100",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 663396.157,
+   "y": 4393423.011,
+   "x_dgt": 663019.191,
+   "y_dgt": 4393489.245
+  },
+  {
+   "id": "islands_2188_101",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 661734.882,
+   "y": 4395540.068,
+   "x_dgt": 661357.928,
+   "y_dgt": 4395606.281
+  },
+  {
+   "id": "islands_2188_102",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 653797.286,
+   "y": 4369809.427,
+   "x_dgt": 653420.438,
+   "y_dgt": 4369875.859
+  },
+  {
+   "id": "islands_2188_103",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 662375.759,
+   "y": 4396549.389,
+   "x_dgt": 661998.798,
+   "y_dgt": 4396615.594
+  },
+  {
+   "id": "islands_2188_104",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 662704.212,
+   "y": 4397542.286,
+   "x_dgt": 662327.246,
+   "y_dgt": 4397608.482
+  },
+  {
+   "id": "islands_2188_105",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 662200.883,
+   "y": 4397687.959,
+   "x_dgt": 661823.921,
+   "y_dgt": 4397754.153
+  },
+  {
+   "id": "islands_2188_106",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 663979.126,
+   "y": 4395465.869,
+   "x_dgt": 663602.152,
+   "y_dgt": 4395532.086
+  },
+  {
+   "id": "islands_2188_107",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 663405.196,
+   "y": 4393347.417,
+   "x_dgt": 663028.23,
+   "y_dgt": 4393413.652
+  },
+  {
+   "id": "islands_2188_108",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 654171.851,
+   "y": 4368629.435,
+   "x_dgt": 653795.001,
+   "y_dgt": 4368695.878
+  },
+  {
+   "id": "islands_2188_109",
+   "source": "2188",
+   "target": "5014",
+   "method": "bursaWolf",
+   "x": 662191.614,
+   "y": 4393337.325,
+   "x_dgt": 661814.659,
+   "y_dgt": 4393403.558
+  },
+  {
+   "id": "islands_2188_inverse_110",
+   "source": "5014",
+   "target": "2188",
+   "method": "bursaWolf",
+   "x": 662191.045,
+   "y": 4396175.972,
+   "x_dgt": 662568.012,
+   "y_dgt": 4396109.761
+  },
+  {
+   "id": "islands_2188_inverse_111",
+   "source": "5014",
+   "target": "2188",
+   "method": "bursaWolf",
+   "x": 663081.406,
+   "y": 4393881.407,
+   "x_dgt": 663458.377,
+   "y_dgt": 4393815.175
+  },
+  {
+   "id": "islands_2188_inverse_112",
+   "source": "5014",
+   "target": "2188",
+   "method": "bursaWolf",
+   "x": 649882.409,
+   "y": 4369518.017,
+   "x_dgt": 650259.229,
+   "y_dgt": 4369451.585
+  },
+  {
+   "id": "islands_2188_inverse_113",
+   "source": "5014",
+   "target": "2188",
+   "method": "bursaWolf",
+   "x": 663646.875,
+   "y": 4397511.927,
+   "x_dgt": 664023.857,
+   "y_dgt": 4397445.726
+  },
+  {
+   "id": "islands_2189_114",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 352999.934,
+   "y": 4275598.105,
+   "x_dgt": 353101.346,
+   "y_dgt": 4275513.992
+  },
+  {
+   "id": "islands_2189_115",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 409557.32,
+   "y": 4318488.874,
+   "x_dgt": 409658.099,
+   "y_dgt": 4318404.363
+  },
+  {
+   "id": "islands_2189_116",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 408252.282,
+   "y": 4261807.538,
+   "x_dgt": 408353.13,
+   "y_dgt": 4261723.618
+  },
+  {
+   "id": "islands_2189_117",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 402967.401,
+   "y": 4275748.146,
+   "x_dgt": 403068.291,
+   "y_dgt": 4275664.076
+  },
+  {
+   "id": "islands_2189_118",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 476024.642,
+   "y": 4283038.538,
+   "x_dgt": 476124.77,
+   "y_dgt": 4282954.467
+  },
+  {
+   "id": "islands_2189_119",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 475640.268,
+   "y": 4286504.693,
+   "x_dgt": 475740.396,
+   "y_dgt": 4286420.586
+  },
+  {
+   "id": "islands_2189_120",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 485234.7,
+   "y": 4287949.815,
+   "x_dgt": 485334.727,
+   "y_dgt": 4287865.704
+  },
+  {
+   "id": "islands_2189_121",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 426806.005,
+   "y": 4275354.58,
+   "x_dgt": 426906.648,
+   "y_dgt": 4275270.537
+  },
+  {
+   "id": "islands_2189_122",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 469956.367,
+   "y": 4284451.402,
+   "x_dgt": 470056.555,
+   "y_dgt": 4284367.31
+  },
+  {
+   "id": "islands_2189_123",
+   "source": "2189",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 397365.595,
+   "y": 4258696.712,
+   "x_dgt": 397466.559,
+   "y_dgt": 4258612.815
+  },
+  {
+   "id": "islands_2189_inverse_124",
+   "source": "5015",
+   "target": "2189",
+   "method": "bursaWolf",
+   "x": 416817.566,
+   "y": 4320063.035,
+   "x_dgt": 416716.863,
+   "y_dgt": 4320147.555
+  },
+  {
+   "id": "islands_2189_inverse_125",
+   "source": "5015",
+   "target": "2189",
+   "method": "bursaWolf",
+   "x": 383969.822,
+   "y": 4261576.431,
+   "x_dgt": 383868.72,
+   "y_dgt": 4261660.37
+  },
+  {
+   "id": "islands_2189_inverse_126",
+   "source": "5015",
+   "target": "2189",
+   "method": "bursaWolf",
+   "x": 417207.45,
+   "y": 4326620.356,
+   "x_dgt": 417106.758,
+   "y_dgt": 4326704.944
+  },
+  {
+   "id": "islands_2189_inverse_127",
+   "source": "5015",
+   "target": "2189",
+   "method": "bursaWolf",
+   "x": 415204.434,
+   "y": 4318733.044,
+   "x_dgt": 415103.713,
+   "y_dgt": 4318817.551
+  },
+  {
+   "id": "islands_2190_128",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 634011.756,
+   "y": 4184768.285,
+   "x_dgt": 634042.589,
+   "y_dgt": 4184805.075
+  },
+  {
+   "id": "islands_2190_129",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 665619.07,
+   "y": 4094154.673,
+   "x_dgt": 665649.668,
+   "y_dgt": 4094192.245
+  },
+  {
+   "id": "islands_2190_130",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 615157.779,
+   "y": 4180652.103,
+   "x_dgt": 615188.778,
+   "y_dgt": 4180688.925
+  },
+  {
+   "id": "islands_2190_131",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 673768.581,
+   "y": 4093726.884,
+   "x_dgt": 673799.112,
+   "y_dgt": 4093764.463
+  },
+  {
+   "id": "islands_2190_132",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 639257.42,
+   "y": 4182035.84,
+   "x_dgt": 639288.208,
+   "y_dgt": 4182072.655
+  },
+  {
+   "id": "islands_2190_133",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 633213.902,
+   "y": 4185571.817,
+   "x_dgt": 633244.742,
+   "y_dgt": 4185608.599
+  },
+  {
+   "id": "islands_2190_134",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 670491.237,
+   "y": 4091249.318,
+   "x_dgt": 670521.796,
+   "y_dgt": 4091286.916
+  },
+  {
+   "id": "islands_2190_135",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 675657.278,
+   "y": 4092921.445,
+   "x_dgt": 675687.794,
+   "y_dgt": 4092959.032
+  },
+  {
+   "id": "islands_2190_136",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 664603.522,
+   "y": 4089551.423,
+   "x_dgt": 664634.13,
+   "y_dgt": 4089589.032
+  },
+  {
+   "id": "islands_2190_137",
+   "source": "2190",
+   "target": "5015",
+   "method": "bursaWolf",
+   "x": 671507.227,
+   "y": 4096027.947,
+   "x_dgt": 671537.775,
+   "y_dgt": 4096065.506
+  },
+  {
+   "id": "islands_2190_inverse_138",
+   "source": "5015",
+   "target": "2190",
+   "method": "bursaWolf",
+   "x": 668057.227,
+   "y": 4091121.588,
+   "x_dgt": 668026.647,
+   "y_dgt": 4091083.988
+  },
+  {
+   "id": "islands_2190_inverse_139",
+   "source": "5015",
+   "target": "2190",
+   "method": "bursaWolf",
+   "x": 668902.597,
+   "y": 4094831.153,
+   "x_dgt": 668872.026,
+   "y_dgt": 4094793.583
+  },
+  {
+   "id": "islands_2190_inverse_140",
+   "source": "5015",
+   "target": "2190",
+   "method": "bursaWolf",
+   "x": 664517.55,
+   "y": 4090961.524,
+   "x_dgt": 664486.941,
+   "y_dgt": 4090923.924
+  },
+  {
+   "id": "islands_2190_inverse_141",
+   "source": "5015",
+   "target": "2190",
+   "method": "bursaWolf",
+   "x": 666409.866,
+   "y": 4092107.13,
+   "x_dgt": 666379.273,
+   "y_dgt": 4092069.539
+  },
+  {
+   "id": "islands_2942_142",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 375437.946,
+   "y": 3660068.227,
+   "x_dgt": 375069.516,
+   "y_dgt": 3660421.274
+  },
+  {
+   "id": "islands_2942_143",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 378666.124,
+   "y": 3658121.655,
+   "x_dgt": 378297.69,
+   "y_dgt": 3658474.741
+  },
+  {
+   "id": "islands_2942_144",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 372066.861,
+   "y": 3656439.611,
+   "x_dgt": 371698.482,
+   "y_dgt": 3656792.653
+  },
+  {
+   "id": "islands_2942_145",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 330433.485,
+   "y": 3619507.823,
+   "x_dgt": 330065.673,
+   "y_dgt": 3619860.739
+  },
+  {
+   "id": "islands_2942_146",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 308142.393,
+   "y": 3634432.963,
+   "x_dgt": 307774.584,
+   "y_dgt": 3634785.599
+  },
+  {
+   "id": "islands_2942_147",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 324977.878,
+   "y": 3626527.396,
+   "x_dgt": 324610.038,
+   "y_dgt": 3626880.223
+  },
+  {
+   "id": "islands_2942_148",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 374586.424,
+   "y": 3658947.106,
+   "x_dgt": 374218.009,
+   "y_dgt": 3659300.153
+  },
+  {
+   "id": "islands_2942_149",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 332250.922,
+   "y": 3619909.256,
+   "x_dgt": 331883.096,
+   "y_dgt": 3620262.186
+  },
+  {
+   "id": "islands_2942_150",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 376833.098,
+   "y": 3655956.176,
+   "x_dgt": 376464.694,
+   "y_dgt": 3656309.261
+  },
+  {
+   "id": "islands_2942_151",
+   "source": "2942",
+   "target": "5016",
+   "method": "bursaWolf",
+   "x": 305019.763,
+   "y": 3630959.729,
+   "x_dgt": 304652.002,
+   "y_dgt": 3631312.358
+  },
+  {
+   "id": "islands_2942_inverse_152",
+   "source": "5016",
+   "target": "2942",
+   "method": "bursaWolf",
+   "x": 324832.947,
+   "y": 3617079.577,
+   "x_dgt": 325200.709,
+   "y_dgt": 3616726.693
+  },
+  {
+   "id": "islands_2942_inverse_153",
+   "source": "5016",
+   "target": "2942",
+   "method": "bursaWolf",
+   "x": 371358.752,
+   "y": 3656789.117,
+   "x_dgt": 371727.134,
+   "y_dgt": 3656436.081
+  },
+  {
+   "id": "islands_2942_inverse_154",
+   "source": "5016",
+   "target": "2942",
+   "method": "bursaWolf",
+   "x": 324570.088,
+   "y": 3614809.091,
+   "x_dgt": 324937.829,
+   "y_dgt": 3614456.196
+  },
+  {
+   "id": "islands_2942_inverse_155",
+   "source": "5016",
+   "target": "2942",
+   "method": "bursaWolf",
+   "x": 298061.609,
+   "y": 3623044.589,
+   "x_dgt": 298429.267,
+   "y_dgt": 3622691.973
+  }
+ ]
+}

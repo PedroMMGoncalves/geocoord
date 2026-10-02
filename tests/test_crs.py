@@ -1,9 +1,12 @@
 """Tests for the coordinate-system registry and its transformations.
 
-The registry's own definitions are checked against the EPSG database rather
-than against remembered numbers: pyproj is the authority here, and the point of
-these tests is that the hand-assembled proj4 definitions - which exist because
-proj4js has no transformation catalogue - still say what EPSG says.
+The registry's definitions are checked against an authority rather than against
+remembered numbers. For the Portuguese datums that is the Direção-Geral do
+Território: its own transformation service's answers, frozen in
+``fixtures/dgt_reference.json``, which these definitions must reproduce to the
+millimetre DGT rounds to. For everything else it is the EPSG database, through
+pyproj: the hand-assembled proj4 definitions - which exist because proj4js has
+no transformation catalogue - must still say what EPSG says.
 """
 import json
 import math
@@ -35,14 +38,21 @@ def test_every_entry_is_complete(code):
     assert entry["pt"], "every system needs a name a Portuguese user recognises"
 
 
+#: Systems whose transformation is DGT's rather than EPSG's choice.
+_FROM_DGT = sorted(c for c in crs.REGISTRY if "transformation" in crs.REGISTRY[c])
+
+
 @pytest.mark.parametrize("code", sorted(c for c in crs.REGISTRY
-                                        if crs.REGISTRY[c]["kind"] == "projected"))
+                                        if crs.REGISTRY[c]["kind"] == "projected"
+                                        and c not in _FROM_DGT))
 def test_definition_agrees_with_epsg(code):
     """The hand-assembled definition must transform like the EPSG one.
 
     This is where a wrong +towgs84 rotation sign shows up: it is worth 50 m on
     Datum 73 and 61 m on Lisboa, which is small enough to pass unnoticed and
-    large enough to matter.
+    large enough to matter. The Portuguese datums are not here: their
+    transformations are DGT's, better than the ones EPSG would pick, and they
+    are held to DGT's own answers below.
     """
     entry = crs.get(code)
     authoritative = Transformer.from_crs(
@@ -59,10 +69,11 @@ def test_round_trip_returns_the_same_point(code):
     Not zero, and not a millimetre: a seven-parameter Helmert is applied in its
     linearised form, and the inverse uses the same parameters with the signs
     flipped rather than the true matrix inverse, so the round trip is not exact.
-    The worst of these is 5.9 mm, on Porto Santo 1995 - whose own published
-    accuracy is one metre, three orders of magnitude coarser. A centimetre is
-    therefore comfortably inside the noise of the transformation itself, and
-    tight enough that a real mistake could not hide under it.
+    The worst of these is 7 mm, on the Base SE datum of Madeira and Porto Santo,
+    whose parameters carry a rotation of seventeen seconds. DGT's own service
+    inverts them the same way - its answers back from PTRA08 are matched to the
+    half millimetre it rounds to - and publishes them to 5 cm. A centimetre is
+    inside that, and tight enough that a real mistake could not hide under it.
     """
     entry = crs.get(code)
     for lon, lat in entry["control"]:
@@ -73,13 +84,13 @@ def test_round_trip_returns_the_same_point(code):
         assert math.hypot(east, north) < 0.01
 
 
-def test_madeira_1936_is_flagged_as_deprecated():
-    """EPSG deprecated it and publishes no datum transformation for it, so the
-    interface has to be able to say so."""
+def test_madeira_1936_is_porto_santo_1936_under_a_retired_code():
+    """EPSG retired 2191 as a duplicate of 2942 - the same Base SE datum - so it
+    takes the same definition, and the interface still marks the code."""
     entry = crs.get(2191)
     assert entry["deprecated"] is True
-    assert "+towgs84" not in entry["proj4"]
-    assert entry["note"] and "ballpark" in entry["note"]
+    assert entry["proj4"] == crs.get(2942)["proj4"]
+    assert "2942" in entry["note"]
 
 
 def test_the_other_two_island_systems_are_not_deprecated():
@@ -130,6 +141,61 @@ def test_esri_wkt_can_be_derived_for_a_generic_zone():
 def test_unknown_system_is_an_error_not_a_silent_default():
     with pytest.raises(KeyError):
         crs.get(9999)
+
+
+# ---------------------------------------------------------------------------
+# DGT's own answers
+# ---------------------------------------------------------------------------
+_DGT = json.loads(
+    (pathlib.Path(__file__).parent / "fixtures" / "dgt_reference.json").read_text(encoding="utf-8")
+)
+
+
+@pytest.mark.parametrize("case", _DGT["cases"], ids=[c["id"] for c in _DGT["cases"]])
+def test_agrees_with_dgt(case):
+    """Each synthetic point as DGT's transformation service moved it.
+
+    Straight from one system to the other, as DGT does it - Lisboa to PT-TM06,
+    PTRA08 back to an island datum - which also holds ``transform`` to going
+    through WGS84 on its own. ``bursaWolf`` cases take the seven-parameter
+    definition a point outside the grid falls back on, so the fallback is held
+    to DGT as well. A millimetre and a half: DGT rounds to the millimetre.
+    """
+    source = crs.get(case["source"])["proj4"]
+    target = crs.get(case["target"])["proj4"]
+    if case["method"] == "bursaWolf":
+        source, target = crs.FALLBACK.get(source, source), crs.FALLBACK.get(target, target)
+    x, y = crs.transform(case["x"], case["y"], source, target)
+    assert abs(x - case["x_dgt"]) < _DGT["tolerance_m"]
+    assert abs(y - case["y_dgt"]) < _DGT["tolerance_m"]
+
+
+@pytest.mark.parametrize("code", _FROM_DGT)
+def test_every_dgt_system_is_held_to_dgt(code):
+    """No system takes DGT's transformation without DGT's answers to check it -
+    or the same definition as one that has them, as Porto Santo 1995 and
+    Madeira 1936 share Porto Santo 1936's. A grid system needs both: the grid,
+    and the parameters it falls back on."""
+    definition = crs.get(code)["proj4"]
+    checked = {crs.get(c[k])["proj4"]: set() for c in _DGT["cases"] for k in ("source", "target")}
+    for c in _DGT["cases"]:
+        for k in ("source", "target"):
+            checked[crs.get(c[k])["proj4"]].add(c["method"])
+    assert definition in checked
+    if "+nadgrids=" in definition:
+        assert checked[definition] == {"grelhas", "bursaWolf"}
+
+
+@pytest.mark.parametrize("code", ["20790", "27493"])
+def test_a_point_outside_the_grid_takes_dgts_parameters(code):
+    """At sea, off the grid: the point still lands, by DGT's seven parameters -
+    exactly where the fallback definition puts it. Inland the two differ by up
+    to a metre and a half, which is the grid doing its work."""
+    entry = crs.get(code)
+    at_sea = crs.from_wgs84(-10.6, 38.6, entry["fallback"])
+    assert crs.to_wgs84(*at_sea, entry["proj4"]) == crs.to_wgs84(*at_sea, entry["fallback"])
+    inland = crs.from_wgs84(-8.0, 39.5, entry["proj4"])
+    assert _distance_m(inland, crs.from_wgs84(-8.0, 39.5, entry["fallback"])) > 0.2
 
 
 # ---------------------------------------------------------------------------

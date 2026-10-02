@@ -46,6 +46,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The best transformations for the Portuguese datums.** Lisboa (Hayford-Gauss
+  Militar) and Datum 73 now move onto ETRS89 by DGT's NTv2 grids, published to
+  0.09 m and 0.06 m on average, where EPSG's seven parameters put points 1.6 m
+  and 0.5 m away on average, up to 3.7 m; outside the grids, by DGT's own seven
+  parameters. The Azores and Madeira datums take DGT's seven parameters by
+  island group (0.02 to 0.18 m) in place of three-parameter shifts up to 2.8 m
+  away. Madeira 1936, which EPSG retired as a duplicate of Porto Santo 1936 and
+  which had only a ballpark offset more than 500 m out, takes the same Base SE
+  parameters. Both implementations are held to DGT's own service's answers for
+  156 synthetic points, to the millimetre it rounds to, and agreed with it to
+  0.6 mm at 322 more. Both applications carry the grids. The page fetches the
+  Lisboa grid (0.9 MB) once, with the first file it converts - the sheets are
+  measured in the military grid - and the Datum 73 grid only for a file in it.
 - The desktop application holds its downloads while a row may have its latitude
   and longitude the other way round, as the page does. It offered the review
   and let the file be taken regardless; now every download waits for an answer,
@@ -59,6 +72,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `transform` between two systems neither of which is WGS84 - Lisboa to PT-TM06,
+  say - now goes through WGS84 on both sides. In Python, PROJ asked to go
+  straight from one to the other applied no datum shift at all, 180 m out
+  without an error. Neither application ever asked it to; the engine no longer
+  lets anything that does.
 - The note on the Hayford-Gauss Militar and Datum 73 systems was English on the
   Portuguese page; it is said in the reader's language.
 - **The Windows installer starts again.** It runs the application in the

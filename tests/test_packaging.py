@@ -58,6 +58,17 @@ def test_every_module_and_data_file_of_the_engine_is_packaged():
     assert not missing, f"not in package.json stlite.desktop.files: {missing}"
 
 
+def test_the_transformation_grids_are_packaged():
+    # crs.py refuses to import without them, so an installer that forgot them
+    # would not start - which is better than converting a metre worse, and
+    # still not something to find out from a colleague.
+    grids = sorted((ROOT / "geocoord" / "grids").glob("*.gsb"))
+    assert grids
+    missing = [p.relative_to(ROOT).as_posix() for p in grids
+               if not packaged(p.relative_to(ROOT).as_posix())]
+    assert not missing, f"not in package.json stlite.desktop.files: {missing}"
+
+
 def test_every_package_the_application_imports_is_installed():
     wanted = set()
     for source in SOURCES:

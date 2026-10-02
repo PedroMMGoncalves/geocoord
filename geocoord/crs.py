@@ -15,11 +15,14 @@ desktop and by the same one in the browser, and the results diverge by
 hundreds of metres with nothing to indicate it. One fixed definition, used by
 both, is deterministic.
 
-The definitions live in ``crs_registry.json`` beside this file, generated from
-the EPSG database and checked against it: every projected system agrees with
-its authoritative EPSG transformation to zero metres over control points inside
-its real coverage. The registry is data rather than code so that the browser
-reads the identical bytes.
+The definitions live in ``crs_registry.json`` beside this file, and the
+registry is data rather than code so that the browser reads the identical
+bytes. The Portuguese datums carry the transformations the Direção-Geral do
+Território publishes - NTv2 grids for Lisboa and Datum 73, seven parameters for
+the islands - set by ``scripts/set_transformations.py`` and held to DGT's own
+service's answers to the millimetre. Every other system agrees with its
+authoritative EPSG transformation to zero metres over control points inside its
+real coverage.
 
 One trap worth naming, since it is invisible and expensive. ``+towgs84`` is read
 with the position vector convention, while PROJ declares most of these
@@ -35,12 +38,35 @@ import json
 import pathlib
 from functools import lru_cache
 
+import pyproj
 from pyproj import CRS, Transformer
 
 _REGISTRY_PATH = pathlib.Path(__file__).with_name("crs_registry.json")
 
+#: DGT's NTv2 grids for Datum Lisboa and Datum 73, which the registry's two
+#: mainland definitions name. PROJ finds them by name once this directory is
+#: on its search path; the browser fetches the same files.
+GRIDS = pathlib.Path(__file__).with_name("grids")
+pyproj.datadir.append_data_dir(str(GRIDS))
+
 #: EPSG code (as a string) -> everything the application knows about it.
 REGISTRY: dict = json.loads(_REGISTRY_PATH.read_text(encoding="utf-8"))
+
+#: definition -> the definition to use where it gives nothing: a grid
+#: definition's Bursa-Wolf parameters, for a point outside the grid. Outside
+#: mainland Portugal the old datums mean little, but a coordinate written in
+#: kilometres and read as metres lands in the sea, and it has to land
+#: somewhere for the application to notice and say so.
+FALLBACK: dict = {e["proj4"]: e["fallback"] for e in REGISTRY.values() if e.get("fallback")}
+
+# A grid that is not there must say so. PROJ would otherwise transform no point
+# with it, every point would take the Bursa-Wolf fallback, and the whole file
+# would come out a metre worse with nothing to show - which is what a packaged
+# build that forgot the grids would do.
+for _definition in FALLBACK:
+    for _grid in _definition.split("+nadgrids=")[1].split()[0].split(","):
+        if not (GRIDS / _grid.lstrip("@")).is_file():
+            raise ImportError(f"transformation grid missing: {GRIDS / _grid}")
 
 #: The system every internal coordinate is expressed in.
 WGS84 = "4326"
@@ -107,12 +133,26 @@ def transform(x, y, source: str, target: str):
     """
     if x is None or y is None:
         return None, None
+    # Always through WGS84. Asked to go straight from one old datum to a
+    # modern grid - Lisboa to PT-TM06, say - PROJ finds nothing linking the
+    # datum term on one side to a datum it does not know on the other, and
+    # moves the point with no shift at all: 180 m out, and no error.
+    if source != WGS84_PROJ4 and target != WGS84_PROJ4:
+        lon, lat = transform(x, y, source, WGS84_PROJ4)
+        return transform(lon, lat, WGS84_PROJ4, target)
+    out = _run(source, target, x, y)
+    if out is None and (source in FALLBACK or target in FALLBACK):
+        out = _run(FALLBACK.get(source, source), FALLBACK.get(target, target), x, y)
+    return out if out is not None else (None, None)
+
+
+def _run(source, target, x, y):
     try:
         out_x, out_y = _transformer(source, target).transform(float(x), float(y))
     except (ValueError, TypeError):
-        return None, None
+        return None
     if not (_finite(out_x) and _finite(out_y)):
-        return None, None
+        return None
     return out_x, out_y
 
 

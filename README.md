@@ -160,7 +160,7 @@ adds `X_<code>`, `Y_<code>` and `WKT_<code>` beside them.
 | Geographic | WGS 84 (4326), ETRS89 (4258), PTRA08 (5013) |
 | Mainland Portugal | Portugal TM06 (3763), UTM 29N on ETRS89 (25829) and on WGS84 (32629), Datum 73 / Hayford-Gauss IPCC (27493), Lisboa / Hayford-Gauss Militar (20790) |
 | Islands, modern | PTRA08 / UTM 25N (5014), 26N (5015), 28N (5016) |
-| Islands, historic | Açores Ocidental 1939 (2188), Açores Central 1948 (2189), Açores Oriental 1940 (2190), Madeira 1936 (2191, deprecated), Porto Santo 1936 (2942), Porto Santo 1995 (3061) |
+| Islands, historic | Açores Ocidental 1939 (2188), Açores Central 1948 (2189), Açores Oriental 1940 (2190), Madeira 1936 (2191, retired by EPSG), Porto Santo 1936 (2942), Porto Santo 1995 (3061) |
 | Generic | Any UTM zone 1-60, either hemisphere, on WGS84 or ETRS89; or a proj4 definition pasted whole |
 
 The two generic options are what make this useful outside Portugal without the
@@ -168,12 +168,51 @@ author guessing at national datums he cannot verify: UTM by zone covers Angola,
 Cabo Verde, Guiné-Bissau, Moçambique and São Tomé e Príncipe immediately, and a
 pasted proj4 string covers anything else, offline.
 
-Every projected system agrees with its authoritative EPSG transformation to
-zero metres over control points inside its real coverage, and the two
-implementations agree with each other to ten nanometres. The definitions live
-in [`geocoord/crs_registry.json`](geocoord/crs_registry.json), generated from
-the EPSG database and read by both sides, and 51 control points are pinned in
-the shared contract.
+**The Portuguese datums move by the Direção-Geral do Território's own
+transformations**, the best published, not the ones EPSG would pick:
+
+| System | Transformation | Published accuracy |
+| --- | --- | --- |
+| Lisboa / Hayford-Gauss Militar (20790) | DGT's NTv2 grid `DLx_ETRS89_geo` | 0.09 m mean, 0.30 m max |
+| Datum 73 / Hayford-Gauss IPCC (27493) | DGT's NTv2 grid `D73_ETRS89_geo` | 0.06 m mean, 0.16 m max |
+| Açores Ocidental, Central, Oriental (2188-2190) | DGT's seven parameters, by island group | 0.02 to 0.18 m |
+| Porto Santo 1936 and 1995, Madeira 1936 (2942, 3061, 2191) | DGT's seven parameters for the Base SE datum | 0.05 m |
+
+Outside the grids - at sea, in Spain - the two mainland datums fall back on
+DGT's seven parameters for the same datum, so a coordinate read in the wrong
+unit still lands somewhere the application can point at. The EPSG
+transformations these replace put points 0.5 to 2.8 m away on average, and up
+to 3.7 m on Datum Lisboa. The grids are DGT's files, unchanged, in
+[`geocoord/grids/`](geocoord/grids/), read by pyproj on the desktop and by
+proj4js in the browser.
+
+They are held to DGT itself. DGT's
+[Web TransCoord](https://www3.dgterritorio.gov.pt/pt/transform/) service's
+answers for 156 synthetic points - every one of these systems, both
+directions, grid and seven-parameter alike - are frozen in
+[`tests/fixtures/dgt_reference.json`](tests/fixtures/dgt_reference.json), and
+both implementations must reproduce each to the millimetre DGT rounds to. A
+further 322 fresh points, grid edges among them, were checked against the live
+service before release: the worst disagreement, on either side, was 0.6 mm.
+EPSG's own description of DGT's grid operations, run through PROJ's catalogue,
+gives the same answer to the micrometre.
+
+ETRS89 and PTRA08 are taken as WGS84, as EPSG's null transformations and DGT's
+own service do. The difference is under a metre and grows with time, and no
+file here carries the epoch it would need.
+
+Every other projected system agrees with its authoritative EPSG transformation
+to zero metres over control points inside its real coverage, and the two
+implementations agree with each other to ten nanometres on a seven-parameter
+definition and to five micrometres through a grid. The definitions live in
+[`geocoord/crs_registry.json`](geocoord/crs_registry.json), read by both sides,
+and 51 control points are pinned in the shared contract.
+
+**The last digits of a coordinate are not recoverable.** A grid written in
+kilometres to two decimals - `M 252,52` - says where the point is to ten
+metres, and to within five either way once rounded; no transformation can put
+back what the table never held. The transformation's tenth of a metre matters
+for coordinates written to the metre or finer.
 
 **A grid written in kilometres.** The margin of a 1:25000 military sheet prints
 its grid in kilometres — `M 252,52` — so a table typed from one is routinely in
@@ -185,11 +224,11 @@ region as written and inside it multiplied by a thousand, the application says
 so and offers the reading as a button. It changes nothing on its own, and the
 reading can be taken back.
 
-**EPSG:2191 (Madeira 1936) is deprecated and EPSG publishes no datum
-transformation for it** — only a ballpark offset of unknown accuracy. It is
-offered, marked, and its note says plainly that it is enough to recognise a
-legacy coordinate and not enough to position one. Use Porto Santo 1936 (2942)
-or, better, PTRA08 (5016).
+**EPSG retired 2191 (Madeira 1936) as a duplicate of Porto Santo 1936
+(2942)** — the same Base SE datum — and published no transformation for it,
+only a ballpark offset more than 500 m out. It is still offered, marked, so a
+legacy file can say what it is in, and it takes the Base SE parameters. Prefer
+2942 or, better, PTRA08 (5016).
 
 ## Swapped coordinates
 
@@ -447,6 +486,7 @@ geocoord/                 The engine, as an importable package
   geoexport.py            GeoJSON / KML / Shapefile / Excel writers
   crs.py                  Coordinate systems
   crs_registry.json       The system definitions, read by both languages
+  grids/                  DGT's NTv2 grids for Lisboa and Datum 73
 web/                      The browser application
   src/core/               The JavaScript half of the engine
   src/core/sheets.js      Map sheets: the grid, the check (browser only)
@@ -454,7 +494,10 @@ web/                      The browser application
   src/components/         The interface
 tests/                    pytest suite
   fixtures/parity.json    The shared contract - generated, then frozen
+  fixtures/dgt_reference.json   DGT's own answers for synthetic points - frozen
 scripts/gen_parity_fixtures.py   Regenerates it
+scripts/set_transformations.py   Sets DGT's transformations in the registry
+scripts/fetch_dgt_reference.py   Asks DGT's service again, deliberately
 scripts/gen_sheet_index.py       Regenerates the sheet index from LNEG's services
 docs/superpowers/         Design note and phase plans
 ```
@@ -524,7 +567,9 @@ Geologia. Basemaps by [Esri](https://www.esri.com) and
 [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors;
 coordinate transformations by [PROJ](https://proj.org) through
 [pyproj](https://pyproj4.github.io/pyproj/) and
-[proj4js](http://proj4js.org). The 1:50 000 sheets are LNEG's *Carta Geológica
+[proj4js](http://proj4js.org). The transformation grids and parameters for the
+Portuguese datums are the Direção-Geral do Território's (CC-BY 4.0), and its
+Web TransCoord service is the reference they are tested against. The 1:50 000 sheets are LNEG's *Carta Geológica
 de Portugal à escala 1:50 000* (CC-BY 4.0); the 1:25 000 numbering is that of
 the Carta Militar de Portugal, IGeoE series M888.
 

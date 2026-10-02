@@ -146,7 +146,7 @@
     "name": "Datum 73 / Modified Portuguese Grid",
     "pt": "Datum 73 / Hayford-Gauss IPCC",
     "kind": "projected",
-    "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=-8.13190611111111 +k=1 +x_0=180.598 +y_0=-86.99 +ellps=intl +units=m +no_defs +towgs84=-239.749,88.181,30.488,0.263,0.082,1.211,2.229",
+    "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=-8.13190611111111 +k=1 +x_0=180.598 +y_0=-86.99 +ellps=intl +units=m +no_defs +nadgrids=D73_ETRS89_geo.gsb",
     "esri_wkt": "PROJCS[\"Datum_73_Modified_Portuguese_Grid\",GEOGCS[\"GCS_Datum_73\",DATUM[\"D_Datum_73\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",180.598],PARAMETER[\"False_Northing\",-86.99],PARAMETER[\"Central_Meridian\",-8.13190611111111],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",39.6666666666667],UNIT[\"Meter\",1.0]]",
     "coverage": "Portugal continental",
     "deprecated": false,
@@ -168,14 +168,19 @@
         41.8
       ]
     ],
-    "note": "Known in Portugal as Hayford-Gauss IPCC or Datum 73."
+    "note": "Known in Portugal as Hayford-Gauss IPCC or Datum 73. Moved onto ETRS89 by DGT's NTv2 grid, to about 0.1 m; outside the grid, by DGT's seven parameters.",
+    "fallback": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=-8.13190611111111 +k=1 +x_0=180.598 +y_0=-86.99 +ellps=intl +units=m +no_defs +towgs84=-230.994,102.591,25.199,0.633,-0.239,0.900,1.950",
+    "transformation": {
+      "source": "DGT, Parâmetros de Transformação para Portugal Continental (Jul. 2009); grelhas NTv2 DLx_ETRS89_geo e D73_ETRS89_geo",
+      "accuracy": "grelha NTv2 da DGT: resíduo médio 0,06 m, máximo 0,16 m; fora da grelha, Bursa-Wolf da DGT (0,4 m)"
+    }
   },
   "20790": {
     "epsg": 20790,
     "name": "Lisbon (Lisbon) / Portuguese National Grid",
     "pt": "Lisboa / Hayford-Gauss Militar",
     "kind": "projected",
-    "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=1 +k=1 +x_0=200000 +y_0=300000 +ellps=intl +pm=lisbon +units=m +no_defs +towgs84=-288.885,-91.744,126.244,-1.691,0.41,-0.211,-4.598",
+    "proj4": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=1 +k=1 +x_0=200000 +y_0=300000 +ellps=intl +pm=lisbon +units=m +no_defs +nadgrids=DLX_ETRS89_geo.gsb",
     "esri_wkt": "PROJCS[\"Portuguese_National_Grid\",GEOGCS[\"GCS_Lisbon_Lisbon\",DATUM[\"Lisbon_1937_(Lisbon)\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Lisbon\",-9.13190611111111],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",200000.0],PARAMETER[\"False_Northing\",300000.0],PARAMETER[\"Central_Meridian\",1.0],PARAMETER[\"Scale_Factor\",1.0],PARAMETER[\"Latitude_Of_Origin\",39.6666666666667],UNIT[\"Meter\",1.0]]",
     "coverage": "Portugal continental",
     "deprecated": false,
@@ -197,7 +202,12 @@
         41.8
       ]
     ],
-    "note": "Known in Portugal as Hayford-Gauss Militar; EPSG names it \"Lisbon (Lisbon) / Portuguese National Grid\"."
+    "note": "Known in Portugal as Hayford-Gauss Militar; EPSG names it \"Lisbon (Lisbon) / Portuguese National Grid\". Moved onto ETRS89 by DGT's NTv2 grid, to about 0.1 m; outside the grid, by DGT's seven parameters.",
+    "fallback": "+proj=tmerc +lat_0=39.6666666666667 +lon_0=1 +k=1 +x_0=200000 +y_0=300000 +ellps=intl +pm=lisbon +units=m +no_defs +towgs84=-283.088,-70.693,117.445,-1.157,0.059,-0.652,-4.058",
+    "transformation": {
+      "source": "DGT, Parâmetros de Transformação para Portugal Continental (Jul. 2009); grelhas NTv2 DLx_ETRS89_geo e D73_ETRS89_geo",
+      "accuracy": "grelha NTv2 da DGT: resíduo médio 0,09 m, máximo 0,30 m; fora da grelha, Bursa-Wolf da DGT (1,4 m)"
+    }
   },
   "5014": {
     "epsg": 5014,
@@ -271,7 +281,7 @@
     "name": "Azores Occidental 1939 / UTM zone 25N",
     "pt": "Açores Ocidental 1939 / UTM 25N",
     "kind": "projected",
-    "proj4": "+proj=utm +zone=25 +ellps=intl +units=m +no_defs +towgs84=-422.651,-172.995,84.02,0,0,0,0",
+    "proj4": "+proj=utm +zone=25 +ellps=intl +units=m +no_defs +towgs84=-487.978,-226.275,102.787,-0.743,1.677,2.087,1.485",
     "esri_wkt": "PROJCS[\"Azores_Occidental_1939_UTM_Zone_25N\",GEOGCS[\"GCS_Azores_Occidental_1939\",DATUM[\"D_Azores_Occidental_Islands_1939\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-33.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
     "coverage": "Flores, Corvo",
     "deprecated": false,
@@ -285,14 +295,18 @@
         39.7
       ]
     ],
-    "note": null
+    "note": null,
+    "transformation": {
+      "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
+      "accuracy": "Bursa-Wolf da DGT, grupo ocidental: 0,03 m"
+    }
   },
   "2189": {
     "epsg": 2189,
     "name": "Azores Central 1948 / UTM zone 26N",
     "pt": "Açores Central 1948 / UTM 26N",
     "kind": "projected",
-    "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-104,167,-38,0,0,0,0",
+    "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-185.391,122.266,35.989,0.120,3.180,2.046,-1.053",
     "esri_wkt": "PROJCS[\"Azores_Central_1948_UTM_Zone_26N\",GEOGCS[\"GCS_Azores_Central_1948\",DATUM[\"D_Azores_Central_Islands_1948\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-27.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
     "coverage": "Faial, Graciosa, Pico, São Jorge, Terceira",
     "deprecated": false,
@@ -310,14 +324,18 @@
         38.4
       ]
     ],
-    "note": null
+    "note": null,
+    "transformation": {
+      "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
+      "accuracy": "Bursa-Wolf da DGT, grupo central: 0,18 m"
+    }
   },
   "2190": {
     "epsg": 2190,
     "name": "Azores Oriental 1940 / UTM zone 26N",
     "pt": "Açores Oriental 1940 / UTM 26N",
     "kind": "projected",
-    "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-203,141,53,0,0,0,0",
+    "proj4": "+proj=utm +zone=26 +ellps=intl +units=m +no_defs +towgs84=-269.089,186.247,155.667,2.005,3.606,-0.366,0.097",
     "esri_wkt": "PROJCS[\"Azores_Oriental_1940_UTM_Zone_26N\",GEOGCS[\"GCS_Azores_Oriental_1940\",DATUM[\"D_Azores_Oriental_Islands_1940\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-27.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
     "coverage": "São Miguel, Santa Maria, Formigas",
     "deprecated": false,
@@ -331,14 +349,18 @@
         36.97
       ]
     ],
-    "note": null
+    "note": null,
+    "transformation": {
+      "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
+      "accuracy": "Bursa-Wolf da DGT, grupo oriental: 0,02 m"
+    }
   },
   "2191": {
     "epsg": 2191,
     "name": "Madeira 1936 / UTM zone 28N",
     "pt": "Madeira 1936 / UTM 28N",
     "kind": "projected",
-    "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs",
+    "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-160.410,-21.066,-99.282,2.437,-17.250,-7.446,0.168",
     "esri_wkt": "PROJCS[\"Madeira_1936_UTM_Zone_28N\",GEOGCS[\"GCS_Madeira_1936\",DATUM[\"D_Madeira_1936\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"degree minute second hemisphere\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-15.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
     "coverage": "Madeira",
     "deprecated": true,
@@ -352,14 +374,18 @@
         32.8
       ]
     ],
-    "note": "EPSG publishes no datum transformation for Madeira 1936: only a ballpark offset of unknown accuracy. The values are read on the International 1924 graticule with no shift applied, which is enough to recognise a legacy coordinate and not enough to position one. Use Porto Santo 1936 (2942) or, better, PTRA08 (5016)."
+    "note": "EPSG retired this code as a duplicate of Porto Santo 1936 (2942): the same Base SE datum, and the same DGT parameters. Prefer 2942 or, better, PTRA08 (5016).",
+    "transformation": {
+      "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
+      "accuracy": "Bursa-Wolf da DGT, Base SE: 0,05 m"
+    }
   },
   "2942": {
     "epsg": 2942,
     "name": "Porto Santo / UTM zone 28N",
     "pt": "Porto Santo 1936 / UTM 28N",
     "kind": "projected",
-    "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-499,-249,314,0,0,0,0",
+    "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-160.410,-21.066,-99.282,2.437,-17.250,-7.446,0.168",
     "esri_wkt": "PROJCS[\"Porto_Santo_1936_UTM_Zone_28N\",GEOGCS[\"GCS_Porto_Santo_1936\",DATUM[\"D_Porto_Santo_1936\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-15.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
     "coverage": "Madeira, Porto Santo",
     "deprecated": false,
@@ -373,14 +399,18 @@
         33.1
       ]
     ],
-    "note": null
+    "note": null,
+    "transformation": {
+      "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
+      "accuracy": "Bursa-Wolf da DGT, Base SE: 0,05 m"
+    }
   },
   "3061": {
     "epsg": 3061,
     "name": "Porto Santo 1995 / UTM zone 28N",
     "pt": "Porto Santo 1995 / UTM 28N",
     "kind": "projected",
-    "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-210.502,-66.902,-48.476,2.094,-15.067,-5.817,0.485",
+    "proj4": "+proj=utm +zone=28 +ellps=intl +units=m +no_defs +towgs84=-160.410,-21.066,-99.282,2.437,-17.250,-7.446,0.168",
     "esri_wkt": "PROJCS[\"Porto_Santo_1995_UTM_Zone_28N\",GEOGCS[\"GCS_Porto_Santo_1995\",DATUM[\"D_Porto_Santo_1995\",SPHEROID[\"International_1924\",6378388.0,297.0]],PRIMEM[\"Greenwich\",0.0],UNIT[\"Degree\",0.0174532925199433]],PROJECTION[\"Transverse_Mercator\"],PARAMETER[\"False_Easting\",500000.0],PARAMETER[\"False_Northing\",0.0],PARAMETER[\"Central_Meridian\",-15.0],PARAMETER[\"Scale_Factor\",0.9996],PARAMETER[\"Latitude_Of_Origin\",0.0],UNIT[\"Meter\",1.0]]",
     "coverage": "Madeira, Porto Santo, Desertas",
     "deprecated": false,
@@ -394,6 +424,10 @@
         33.1
       ]
     ],
-    "note": null
+    "note": null,
+    "transformation": {
+      "source": "DGT, Parâmetros de Transformação para os Arquipélagos dos Açores e da Madeira (Maio 2009)",
+      "accuracy": "Bursa-Wolf da DGT, Base SE: 0,05 m"
+    }
   }
 }

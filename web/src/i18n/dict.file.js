@@ -401,12 +401,16 @@ export default {
   // The registry's notes are written in English; the page says them in the
   // reader's language.
   'crs.note.20790': {
-    pt: 'Conhecido em Portugal como Hayford-Gauss Militar; a EPSG chama-lhe "Lisbon (Lisbon) / Portuguese National Grid".',
-    en: 'Known in Portugal as Hayford-Gauss Militar; EPSG names it "Lisbon (Lisbon) / Portuguese National Grid".',
+    pt: 'Conhecido em Portugal como Hayford-Gauss Militar; a EPSG chama-lhe "Lisbon (Lisbon) / Portuguese National Grid". Passa a ETRS89 pela grelha NTv2 da DGT, a cerca de 0,1 m; fora da grelha, pelos sete parâmetros da DGT.',
+    en: 'Known in Portugal as Hayford-Gauss Militar; EPSG names it "Lisbon (Lisbon) / Portuguese National Grid". Moved onto ETRS89 by DGT\'s NTv2 grid, to about 0.1 m; outside the grid, by DGT\'s seven parameters.',
   },
   'crs.note.27493': {
-    pt: 'Conhecido em Portugal como Hayford-Gauss IPCC ou Datum 73.',
-    en: 'Known in Portugal as Hayford-Gauss IPCC or Datum 73.',
+    pt: 'Conhecido em Portugal como Hayford-Gauss IPCC ou Datum 73. Passa a ETRS89 pela grelha NTv2 da DGT, a cerca de 0,1 m; fora da grelha, pelos sete parâmetros da DGT.',
+    en: 'Known in Portugal as Hayford-Gauss IPCC or Datum 73. Moved onto ETRS89 by DGT\'s NTv2 grid, to about 0.1 m; outside the grid, by DGT\'s seven parameters.',
+  },
+  'crs.note.2191': {
+    pt: 'A EPSG retirou este código por duplicar Porto Santo 1936 (2942): é o mesmo datum Base SE, com os mesmos parâmetros da DGT. Prefira 2942 ou, melhor, PTRA08 (5016).',
+    en: 'EPSG retired this code as a duplicate of Porto Santo 1936 (2942): the same Base SE datum, and the same DGT parameters. Prefer 2942 or, better, PTRA08 (5016).',
   },
 
   'sheet.col25': { pt: 'Folha 1:25 000 (carta militar)', en: '1:25 000 sheet (military map)' },
