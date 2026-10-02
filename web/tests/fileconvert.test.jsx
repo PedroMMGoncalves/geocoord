@@ -366,7 +366,9 @@ describe('reading a projected file as kilometres', () => {
     document.getElementById('crs-in'), { target: { value: '20790' } },
   )
   const offered = () => screen.queryByRole('button', { name: /Ler como quilómetros/ })
-  const centroid = () => [...document.querySelectorAll('.readout dl.sum dd')].pop().textContent
+  // The summary is drawn from the final result, a step after the offer itself:
+  // read it inside waitFor, and as empty until it is there.
+  const centroid = () => [...document.querySelectorAll('.readout dl.sum dd')].pop()?.textContent ?? ''
 
   it('offers the reading, and changes nothing until it is taken', async () => {
     show()
@@ -375,7 +377,7 @@ describe('reading a projected file as kilometres', () => {
 
     const offer = await screen.findByRole('button', { name: /Ler como quilómetros/ })
     // Still read as written while the offer stands: in the Atlantic, not inland.
-    expect(centroid()).toMatch(/^36\./)
+    await waitFor(() => expect(centroid()).toMatch(/^36\./))
 
     fireEvent.click(offer)
 
