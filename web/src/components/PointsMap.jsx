@@ -128,13 +128,30 @@ function popupNode(details) {
  * on hover. `selected` is a row, and `selectedFrom` says who chose it: the map
  * itself does not move for its own click, the table and the lists fly to it.
  * `preview`, for the selected row, is where a proposed correction would put
- * it. `details(row)` builds the popup. `fitKey` changes when there is a new set
- * of points to frame - not when one is corrected or chosen, which would throw
- * away where the user was looking.
+ * it. `details(row)` builds the popup.
+ *
+ * The map frames the points again only when where they are changes - another
+ * file, another system, a correction that moves them - and not when a point is
+ * chosen or renamed, which would throw away where the user was looking. That
+ * is read from the points themselves: a key made from the settings arrived
+ * before the points converted under them did, and framed the old ones.
  */
+function extentKey(points) {
+  let s = 90
+  let n = -90
+  let w = 180
+  let e = -180
+  for (const p of points) {
+    s = Math.min(s, p.lat)
+    n = Math.max(n, p.lat)
+    w = Math.min(w, p.lon)
+    e = Math.max(e, p.lon)
+  }
+  return [points.length, s, n, w, e].map((v) => (Number.isInteger(v) ? v : v.toFixed(3))).join('|')
+}
+
 export default function PointsMap({
-  points, selected = null, selectedFrom = null, onSelect = null, preview = null,
-  details = null, fitKey = null,
+  points, selected = null, selectedFrom = null, onSelect = null, preview = null, details = null,
 }) {
   const t = useT()
   const containerRef = useRef(null)
@@ -237,13 +254,18 @@ export default function PointsMap({
       marker.addTo(group)
     }
 
-    const key = fitKey ?? points.length
+    const key = extentKey(points)
     if (points.length > 0 && fittedRef.current !== key) {
       fittedRef.current = key
       const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lon]))
-      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 })
+      // Not animated: two framings in quick succession - the island rows set
+      // aside, then the file read in kilometres - and Leaflet drops the
+      // second while the first is still zooming, leaving the map on the old
+      // points.
+      map.stop()
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14, animate: false })
     }
-  }, [lib, points, t, onSelect, fitKey])
+  }, [lib, points, t, onSelect])
 
   // The chosen point: a ring around it, the popup, and - when a correction is
   // proposed for it - a dashed line to where the correction would put it.

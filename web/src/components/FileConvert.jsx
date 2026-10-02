@@ -1747,7 +1747,6 @@ export default function FileConvert() {
                       onSelect={select}
                       preview={preview}
                       details={details}
-                      fitKey={`${source.name}|${latCol}|${lonCol}|${inputSel}|${scale}|${azoresOn}`}
                     />
                   </div>
                 ) : (
