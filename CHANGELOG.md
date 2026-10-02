@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Map sheets, in the web application.** A table that says which 1:25 000 or
+  1:50 000 sheet each point was read off is checked against it: the sheet
+  columns are found by agreement with the coordinates, and a row outside its
+  sheet is told what would put it back - the two coordinates written the other
+  way round, the false origin left off, one digit - or where it does fall. The
+  first two are offered as corrections and hold the downloads until answered;
+  the rest are listed to confirm, and hold nothing. Rows in the Azores' UTM grid
+  inside a mainland file are found and can be converted in the islands' own
+  system. The downloads carry two columns more, `Folha_coordenadas` and
+  `Verificacao_folha`. The 1:50 000 index is LNEG's
+  (CC-BY 4.0); the 1:25 000 sheets are a numbering rule over the same grid,
+  without names.
+- **The whole table, and the map and the table as one.** The table held the
+  first fifty rows; it now holds them all, drawing only those in view, with a
+  search box and filters for the rows to review and for one sheet. A point on
+  the map shows its name on hover - from a label column, or two read together -
+  and a click selects its row in the table; a row clicked in the table, or in a
+  review list, is shown on the map, with what the file says, where it converted
+  to, and a dashed line to where a proposed correction would put it.
+
 - A table typed off a military sheet is read by its own column names. On the
   Carta Militar the grid is written `M` and `P` - the distances to the
   *Meridiana* and the *Perpendicular*, that is, the easting and the northing -
@@ -39,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The note on the Hayford-Gauss Militar and Datum 73 systems was English on the
+  Portuguese page; it is said in the reader's language.
 - **The Windows installer starts again.** It runs the application in the
   Python that stlite bundles, which sees only the files `package.json` lists -
   and the list still named the three modules the application used when it was

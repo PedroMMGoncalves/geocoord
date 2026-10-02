@@ -26,6 +26,9 @@ const STORAGE_KEY = 'geocoord:basemap'
 // title rather than inside this component, draws the same two discs.
 export const COLOR_OK = '#0072B2'
 export const COLOR_SUSPECT = '#D55E00'
+// A corrected position: the accent, drawn hollow so it reads as a proposal
+// beside the filled point it would replace.
+export const COLOR_FIXED = '#34d399'
 
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services'
 const ESRI_IMAGERY = `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`
@@ -94,11 +97,51 @@ const BASE_LABELS = {
   none: 'map.baseNone',
 }
 
-export default function PointsMap({ points }) {
+/**
+ * The popup for one point, as DOM rather than HTML: the title and the values
+ * come from the user's file, and a cell holding markup must show as text.
+ */
+function popupNode(details) {
+  const root = document.createElement('div')
+  root.className = 'pp'
+  const add = (parent, tag, text, cls) => {
+    const el = document.createElement(tag)
+    if (cls) el.className = cls
+    el.textContent = text
+    parent.appendChild(el)
+    return el
+  }
+  add(root, 'h4', details.title)
+  if (details.sub) add(root, 'div', details.sub, 'sub')
+  const dl = document.createElement('dl')
+  for (const [term, value] of details.rows) {
+    add(dl, 'dt', term)
+    add(dl, 'dd', value)
+  }
+  root.appendChild(dl)
+  if (details.status) add(root, 'div', details.status.text, `st ${details.status.tone}`)
+  return root
+}
+
+/**
+ * points: [{ lat, lon, row, suspect, fixed, label }] - `label` names the point
+ * on hover. `selected` is a row, and `selectedFrom` says who chose it: the map
+ * itself does not move for its own click, the table and the lists fly to it.
+ * `preview`, for the selected row, is where a proposed correction would put
+ * it. `details(row)` builds the popup. `fitKey` changes when there is a new set
+ * of points to frame - not when one is corrected or chosen, which would throw
+ * away where the user was looking.
+ */
+export default function PointsMap({
+  points, selected = null, selectedFrom = null, onSelect = null, preview = null,
+  details = null, fitKey = null,
+}) {
   const t = useT()
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markersRef = useRef(null)
+  const selRef = useRef(null)
+  const fittedRef = useRef(null)
   const [lib, setLib] = useState(null)
   const [failed, setFailed] = useState(false)
 
@@ -155,12 +198,15 @@ export default function PointsMap({ points }) {
     })
 
     markersRef.current = L.layerGroup().addTo(map)
+    selRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
 
     return () => {
       map.remove()
       mapRef.current = null
       markersRef.current = null
+      selRef.current = null
+      fittedRef.current = null
     }
     // t is stable for a given language; re-running on a language change would
     // tear the map down mid-pan for nothing but relabelled layers.
@@ -176,26 +222,61 @@ export default function PointsMap({ points }) {
 
     group.clearLayers()
     for (const p of points) {
-      L.circleMarker([p.lat, p.lon], {
-        radius: 5,
+      const marker = L.circleMarker([p.lat, p.lon], {
+        radius: p.suspect ? 6 : 5,
         weight: 1.5,
         color: '#ffffff',
-        fillColor: p.suspect ? COLOR_SUSPECT : COLOR_OK,
+        fillColor: p.fixed ? COLOR_FIXED : p.suspect ? COLOR_SUSPECT : COLOR_OK,
         fillOpacity: 0.9,
       })
-        .bindPopup(
-          `<strong>${t('file.rowN', { n: p.row + 1 })}</strong><br>`
-          + `${p.lat}, ${p.lon}<br>`
-          + `<em>${t(`file.status.${p.label}`)}</em>`,
-        )
-        .addTo(group)
+      // The name on hover, as text: it comes from the file.
+      const tip = document.createElement('span')
+      tip.textContent = p.label || t('file.rowN', { n: p.row + 1 })
+      marker.bindTooltip(tip, { className: 'pt-label', direction: 'top', offset: [0, -6] })
+      if (onSelect) marker.on('click', () => onSelect(p.row, 'map'))
+      marker.addTo(group)
     }
 
-    if (points.length > 0) {
+    const key = fitKey ?? points.length
+    if (points.length > 0 && fittedRef.current !== key) {
+      fittedRef.current = key
       const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lon]))
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 })
     }
-  }, [lib, points, t])
+  }, [lib, points, t, onSelect, fitKey])
+
+  // The chosen point: a ring around it, the popup, and - when a correction is
+  // proposed for it - a dashed line to where the correction would put it.
+  useEffect(() => {
+    const L = lib
+    const map = mapRef.current
+    const layer = selRef.current
+    if (!L || !map || !layer) return
+    layer.clearLayers()
+    map.closePopup()
+    if (selected === null) return
+    const p = points.find((q) => q.row === selected)
+    const at = p ? [p.lat, p.lon] : preview?.to ?? null
+    if (!at) return
+    L.circleMarker(at, { radius: 13, weight: 2.5, color: '#f2f5f8', fill: false, interactive: false })
+      .addTo(layer)
+    const framed = [at]
+    if (preview?.to && p) {
+      L.polyline([at, preview.to], { color: COLOR_FIXED, weight: 2, dashArray: '5 6', interactive: false })
+        .addTo(layer)
+      L.circleMarker(preview.to, { radius: 7, weight: 2.5, color: COLOR_FIXED, fill: false, interactive: false })
+        .addTo(layer)
+      framed.push(preview.to)
+    }
+    if (details) {
+      L.popup({ offset: [0, -8], autoPan: true, className: 'pt-popup' })
+        .setLatLng(at).setContent(popupNode(details(selected))).openOn(map)
+    }
+    if (selectedFrom !== 'map') {
+      if (framed.length > 1) map.fitBounds(L.latLngBounds(framed), { padding: [60, 60], maxZoom: 12 })
+      else map.setView(at, Math.max(map.getZoom(), 11))
+    }
+  }, [lib, points, selected, selectedFrom, preview, details])
 
   if (failed) {
     return (

@@ -29,6 +29,11 @@ export default {
   },
   'map.label': { pt: 'Mapa dos pontos convertidos', en: 'Map of the converted points' },
   'map.legendOk': { pt: 'Convertido', en: 'Converted' },
+  'map.legendFixed': { pt: 'Posição corrigida', en: 'Corrected position' },
+  'map.hint': {
+    pt: 'Passa o rato num ponto para ver o nome; clica para o ver na tabela.',
+    en: 'Hover over a point for its name; click it to see it in the table.',
+  },
   'map.legendSuspect': { pt: 'A rever', en: 'Needs review' },
   'map.baseDark': { pt: 'Escuro', en: 'Dark' },
   'map.baseLight': { pt: 'Claro', en: 'Light' },
@@ -332,32 +337,20 @@ export default {
       + 'of each row gives the conversion status.',
   },
   'file.tableHeading': { pt: 'Tabela', en: 'Table' },
-  // The preview is for spot-checking, not for reading, and fifty rows of a two
-  // hundred row file is an arbitrary window. This makes it the useful one.
-  'file.onlyProblems': {
-    pt: 'Só as linhas a rever e as ilegíveis',
-    en: 'Only the rows to review and the unreadable ones',
+  // The table holds every row now - only the rows in view are drawn.
+  'file.tableAll': {
+    pt: 'Todas as linhas. Clicar numa linha mostra-a no mapa.',
+    en: 'Every row. Click a row to see it on the map.',
   },
-  'file.previewProblems': {
-    pt: 'A mostrar as {n} linhas que precisam de atenção, de {total}. '
-      + 'O ficheiro descarregado leva todas.',
-    ptOne: 'A mostrar a única linha que precisa de atenção, de {total}. '
-      + 'O ficheiro descarregado leva todas.',
-    en: 'Showing the {n} rows that need attention, out of {total}. The '
-      + 'downloaded file carries all of them.',
-    enOne: 'Showing the one row that needs attention, out of {total}. The '
-      + 'downloaded file carries all of them.',
-  },
-  'file.previewAll': {
-    pt: 'A mostrar as {n} linhas. O ficheiro descarregado leva as mesmas.',
-    ptOne: 'Uma linha.',
-    en: 'Showing all {n} rows. The downloaded file carries the same.',
-    enOne: 'One row.',
-  },
-  'file.previewNote': {
-    pt: 'A mostrar as primeiras {shown} de {total} linhas. O ficheiro descarregado leva todas.',
-    en: 'Showing the first {shown} of {total} rows. The downloaded file carries all of them.',
-  },
+  'file.searchPlaceholder': { pt: 'Procurar (nome, folha, nº da linha…)', en: 'Search (name, sheet, row number…)' },
+  'file.searchLabel': { pt: 'Procurar na tabela', en: 'Search the table' },
+  'file.filterLabel': { pt: 'Que linhas mostrar', en: 'Which rows to show' },
+  'file.filterAll': { pt: 'Todas', en: 'All' },
+  'file.filterReview': { pt: 'A rever ({n})', en: 'To review ({n})' },
+  'file.filterSheetLabel': { pt: 'Só uma folha 1:25 000', en: 'Only one 1:25 000 sheet' },
+  'file.filterSheetAll': { pt: 'Folha 1:25 000: todas', en: '1:25 000 sheet: all' },
+  'file.filterSheetOne': { pt: 'Folha {sheet}', en: 'Sheet {sheet}' },
+  'file.rowsOf': { pt: '{n} de {total} linhas', en: '{n} of {total} rows' },
 
   'file.xlsxHint': { pt: 'todas as linhas', en: 'every row' },
   'file.csvHint': { pt: 'todas as linhas', en: 'every row' },
@@ -403,4 +396,130 @@ export default {
 
   'file.tabFile': { pt: 'Ficheiro', en: 'File' },
   'file.tabQuick': { pt: 'Uma coordenada', en: 'Single coordinate' },
+
+  // ------------------------------------------------------------ map sheets
+  // The registry's notes are written in English; the page says them in the
+  // reader's language.
+  'crs.note.20790': {
+    pt: 'Conhecido em Portugal como Hayford-Gauss Militar; a EPSG chama-lhe "Lisbon (Lisbon) / Portuguese National Grid".',
+    en: 'Known in Portugal as Hayford-Gauss Militar; EPSG names it "Lisbon (Lisbon) / Portuguese National Grid".',
+  },
+  'crs.note.27493': {
+    pt: 'Conhecido em Portugal como Hayford-Gauss IPCC ou Datum 73.',
+    en: 'Known in Portugal as Hayford-Gauss IPCC or Datum 73.',
+  },
+
+  'sheet.col25': { pt: 'Folha 1:25 000 (carta militar)', en: '1:25 000 sheet (military map)' },
+  'sheet.col50': { pt: 'Folha 1:50 000 (carta geológica)', en: '1:50 000 sheet (geological map)' },
+  'sheet.colNone': { pt: '— nenhuma —', en: '— none —' },
+  'sheet.labelCols': { pt: 'Identificar cada ponto por', en: 'Name each point by' },
+  'sheet.labelSecond': { pt: 'Segunda coluna do nome', en: 'Second name column' },
+  'sheet.labelNone': { pt: '— nada —', en: '— nothing —' },
+  'sheet.source': { pt: 'Posição das folhas: {source}.', en: 'Sheet positions: {source}.' },
+  'sheet.summary': { pt: 'folhas: {cols}', en: 'sheets: {cols}' },
+
+  'sheet.statOk': { pt: 'na sua folha', en: 'in their sheet' },
+  'sheet.statFix': { pt: 'a corrigir', en: 'to correct' },
+  'sheet.statFixed': { pt: 'corrigidas', en: 'corrected' },
+  'sheet.statCheck': { pt: 'a confirmar', en: 'to confirm' },
+
+  'sheet.fixesFound': {
+    pt: '{n} linhas estão fora da sua folha, com uma correção segura',
+    ptOne: 'Uma linha está fora da sua folha, com uma correção segura',
+    en: '{n} rows are outside their sheet, with a safe correction',
+    enOne: 'One row is outside its sheet, with a safe correction',
+  },
+  'sheet.fixesChosen': { pt: '{n} corrigidas', ptOne: '1 corrigida', en: '{n} corrected', enOne: '1 corrected' },
+  'sheet.fixesHint': {
+    pt: 'Nada muda sem confirmação. Clicar numa linha mostra-a no mapa, com a posição corrigida.',
+    en: 'Nothing changes without your confirmation. Click a row to see it on the map, with the corrected position.',
+  },
+  'sheet.fixAll': { pt: 'Corrigir todas', en: 'Correct all' },
+  'sheet.gateHint': {
+    pt: 'Responda primeiro às correções das folhas: corrigir, ou não corrigir.',
+    en: 'Answer the sheet corrections first: correct them, or do not.',
+  },
+  'sheet.fixNone': { pt: 'Não corrigir', en: 'Do not correct' },
+  'sheet.checksFound': {
+    pt: '{n} linhas para confirmar no relatório',
+    ptOne: 'Uma linha para confirmar no relatório',
+    en: '{n} rows to confirm against the report',
+    enOne: 'One row to confirm against the report',
+  },
+  'sheet.checksNote': { pt: 'não bloqueiam as descargas', en: 'these do not hold the downloads' },
+  'sheet.declared25': { pt: 'folha {sheet}', en: 'sheet {sheet}' },
+  'sheet.declared50': { pt: 'folha 1:50 000 {sheet}', en: '1:50 000 sheet {sheet}' },
+
+  'sheet.fix.swap': { pt: '{x} e {y} trocados', en: '{x} and {y} swapped' },
+  'sheet.fix.origin-p': {
+    pt: '{y} sem os 300 km da origem falsa', en: '{y} without the 300 km of false northing',
+  },
+  'sheet.fix.origin-m': {
+    pt: '{x} sem os 200 km da origem falsa', en: '{x} without the 200 km of false easting',
+  },
+  'sheet.fix.origin-both': {
+    pt: '{x} e {y} sem a origem falsa', en: '{x} and {y} without the false origin',
+  },
+  'sheet.digit': {
+    pt: '{axis} com um algarismo errado? Assim o ponto cai na folha {sheet}',
+    en: '{axis} with one wrong digit? That puts the point in sheet {sheet}',
+  },
+  'sheet.number': {
+    pt: 'nº da folha errado? As coordenadas caem na folha {sheet}, na 1:50 000 {s50} ({name}), que é o nome escrito na linha',
+    en: 'wrong sheet number? The coordinates fall in sheet {sheet}, in 1:50 000 sheet {s50} ({name}), the name the row gives',
+  },
+  'sheet.off': {
+    pt: 'a {km} km da folha {sheet}; {where}. Sem explicação simples',
+    en: '{km} km from sheet {sheet}; {where}. No simple explanation',
+  },
+  'sheet.at': {
+    pt: 'as coordenadas caem na folha {sheet} (1:50 000 {s50}, {name})',
+    en: 'the coordinates fall in sheet {sheet} (1:50 000 {s50}, {name})',
+  },
+  'sheet.atNone': { pt: 'as coordenadas não caem em nenhuma folha', en: 'the coordinates fall in no sheet' },
+  'sheet.tag.fix': { pt: 'corrigir', en: 'correct' },
+  'sheet.tag.digit': { pt: 'algarismo', en: 'digit' },
+  'sheet.tag.number': { pt: 'nº da folha', en: 'sheet no.' },
+  'sheet.tag.check': { pt: 'verificar', en: 'check' },
+
+  'sheet.rowStatus.fix': { pt: 'fora da folha, correção por responder', en: 'outside its sheet, correction unanswered' },
+  'sheet.rowStatus.fixed': { pt: 'corrigida', en: 'corrected' },
+  'sheet.rowStatus.check': { pt: 'fora da folha, a confirmar', en: 'outside its sheet, to confirm' },
+  'sheet.rowStatus.azores': { pt: 'Açores, por converter', en: 'Azores, not yet converted' },
+
+  'sheet.verdictOk': { pt: 'ok', en: 'ok' },
+  'sheet.verdictFixed': { pt: 'corrigido: {what}', en: 'corrected: {what}' },
+  'sheet.verdictNotFixed': { pt: 'não corrigido: {what}', en: 'not corrected: {what}' },
+  'sheet.verdictCheck': { pt: 'a confirmar: {what}', en: 'to confirm: {what}' },
+  'sheet.verdictAzores': { pt: 'Açores, convertido como EPSG:{system}', en: 'Azores, converted as EPSG:{system}' },
+  'sheet.verdictAzoresPending': { pt: 'Açores, por converter', en: 'Azores, not converted' },
+
+  'sheet.pp25': { pt: 'Folha', en: 'Sheet' },
+  'sheet.pp50': { pt: '1:50 000', en: '1:50 000' },
+  'sheet.ppFile': { pt: 'No ficheiro', en: 'In the file' },
+  'sheet.ppFixed': { pt: 'Corrigido', en: 'Corrected' },
+  'sheet.ppConverted': { pt: 'Convertido', en: 'Converted' },
+  'sheet.ppOk': { pt: '✓ Na folha {sheet}', en: '✓ In sheet {sheet}' },
+  'sheet.ppFixedNow': { pt: '✓ Corrigido ({what}): agora na folha {sheet}', en: '✓ Corrected ({what}): now in sheet {sheet}' },
+  'sheet.ppAzores': { pt: 'Açores, em UTM 26 — por converter', en: 'Azores, in UTM 26 — not converted' },
+
+  // Rows in the Azores' UTM grid inside a file in the mainland's grid.
+  'sheet.azoresFound': {
+    pt: '{n} linhas ({rows}) não são da quadrícula do ficheiro: os valores são UTM das ilhas dos Açores. Ficaram por converter.',
+    ptOne: 'A linha {rows} não é da quadrícula do ficheiro: os valores são UTM das ilhas dos Açores. Ficou por converter.',
+    en: "{n} rows ({rows}) are not in the file's grid: the values are the Azores' UTM. They were left unconverted.",
+    enOne: "Row {rows} is not in the file's grid: the values are the Azores' UTM. It was left unconverted.",
+  },
+  'sheet.azoresDone': {
+    pt: '{n} linhas convertidas como Açores: {system}.',
+    ptOne: 'Uma linha convertida como Açores: {system}.',
+    en: '{n} rows converted as the Azores: {system}.',
+    enOne: 'One row converted as the Azores: {system}.',
+  },
+  'sheet.azoresUse': {
+    pt: 'Converter estas {n} como Açores', ptOne: 'Converter esta como Açores',
+    en: 'Convert these {n} as the Azores', enOne: 'Convert it as the Azores',
+  },
+  'sheet.azoresUndo': { pt: 'Desfazer', en: 'Undo' },
+  'sheet.azoresSystem': { pt: 'Sistema dos Açores', en: 'Azores system' },
 }

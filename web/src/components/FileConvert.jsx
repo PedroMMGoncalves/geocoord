@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import PointsMap, { COLOR_OK, COLOR_SUSPECT } from './PointsMap.jsx'
+import PointsMap, { COLOR_FIXED, COLOR_OK, COLOR_SUSPECT } from './PointsMap.jsx'
+import ResultTable from './ResultTable.jsx'
+import SheetReview, { describeSheetRow } from './SheetReview.jsx'
 import {
   KILOMETRE,
   detectSwaps,
@@ -22,6 +24,7 @@ import {
   buildResult,
   countByStatus,
   featuresInRange,
+  findAzoresRows,
   guessCoordinateColumns,
   pointsSummary,
   toCsv,
@@ -29,6 +32,14 @@ import {
 } from '../core/pipeline.js'
 import * as crs from '../core/crs.js'
 import { isGeospatial, readGeospatialBytes } from '../core/georead.js'
+import {
+  SHEET_SOURCE,
+  checkSheets,
+  guessLabelColumn,
+  guessSheetColumns,
+  militaryKm,
+  sheet25Key,
+} from '../core/sheets.js'
 import {
   SEPARATORS,
   WARN_ROWS,
@@ -58,7 +69,6 @@ function formatCount(n, kind) {
     ? n.toLocaleString()
     : `${Math.round(n / (1024 * 1024)).toLocaleString()} MB`
 }
-const PREVIEW_ROWS = 50
 
 const SEPARATOR_LABELS = [
   { value: 'auto', key: 'file.sepAuto' },
@@ -257,23 +267,6 @@ function DownloadButton({ label, hint, file, primary = false, onClick, disabled 
   )
 }
 
-/**
- * A converted value in the table, its integer part bright and its fraction
- * dimmer, so a column of decimals lines up and the eye lands on the degrees
- * before the millionths. Anything that is not a plain decimal is left alone.
- */
-function Cell({ value }) {
-  const s = value === null || value === undefined ? '' : String(value)
-  const m = /^(-?\d+\.)(\d+)$/.exec(s)
-  if (!m) return s
-  return (
-    <>
-      <span className="i">{m[1]}</span>
-      <span className="f">{m[2]}</span>
-    </>
-  )
-}
-
 export default function FileConvert() {
   const t = useT()
 
@@ -303,6 +296,27 @@ export default function FileConvert() {
   const [scale, setScale] = useState(1)
   const [accepted, setAccepted] = useState(() => new Set())
 
+  // The sheet columns - '' for none - and whether the user has set them; until
+  // then they follow the guess, which can only be made once there are
+  // coordinates to agree with.
+  const [col25, setCol25] = useState('')
+  const [col50, setCol50] = useState('')
+  const sheetTouched = useRef(false)
+  // What names a point on the map and in the lists: one column, or two read
+  // together ("Troia · AC 3").
+  const [labelA, setLabelA] = useState('')
+  const [labelB, setLabelB] = useState('')
+  // The sheet corrections the user accepted, and whether they have answered.
+  const [fixAccepted, setFixAccepted] = useState(() => new Set())
+  const [fixReviewed, setFixReviewed] = useState(false)
+  // Rows in the Azores' UTM grid inside a file in another system, whether to
+  // read them as such, and in which of the islands' systems.
+  const [azoresOn, setAzoresOn] = useState(false)
+  const [azoresSystem, setAzoresSystem] = useState('')
+  // The point chosen on the map, in the table or in a list, and where.
+  const [selection, setSelection] = useState({ row: null, from: null })
+  const select = useCallback((row, from) => setSelection({ row, from }), [])
+
   // The coordinate systems. 'utm' and 'custom' are the two escape hatches: a
   // UTM zone by number, and a proj4 definition pasted whole. Neither needs this
   // application to have guessed at a national datum it cannot verify.
@@ -329,11 +343,6 @@ export default function FileConvert() {
   // one promise this application makes about the data is that nothing is
   // changed without the user's confirmation, and a download button above an
   // unanswered question is an invitation to take the file without deciding.
-  // Show only what needs looking at. Off by default: most files have nothing
-  // to review, and a filter that starts on would hide every row of a clean
-  // one behind a checkbox nobody knew was ticked.
-  const [onlyProblems, setOnlyProblems] = useState(false)
-
   const [reviewed, setReviewed] = useState(false)
   const [rvOpen, setRvOpen] = useState(true)
   const rvTouched = useRef(false)
@@ -376,6 +385,12 @@ export default function FileConvert() {
       epsg: entry.epsg,
     }
   }, [customProj4, t, utmSouth, utmZone])
+
+  const crsNote = useCallback((epsg) => {
+    const key = `crs.note.${epsg}`
+    const shown = t(key)
+    return shown === key ? crs.REGISTRY[String(epsg)].note : shown
+  }, [t])
 
   const inputCrs = resolve(inputSel)
   const outputCrs = resolve(outputSel)
@@ -429,6 +444,27 @@ export default function FileConvert() {
   }, [])
 
   /**
+   * What belongs to one file's work, and must not carry over to the next. A
+   * re-read of the same file - another sheet, another separator - keeps the
+   * column choices: they follow the columns, and are guessed again if those
+   * change.
+   */
+  const resetWork = useCallback(({ keepColumns = false } = {}) => {
+    if (!keepColumns) {
+      setCol25('')
+      setCol50('')
+      sheetTouched.current = false
+      setLabelA('')
+      setLabelB('')
+    }
+    setFixAccepted(new Set())
+    setFixReviewed(false)
+    setAzoresOn(false)
+    setAzoresSystem('')
+    setSelection({ row: null, from: null })
+  }, [])
+
+  /**
    * Everything loaded is thrown away first.
    *
    * It used to be thrown away only on success, so a file that failed to open
@@ -455,10 +491,11 @@ export default function FileConvert() {
     setFinal(null)
     setAccepted(new Set())
     setScale(1)
+    resetWork()
     setNotice(null)
     touched.current = new Set()
     setOpenCards({ 1: true, 2: true, 3: true, 4: true })
-  }, [])
+  }, [resetWork])
 
   /** A read failure, said in the user's language rather than the exception's. */
   const reportReadError = useCallback((e) => {
@@ -511,12 +548,12 @@ export default function FileConvert() {
     setSource({ name: file.name, table })
     setAccepted(new Set())
     setScale(1)
+    resetWork()
     setPasting(false)
     // A new file starts the sequence over: the file card folds to its
     // summary and the rest open as they are reached.
     touched.current = new Set()
     rvTouched.current = false
-    setOnlyProblems(false)
     setOpenCards({ 1: false, 2: true, 3: true, 4: true })
 
     // A file that names its own coordinate system has answered the question
@@ -561,6 +598,7 @@ export default function FileConvert() {
     setSource({ name: 'colado.csv', table })
     setAccepted(new Set())
     setScale(1)
+    resetWork()
     setPasting(false)
     touched.current = new Set()
     rvTouched.current = false
@@ -581,6 +619,7 @@ export default function FileConvert() {
         setSource((s) => (s === null ? s : { ...s, table }))
         setAccepted(new Set())
         setScale(1)
+        resetWork({ keepColumns: true })
       } catch (e) {
         if (!cancelled) reportReadError(e)
       }
@@ -613,6 +652,20 @@ export default function FileConvert() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columnKey, projectedInput, region])
 
+  // The column that names a point, guessed once per set of columns.
+  useEffect(() => {
+    if (columns.length === 0 || !source) return
+    setLabelA(guessLabelColumn(columns, source.table.rows) ?? '')
+    setLabelB('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnKey])
+
+  // The Azores rows, read in their own system once the user has said so.
+  const [azores, setAzores] = useState(null)
+  const rowInput = azoresOn && azores && azoresSystem && crs.REGISTRY[azoresSystem]
+    ? { rows: new Set(azores.rows), proj4: crs.REGISTRY[azoresSystem].proj4 }
+    : null
+
   // Building is asynchronous now: a coordinate system may have to be fetched.
   // A selection changed while an earlier build is still running must not have
   // the stale result land on top of the newer one.
@@ -633,6 +686,7 @@ export default function FileConvert() {
       regionMask: region === 'auto' ? null : REGION_MASKS[region],
       applyRegionSign,
       scale,
+      rowInput,
     }).then((result) => {
       if (cancelled) return
       setConverted(result)
@@ -646,7 +700,130 @@ export default function FileConvert() {
     // inputCrs/outputCrs are rebuilt every render; their proj4 is what matters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, latCol, lonCol, decimals, addDms, region, applyRegionSign, scale,
-      inputCrs?.proj4, inputCrs?.kind, outputCrs?.proj4, outputCrs?.suffix])
+      inputCrs?.proj4, inputCrs?.kind, outputCrs?.proj4, outputCrs?.suffix,
+      rowInput?.proj4, azores?.rows.join(',')])
+
+  // Rows that are the Azores' UTM grid in a file in another system. Looked for
+  // while they are still read as the file's own system; once converted as the
+  // Azores they are no longer outside, and the finding must not vanish.
+  useEffect(() => {
+    if (!converted || azoresOn) return undefined
+    let cancelled = false
+    findAzoresRows(converted.inputXY, converted.lats, converted.lons,
+      region === 'auto' ? null : REGION_MASKS[region]).then((found) => {
+      if (cancelled) return
+      setAzores(found)
+      if (found) setAzoresSystem((s) => (found.systems.includes(s) ? s : found.system))
+    })
+    return () => { cancelled = true }
+  }, [converted, azoresOn, region])
+
+  // Every row in the military grid, in km: what the sheets are measured in.
+  const [gridKm, setGridKm] = useState(null)
+  useEffect(() => {
+    if (!converted) {
+      setGridKm(null)
+      return undefined
+    }
+    let cancelled = false
+    militaryKm(converted.lats, converted.lons).then((km) => { if (!cancelled) setGridKm(km) })
+    return () => { cancelled = true }
+  }, [converted])
+
+  // The sheet columns follow the guess until the user picks them.
+  useEffect(() => {
+    if (!gridKm || !source || sheetTouched.current) return
+    const found = guessSheetColumns(columns, source.table.rows, gridKm, [latCol, lonCol])
+    setCol25(found.s25 ?? '')
+    setCol50(found.s50 ?? '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridKm])
+
+  // The check itself, and where each proposed correction would put its point.
+  const [sheetCheck, setSheetCheck] = useState(null)
+  const [fixPositions, setFixPositions] = useState(() => new Map())
+  useEffect(() => {
+    if (!gridKm || !source || (!col25 && !col50) || !converted) {
+      setSheetCheck(null)
+      setFixPositions(new Map())
+      return undefined
+    }
+    let cancelled = false
+    const at25 = source.table.columns.indexOf(col25)
+    const at50 = source.table.columns.indexOf(col50)
+    const projected = projectedInput && converted.inputXY
+    ;(async () => {
+      const check = await checkSheets({
+        km: gridKm,
+        declared25: at25 >= 0 ? source.table.rows.map((r) => r[at25]) : null,
+        declared50: at50 >= 0 ? source.table.rows.map((r) => r[at50]) : null,
+        xy: projected ? converted.inputXY : null,
+        inputProj4: projected ? inputCrs.proj4 : null,
+        military: inputCrs?.epsg === 20790,
+        cells: source.table.rows,
+      })
+      const withFix = check.map((c, i) => [c, i]).filter(([c]) => c.fix)
+      const wgs = projected && withFix.length
+        ? await crs.transformAll(withFix.map(([c]) => [c.fix.x, c.fix.y]), inputCrs.proj4, crs.WGS84_PROJ4)
+        : []
+      if (cancelled) return
+      setSheetCheck(check)
+      setFixPositions(new Map(withFix.map(([, i], k) => [i, [wgs[k][1], wgs[k][0]]])))
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridKm, col25, col50])
+
+  // The corrections it is sure of, which are a question; and what only the
+  // source can settle, which is not.
+  const sheetFixes = useMemo(() => (sheetCheck ?? [])
+    .map((c, i) => ({ ...c, i }))
+    .filter((c) => c.status === 'off' && c.fix && c.confidence === 'alta'), [sheetCheck])
+  const sheetChecks = useMemo(() => (sheetCheck ?? [])
+    .map((c, i) => ({ ...c, i }))
+    .filter((c) => c.status === 'off' && !(c.fix && c.confidence === 'alta')), [sheetCheck])
+  const fixKey = sheetFixes.map((c) => c.i).join(',')
+  useEffect(() => {
+    setFixReviewed(false)
+  }, [fixKey])
+  const answerFixes = useCallback((next) => {
+    setFixAccepted(next)
+    setFixReviewed(true)
+  }, [])
+
+  // The result with the accepted corrections in it: a second build, so the
+  // check keeps reading the file as written and its lists do not empty
+  // themselves as they are answered.
+  const rowFixes = useMemo(() => {
+    const m = new Map()
+    for (const c of sheetFixes) if (fixAccepted.has(c.i)) m.set(c.i, [c.fix.x, c.fix.y])
+    return m
+  }, [sheetFixes, fixAccepted])
+  const [fixedBase, setFixedBase] = useState(null)
+  useEffect(() => {
+    if (!converted) {
+      setFixedBase(null)
+      return undefined
+    }
+    if (rowFixes.size === 0) {
+      setFixedBase(converted)
+      return undefined
+    }
+    let cancelled = false
+    buildResult(source.table, latCol, lonCol, {
+      decimals,
+      addDms,
+      input: inputCrs,
+      output: outputCrs,
+      regionMask: region === 'auto' ? null : REGION_MASKS[region],
+      applyRegionSign,
+      scale,
+      rowInput,
+      rowFixes,
+    }).then((result) => { if (!cancelled) setFixedBase(result) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [converted, rowFixes])
 
   const detection = useMemo(() => {
     if (!converted) return null
@@ -684,28 +861,34 @@ export default function FileConvert() {
   // reason as the build: the second system has to be recomputed.
   const [final, setFinal] = useState(null)
   useEffect(() => {
-    if (!converted) {
+    if (!fixedBase) {
       setFinal(null)
       return undefined
     }
     if (accepted.size === 0) {
-      setFinal(converted)
+      setFinal(fixedBase)
       return undefined
     }
     let cancelled = false
-    applySwaps(converted, accepted, { addDms }).then((r) => {
+    applySwaps(fixedBase, accepted, { addDms }).then((r) => {
       if (!cancelled) setFinal(r)
     })
     return () => { cancelled = true }
-  }, [converted, accepted, addDms])
+  }, [fixedBase, accepted, addDms])
 
+  // A row the sheet check has an answer for is its question, not the swap
+  // review's: reversing latitude and longitude is not the fix for M and P
+  // written the other way round, and asking both would ask twice.
+  const sheetOwned = useMemo(() => new Set(
+    (sheetCheck ?? []).map((c, i) => (c.fix || c.numberSuspect ? i : -1)).filter((i) => i >= 0),
+  ), [sheetCheck])
   const suspects = useMemo(() => {
     if (!detection) return []
     return detection.labels
       .map((label, i) => ({ label, i }))
-      .filter(({ label }) => label === 'swap_range' || label === 'swap_cluster'
-        || label === 'swap_axis')
-  }, [detection])
+      .filter(({ label, i }) => (label === 'swap_range' || label === 'swap_cluster'
+        || label === 'swap_axis') && !sheetOwned.has(i))
+  }, [detection, sheetOwned])
 
   // The question is asked once per set of suspect rows. Changing the decimal
   // places rebuilds the result but not the rows in doubt, and an answer already
@@ -716,7 +899,7 @@ export default function FileConvert() {
     setRvOpen(true)
     rvTouched.current = false
   }, [suspectsKey])
-  const reviewPending = suspects.length > 0 && !reviewed
+  const reviewPending = (suspects.length > 0 && !reviewed) || (sheetFixes.length > 0 && !fixReviewed)
 
   /** The three ways of answering, and what each does to the panel. */
   const answer = useCallback((next) => {
@@ -751,17 +934,52 @@ export default function FileConvert() {
   // no longer pending review, and colouring it as suspect would say otherwise.
   const displayLabels = useMemo(() => {
     if (!detection) return []
-    return detection.labels.map((label, i) => (accepted.has(i) ? 'ok' : label))
-  }, [accepted, detection])
+    return detection.labels.map((label, i) => (accepted.has(i) || sheetOwned.has(i) ? 'ok' : label))
+  }, [accepted, detection, sheetOwned])
+
+  // A row's standing in the sheet check, for the table and the map: 'fix'
+  // waiting for an answer, 'fixed' once accepted, 'check' for the source to
+  // settle, 'azores' for island rows not yet read as such, or null.
+  const azoresRows = useMemo(() => new Set(azores?.rows ?? []), [azores])
+  const sheetState = useCallback((i) => {
+    if (azoresRows.has(i) && !azoresOn) return 'azores'
+    const c = sheetCheck?.[i]
+    if (!c || c.status !== 'off') return null
+    if (c.fix && c.confidence === 'alta') return fixAccepted.has(i) ? 'fixed' : 'fix'
+    return 'check'
+  }, [azoresRows, azoresOn, sheetCheck, fixAccepted])
+
+  // Points outside the declared region, less the rows the sheet check or the
+  // Azores offer already speaks for: two boxes saying the same thing about
+  // the same rows is one box too many.
+  const regionDetected = useMemo(() => {
+    if (!detection || !converted) return new Map()
+    const spoken = (i) => azoresRows.has(i) || sheetCheck?.[i]?.status === 'off'
+    const labels = detection.labels.map((l, i) => (spoken(i) ? 'missing' : l))
+    const mask = region === 'auto' ? null : REGION_MASKS[region]
+    return regionCheck(converted.lats, converted.lons, labels, REGION_MASKS, { mask }).detected
+  }, [detection, converted, azoresRows, sheetCheck, region])
+
+  const needsReview = useCallback(
+    (i) => (displayLabels[i] ?? 'ok') !== 'ok' || ['fix', 'check', 'azores'].includes(sheetState(i)),
+    [displayLabels, sheetState],
+  )
+
+  // What a point is called: the label column, or two read together.
+  const labelOf = useCallback((i) => {
+    if (!source) return ''
+    const at = [labelA, labelB].filter(Boolean).map((c) => source.table.columns.indexOf(c)).filter((c) => c >= 0)
+    return at.map((c) => source.table.rows[i]?.[c]).filter((v) => v !== null && v !== undefined && v !== '')
+      .map(String).join(' · ')
+  }, [source, labelA, labelB])
   const counts = useMemo(() => countByStatus(displayLabels), [displayLabels])
-  const summary = final ? pointsSummary(final) : null
+  const summary = final
+    ? pointsSummary(azoresRows.size && !azoresOn
+      ? { ...final, lats: final.lats.map((v, i) => (azoresRows.has(i) ? null : v)), lons: final.lons.map((v, i) => (azoresRows.has(i) ? null : v)) }
+      : final)
+    : null
   const baseName = sanitizeFilename((source?.name ?? 'coordinates').replace(/\.[^.]+$/, ''), 'coordinates')
 
-  const exportable = useMemo(() => {
-    if (!final) return null
-    const { features, fieldNames } = featuresInRange(final)
-    return { features, fieldNames }
-  }, [final])
 
   // What to draw. A row flagged swap_range is drawn where it would be if the
   // columns were the other way round, which is the only place it could be: as
@@ -772,37 +990,126 @@ export default function FileConvert() {
     for (let i = 0; i < final.rows.length; i += 1) {
       const lat = final.lats[i]
       const lon = final.lons[i]
-      const label = accepted.has(i) ? 'ok' : detection.labels[i]
+      // Azores rows not yet read as such are not points anywhere: read as
+      // the mainland's grid they are in the Arctic.
+      if (sheetState(i) === 'azores') continue
+      const fixed = sheetState(i) === 'fixed'
+      const name = labelOf(i)
       if (inRange(lat, 'lat') && inRange(lon, 'lon')) {
-        out.push({ lat, lon, row: i, label, suspect: label !== 'ok' })
+        out.push({ lat, lon, row: i, label: name, fixed, suspect: needsReview(i) })
       } else if (inRange(lon, 'lat') && inRange(lat, 'lon')) {
-        out.push({ lat: lon, lon: lat, row: i, label, suspect: true })
+        out.push({ lat: lon, lon: lat, row: i, label: name, fixed, suspect: true })
       }
     }
     return out
-  }, [final, detection, accepted])
+  }, [final, detection, sheetState, needsReview, labelOf])
+
+  // Where the chosen row's proposed correction would put it, while unanswered.
+  const preview = useMemo(() => {
+    const i = selection.row
+    if (i === null || !fixPositions.has(i) || sheetState(i) === 'fixed') return null
+    return { to: fixPositions.get(i) }
+  }, [selection.row, fixPositions, sheetState])
 
   // Which columns the pipeline added, as opposed to the file's own. They get
   // the accent rule in the header and the split cells, because they are what
   // the file was brought here for.
   const inputColumns = useMemo(() => new Set(source?.table.columns ?? []), [source])
-  const firstOut = final ? final.columns.findIndex((c) => !inputColumns.has(c)) : -1
 
-  // The rows the preview shows, as (row, original index) so the number in the
-  // first column keeps meaning the line in the file rather than the position
-  // in the filtered view.
-  const problemCount = useMemo(
-    () => displayLabels.filter((l) => l !== 'ok').length,
-    [displayLabels],
-  )
-  const shown = useMemo(() => {
-    if (!final) return []
-    const numbered = final.rows.map((row, i) => [row, i])
-    const kept = onlyProblems
-      ? numbered.filter(([, i]) => displayLabels[i] !== 'ok')
-      : numbered
-    return kept.slice(0, PREVIEW_ROWS)
-  }, [final, onlyProblems, displayLabels])
+  const describe = useCallback((c) => describeSheetRow(t, c, {
+    cols: [latCol, lonCol],
+    scale: projectedInput ? scale : 1,
+    xy: converted?.inputXY?.[c.i] ?? null,
+  }), [t, latCol, lonCol, projectedInput, scale, converted])
+
+  /** The verdict written to the file: a word for the clean rows, a sentence for the rest. */
+  const verdict = useCallback((i) => {
+    const c = sheetCheck?.[i]
+    if (azoresRows.has(i)) return azoresOn ? t('sheet.verdictAzores', { system: azoresSystem }) : t('sheet.verdictAzoresPending')
+    if (!c || c.status === 'unknown' || c.status === 'none') return ''
+    if (c.status === 'ok') return t('sheet.verdictOk')
+    const d = describe({ ...c, i })
+    const what = d.from !== undefined ? `${d.what}: ${d.from} → ${d.to}` : d.what
+    if (sheetState(i) === 'fixed') return t('sheet.verdictFixed', { what })
+    if (sheetState(i) === 'fix') return t('sheet.verdictNotFixed', { what })
+    return t('sheet.verdictCheck', { what })
+  }, [sheetCheck, azoresRows, azoresOn, azoresSystem, t, describe, sheetState])
+
+  // The table shown and written: the result, plus the sheet check's two
+  // columns when there is a sheet column to check against.
+  const output = useMemo(() => {
+    if (!final) return null
+    if (!sheetCheck) return final
+    const at = (i) => (sheetState(i) === 'fixed' ? sheetCheck[i].declared25 ?? sheetCheck[i].at25 : sheetCheck[i].at25)
+    return {
+      ...final,
+      columns: [...final.columns, 'Folha_coordenadas', 'Verificacao_folha'],
+      rows: final.rows.map((row, i) => [...row, at(i) ?? '', verdict(i)]),
+    }
+  }, [final, sheetCheck, sheetState, verdict])
+
+  const exportable = useMemo(() => {
+    if (!output) return null
+    const { features, fieldNames } = featuresInRange(output)
+    return { features, fieldNames }
+  }, [output])
+
+  // The popup for a point: what it is, where its file says it is, where it is.
+  const details = useCallback((i) => {
+    const c = sheetCheck?.[i]
+    const xy = converted?.inputXY?.[i]
+    const state = sheetState(i)
+    const rows = []
+    if (c?.declared25) rows.push([t('sheet.pp25'), c.declared25])
+    if (c?.declared50 || c?.at50) rows.push([t('sheet.pp50'), [c.declared50, c.at50name].filter(Boolean).join(' · ') || c.at50])
+    if (source) {
+      const xi = source.table.columns.indexOf(latCol)
+      const yi = source.table.columns.indexOf(lonCol)
+      rows.push([t('sheet.ppFile'), `${latCol} ${source.table.rows[i]?.[xi] ?? ''} · ${lonCol} ${source.table.rows[i]?.[yi] ?? ''}`])
+    }
+    if (state === 'fixed' && c?.fix && xy) {
+      const s = projectedInput ? scale : 1
+      rows.push([t('sheet.ppFixed'), `${latCol} ${Number((c.fix.x / s).toFixed(3))} · ${lonCol} ${Number((c.fix.y / s).toFixed(3))}`])
+    }
+    if (final) rows.push([t('sheet.ppConverted'), `${final.lats[i] ?? '—'}, ${final.lons[i] ?? '—'}`])
+    let status = null
+    if (state === 'azores') status = { text: t('sheet.ppAzores'), tone: 'bad' }
+    else if (state === 'fixed') status = { text: t('sheet.ppFixedNow', { what: describe({ ...c, i }).what, sheet: c.declared25 ?? c.declared50 }), tone: 'ok' }
+    else if (state === 'fix' || state === 'check') {
+      const d = describe({ ...c, i })
+      status = { text: `▲ ${d.what}${d.from !== undefined ? `: ${d.from} → ${d.to}` : ''}`, tone: 'bad' }
+    } else if (c?.status === 'ok') status = { text: t('sheet.ppOk', { sheet: c.declared25 ?? c.declared50 }), tone: 'ok' }
+    else if ((displayLabels[i] ?? 'ok') !== 'ok') status = { text: t(`file.status.${displayLabels[i]}`), tone: 'bad' }
+    return {
+      title: labelOf(i) || t('file.rowN', { n: i + 1 }),
+      sub: labelOf(i) ? t('file.rowN', { n: i + 1 }) : '',
+      rows,
+      status,
+    }
+  }, [sheetCheck, converted, sheetState, t, source, latCol, lonCol, projectedInput, scale, final,
+      describe, displayLabels, labelOf])
+
+  const tableTone = useCallback((i) => {
+    const s = sheetState(i)
+    if (s === 'fix' || s === 'check' || s === 'azores') return 'review'
+    return STATUS_TONE[displayLabels[i]] ?? ''
+  }, [sheetState, displayLabels])
+  const tableMark = useCallback((i) => {
+    const s = sheetState(i)
+    if (s === 'fix' || s === 'azores') return '▲ '
+    if (s === 'check') return '? '
+    if (s === 'fixed') return '✓ '
+    return STATUS_MARK[displayLabels[i]] ?? ''
+  }, [sheetState, displayLabels])
+  const tableStatus = useCallback((i) => {
+    const s = sheetState(i)
+    if (s) return t(`sheet.rowStatus.${s}`)
+    return t(`file.rowStatus.${displayLabels[i] ?? 'ok'}`)
+  }, [sheetState, displayLabels, t])
+  const tableSheets = useMemo(() => {
+    if (!sheetCheck) return null
+    return sheetCheck.map((c) => c.declared25 ?? null)
+  }, [sheetCheck])
 
   function onDrop(e) {
     e.preventDefault()
@@ -814,6 +1121,8 @@ export default function FileConvert() {
   const okCount = counts.get('ok') ?? 0
   const badCount = (counts.get('out_of_range') ?? 0) + (counts.get('missing') ?? 0)
   const pendingCount = suspects.filter(({ i }) => !accepted.has(i)).length
+    + sheetFixes.filter((c) => !fixAccepted.has(c.i)).length
+  const sheetOk = sheetCheck ? sheetCheck.filter((c) => c.status === 'ok').length : 0
 
   // The summaries the closed cards show.
   const summary1 = source
@@ -825,6 +1134,7 @@ export default function FileConvert() {
       regionLabel(region),
       inputCrs ? `${inputCrs.label}${inputCrs.epsg ? ` — EPSG:${inputCrs.epsg}` : ''}` : null,
       outputCrs ? `+ ${outputCrs.label}` : null,
+      col25 || col50 ? t('sheet.summary', { cols: [col25, col50].filter(Boolean).join(' / ') }) : null,
       `${decimals} ${t('file.decimals').toLowerCase()}`,
     ].filter(Boolean).join(' · ')
     : null
@@ -839,8 +1149,10 @@ export default function FileConvert() {
       )}
     </>
   ) : null
+  // What the downloads are waiting for, in the words of the question.
+  const gateText = sheetFixes.length > 0 && !fixReviewed ? t('sheet.gateHint') : t('file.swapsHint')
   const summary4 = reviewPending
-    ? <span className="m-review">{t('file.swapsHint')}</span>
+    ? <span className="m-review">{gateText}</span>
     : 'Excel · CSV · GeoJSON · KML · Shapefile · GPX'
 
   const formats = t('file.formats').split(',').map((s) => s.trim())
@@ -1051,8 +1363,37 @@ export default function FileConvert() {
             </div>
 
             {inputCrs !== null && inputCrs.epsg !== null && crs.REGISTRY[String(inputCrs.epsg)]?.note && (
-              <p className="notice">{crs.REGISTRY[String(inputCrs.epsg)].note}</p>
+              <p className="notice">{crsNote(inputCrs.epsg)}</p>
             )}
+
+            <div className="fields3 sheet-fields">
+              <Select id="col-25" label={t('sheet.col25')} value={col25}
+                      onChange={(v) => { sheetTouched.current = true; setCol25(v) }}>
+                <option value="">{t('sheet.colNone')}</option>
+                {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <Select id="col-50" label={t('sheet.col50')} value={col50}
+                      onChange={(v) => { sheetTouched.current = true; setCol50(v) }}>
+                <option value="">{t('sheet.colNone')}</option>
+                {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <div className="field">
+                <label htmlFor="label-a">{t('sheet.labelCols')}</label>
+                <div className="two">
+                  <select id="label-a" className="sel" value={labelA} onChange={(e) => setLabelA(e.target.value)}>
+                    <option value="">{t('sheet.labelNone')}</option>
+                    {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <span aria-hidden="true">+</span>
+                  <select id="label-b" className="sel" value={labelB} aria-label={t('sheet.labelSecond')}
+                          onChange={(e) => setLabelB(e.target.value)}>
+                    <option value="">{t('sheet.labelNone')}</option>
+                    {columns.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            {(col25 || col50) && <p className="src">{t('sheet.source', { source: SHEET_SOURCE })}</p>}
 
             <div className="opts">
               <span className="range">
@@ -1144,6 +1485,31 @@ export default function FileConvert() {
                     </div>
                   ) : null
                 ))}
+                {sheetCheck && (
+                  <>
+                    <div className="stat">
+                      <div className="n">{sheetOk}</div>
+                      <div className="l">{t('sheet.statOk')}</div>
+                    </div>
+                    {sheetFixes.length > 0 && (fixReviewed ? (
+                      <div className="stat">
+                        <div className="n"><span className="mk" aria-hidden="true">✓</span>{rowFixes.size}</div>
+                        <div className="l">{t('sheet.statFixed')}</div>
+                      </div>
+                    ) : (
+                      <div className="stat review">
+                        <div className="n"><span className="mk" aria-hidden="true">▲</span>{sheetFixes.length}</div>
+                        <div className="l">{t('sheet.statFix')}</div>
+                      </div>
+                    ))}
+                    {sheetChecks.length > 0 && (
+                      <div className="stat">
+                        <div className="n"><span className="mk" aria-hidden="true">?</span>{sheetChecks.length}</div>
+                        <div className="l">{t('sheet.statCheck')}</div>
+                      </div>
+                    )}
+                  </>
+                )}
                 {summary && (
                   <dl className="sum">
                     <div><dt>{t('file.valid')}</dt><dd className="count">{summary.count}</dd></div>
@@ -1166,7 +1532,7 @@ export default function FileConvert() {
                   saying what would put them somewhere. */}
               {(() => {
                 const chosenName = regionLabel(region)
-                const entries = [...detection.detected]
+                const entries = [...regionDetected]
                   .filter(([name]) => name !== null
                     || (suggestion === null && !converted?.scaleSuggestion))
                 if (entries.length === 0) return null
@@ -1258,6 +1624,45 @@ export default function FileConvert() {
                 </div>
               )}
 
+              {azores && (
+                <div className="notice">
+                  <p className="m-0">
+                    {azoresOn
+                      ? t('sheet.azoresDone', { n: azores.rows.length, system: crs.REGISTRY[azoresSystem]?.pt ?? azoresSystem })
+                      : t('sheet.azoresFound', {
+                        n: azores.rows.length,
+                        rows: azores.rows.length > 3
+                          ? `${azores.rows[0] + 1}…${azores.rows[azores.rows.length - 1] + 1}`
+                          : azores.rows.map((i) => i + 1).join(', '),
+                      })}
+                  </p>
+                  <div className="row-actions">
+                    <button type="button" className={`btn sm ${azoresOn ? '' : 'accent-line'}`}
+                            onClick={() => setAzoresOn((v) => !v)}>
+                      {azoresOn ? t('sheet.azoresUndo') : t('sheet.azoresUse', { n: azores.rows.length })}
+                    </button>
+                    <select className="sel sm" value={azoresSystem} aria-label={t('sheet.azoresSystem')}
+                            onChange={(e) => setAzoresSystem(e.target.value)}>
+                      {azores.systems.map((code) => (
+                        <option key={code} value={code}>{crs.REGISTRY[code]?.pt} — EPSG:{code}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <SheetReview
+                fixes={sheetFixes}
+                checks={sheetChecks}
+                accepted={fixAccepted}
+                reviewed={fixReviewed}
+                onAnswer={answerFixes}
+                onPick={(i) => select(i, 'list')}
+                selected={selection.row}
+                labelOf={labelOf}
+                describe={describe}
+              />
+
               {suspects.length > 0 && (
                 <div className={`rv ${reviewed ? 'resolved' : ''}`}>
                   <h3 className="rv-h">
@@ -1328,10 +1733,22 @@ export default function FileConvert() {
                   <h3>{t('file.stepMap')}</h3>
                   <span className="legend"><i style={{ background: COLOR_OK }} />{t('map.legendOk')}</span>
                   <span className="legend"><i style={{ background: COLOR_SUSPECT }} />{t('map.legendSuspect')}</span>
+                  {sheetFixes.length > 0 && (
+                    <span className="legend"><i className="hollow" style={{ borderColor: COLOR_FIXED }} />{t('map.legendFixed')}</span>
+                  )}
+                  <span className="sub">{t('map.hint')}</span>
                 </div>
                 {mapPoints.length > 0 ? (
                   <div className="map-well">
-                    <PointsMap points={mapPoints} />
+                    <PointsMap
+                      points={mapPoints}
+                      selected={selection.row}
+                      selectedFrom={selection.from}
+                      onSelect={select}
+                      preview={preview}
+                      details={details}
+                      fitKey={`${source.name}|${latCol}|${lonCol}|${inputSel}|${scale}|${azoresOn}`}
+                    />
                   </div>
                 ) : (
                   <div className="pane-empty" style={{ minHeight: '200px' }}>
@@ -1341,86 +1758,20 @@ export default function FileConvert() {
                 )}
               </div>
 
-              <div className="blk">
-                <div className="cap">
-                  <h3>{t('file.tableHeading')}</h3>
-                  <span className="sub">
-                    {onlyProblems
-                      ? t('file.previewProblems', { n: shown.length, total: final.rows.length })
-                      : final.rows.length > PREVIEW_ROWS
-                        ? t('file.previewNote', { shown: PREVIEW_ROWS, total: final.rows.length })
-                        : t('file.previewAll', { n: final.rows.length })}
-                  </span>
-                  {problemCount > 0 && (
-                    <label className="ml-auto flex items-center gap-2 text-xs text-ink-2">
-                      <input
-                        type="checkbox"
-                        className="cb"
-                        checked={onlyProblems}
-                        onChange={(e) => setOnlyProblems(e.target.checked)}
-                      />
-                      <span>{t('file.onlyProblems')}</span>
-                    </label>
-                  )}
-                </div>
-                <div className="tbl" tabIndex={0} role="region" aria-label={t('file.tableRegion')}>
-                  <table>
-                    <caption className="sr-only">
-                      {t('file.tableCaption', { shown: shown.length, total: final.rows.length })}
-                    </caption>
-                    <thead>
-                      <tr>
-                        <th scope="col" className="num">{t('file.rowHeader')}</th>
-                        {final.columns.map((c, ci) => {
-                          const out = !inputColumns.has(c)
-                          const numeric = /_(DD|\d+)$|^(X|Y)_/.test(c) && !/WKT/.test(c)
-                          return (
-                            <th
-                              key={c}
-                              scope="col"
-                              className={`${out ? 'out' : ''} ${numeric ? 'num' : ''} ${ci === firstOut ? 'first-out' : ''}`}
-                            >
-                              {c}
-                            </th>
-                          )
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {shown.map(([row, i]) => (
-                        <tr key={i} className={STATUS_TONE[displayLabels[i]] ?? ''}>
-                          {/* The status was in the colour and nowhere else, so a
-                              screen reader was told nothing and anyone who cannot
-                              separate amber from green saw nothing either. The
-                              mark carries it visually, the hidden text aloud. */}
-                          <th scope="row">
-                            <span aria-hidden="true">{STATUS_MARK[displayLabels[i]] ?? ''}</span>
-                            {i + 1}
-                            <span className="sr-only">
-                              {', '}
-                              {t(`file.rowStatus.${displayLabels[i]}`)}
-                            </span>
-                          </th>
-                          {row.map((v, c) => {
-                            const name = final.columns[c]
-                            const out = !inputColumns.has(name)
-                            const gms = /_GMS$/.test(name)
-                            const numeric = out && !gms && !/WKT/.test(name)
-                            return (
-                              <td
-                                key={c}
-                                className={`${out ? 'out' : ''} ${numeric ? 'num' : ''} ${gms ? 'gms' : ''} ${c === firstOut ? 'first-out' : ''}`}
-                              >
-                                {out && numeric ? <Cell value={v} /> : (v === null || v === undefined ? '' : String(v))}
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <ResultTable
+                columns={output.columns}
+                rows={output.rows}
+                inputColumns={inputColumns}
+                tone={tableTone}
+                mark={tableMark}
+                statusText={tableStatus}
+                needsReview={needsReview}
+                sheets={tableSheets}
+                selected={selection.row}
+                selectedFrom={selection.from}
+                onSelect={select}
+                resetKey={`${source.name}|${columnKey}`}
+              />
             </Card>
 
             {/* Gated while the swap question is open: closed, marked, its
@@ -1436,7 +1787,7 @@ export default function FileConvert() {
               className={reviewPending ? 'gated' : ''}
             >
               {reviewPending && (
-                <p className="gate"><span aria-hidden="true">▲</span>{t('file.swapsHint')}</p>
+                <p className="gate"><span aria-hidden="true">▲</span>{gateText}</p>
               )}
               <div className="dl">
                 <DownloadButton
@@ -1446,7 +1797,7 @@ export default function FileConvert() {
                   primary
                   disabled={reviewPending}
                   onClick={async () => download(
-                    await toExcelBytes(final),
+                    await toExcelBytes(output),
                     `${baseName}_convertido.xlsx`,
                     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                   )}
@@ -1459,7 +1810,7 @@ export default function FileConvert() {
                   onClick={() => download(
                     // The byte-order mark is what makes Excel open a UTF-8 CSV
                     // with its accents intact instead of as mojibake.
-                    new TextEncoder().encode(`﻿${toCsv(final)}`),
+                    new TextEncoder().encode(`﻿${toCsv(output)}`),
                     `${baseName}_convertido.csv`,
                     'text/csv;charset=utf-8',
                   )}

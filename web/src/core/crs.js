@@ -130,6 +130,27 @@ export async function transformAll(pairs, source, target) {
 }
 
 /**
+ * A synchronous transformation between two definitions, once proj4 is here.
+ *
+ * For code that tries many candidates for a handful of rows - the sheet check
+ * testing which simple mistake would put a point back - and should not await
+ * each one. Returns null for a point proj4 cannot place.
+ */
+export async function projector(source, target) {
+  const proj4 = await loadProj4()
+  const converter = proj4(source, target)
+  return (x, y) => {
+    let out
+    try {
+      out = converter.forward([Number(x), Number(y)])
+    } catch {
+      return null
+    }
+    return Number.isFinite(out[0]) && Number.isFinite(out[1]) ? [out[0], out[1]] : null
+  }
+}
+
+/**
  * ESRI WKT for a shapefile's `.prj` sidecar.
  *
  * Registry systems carry theirs precomputed by pyproj, which is the only side

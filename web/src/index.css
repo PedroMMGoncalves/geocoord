@@ -542,6 +542,82 @@
   .tbl tr.fail th, .tbl tr.fail td { background: var(--row-fail); color: var(--fail); }
   .tbl tr.fail td { opacity: .85; }
 
+  /* ---------------- the whole table, drawn a window at a time ---------------- */
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; }
+  .tools .search {
+    height: 30px; min-width: 240px; padding: 0 11px; font-size: 12.5px; color: var(--fg-1);
+    background: var(--well); border: 1px solid var(--line-2); border-radius: 7px;
+  }
+  .tools .search::placeholder { color: var(--fg-3); }
+  .tools .search:focus { outline: none; border-color: var(--accent); }
+  .chips { display: inline-flex; gap: 6px; }
+  .chip {
+    height: 28px; padding: 0 11px; border-radius: 14px; font-size: 12px; cursor: pointer;
+    background: var(--well); color: var(--fg-2); border: 1px solid var(--line-2);
+  }
+  .chip:hover { border-color: #3b4858; }
+  .chip.on { color: var(--accent); border-color: var(--accent); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .sel.sm { height: 28px; padding: 0 28px 0 9px; font-size: 12px; }
+  .tools .count { margin-left: auto; color: var(--fg-3); font-size: 12px; }
+  .tbl.vt tbody tr[data-row] { cursor: pointer; }
+  .tbl.vt tr.pad td { padding: 0; border: 0; }
+  .tbl tr.is-sel th, .tbl tr.is-sel td { background: rgba(134, 208, 245, .14); }
+  .tbl tr.is-sel th { color: var(--coord); box-shadow: inset 3px 0 0 var(--coord); }
+
+  /* ---------------- 02: the sheet columns and the name of a point ---------------- */
+  .sheet-fields { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line-1); }
+  .two { display: flex; align-items: center; gap: 8px; }
+  .two .sel { flex: 1; min-width: 0; width: auto; }
+  .two > span { color: var(--fg-3); }
+  .src { margin: 8px 0 0; color: var(--fg-3); font-size: 11.5px; }
+  .row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+
+  /* ---------------- 03: what the sheet check found ---------------- */
+  .rv-h .rv-t {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px;
+    color: var(--review); font-weight: 500;
+  }
+  .rv.resolved .rv-t { color: var(--fg-2); }
+  .rv.soft { border-color: var(--line-1); border-left-color: var(--fg-3); background: var(--bg-1); }
+  .rv.soft .rv-t { color: var(--fg-2); }
+  .rv.sheets li { align-items: flex-start; gap: 8px; padding: 2px 0; }
+  .rv.sheets li .cb { margin-top: 3px; }
+  .rv.sheets .pick {
+    flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 2px 6px; border-radius: 5px;
+    color: var(--fg-2); font: inherit; line-height: 1.45; cursor: pointer;
+  }
+  .rv.sheets .pick:hover, .rv.sheets li.is-sel .pick { background: rgba(255, 255, 255, .05); }
+  .rv.sheets .pick:focus-visible { outline: 2px solid var(--accent); }
+  .rv.sheets .pick .who { color: var(--fg-1); font-weight: 500; }
+  .rv.sheets .pick .sheet { color: var(--fg-3); }
+  .rv.sheets .pick .vals b { color: var(--coord); font-weight: 500; }
+  .tag {
+    flex: none; margin-top: 2px; padding: 0 7px; border-radius: 10px; border: 1px solid;
+    font-family: theme('fontFamily.sans'); font-size: 10.5px; line-height: 17px; white-space: nowrap;
+  }
+  .tag.fix { color: var(--review); border-color: rgba(242, 182, 73, .4); }
+  .tag.digit { color: var(--fg-2); border-color: var(--line-2); }
+  .tag.number { color: var(--coord); border-color: rgba(134, 208, 245, .35); }
+  .tag.check { color: var(--fail); border-color: rgba(255, 143, 107, .4); }
+  .legend i.hollow { background: transparent; border-width: 2px; box-shadow: none; }
+
+  /* ---------------- the map: a name on hover, a card on click ---------------- */
+  .map-well .leaflet-container .pt-label {
+    background: var(--bg-2); color: var(--fg-1); border: 1px solid var(--line-2); border-radius: 5px;
+    box-shadow: var(--plate); font-size: 12px; padding: 3px 8px;
+  }
+  .map-well .leaflet-container .pt-label::before { display: none; }
+  .pp { min-width: 240px; }
+  .pp h4 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--fg-1); }
+  .pp .sub { color: var(--fg-3); font-size: 11.5px; margin: 1px 0 7px; }
+  .pp dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; }
+  .pp dt { color: var(--fg-3); }
+  .pp dd { margin: 0; font-family: theme('fontFamily.mono'); color: var(--fg-1); }
+  .pp .st { margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--line-1); line-height: 1.4; }
+  .pp .st.ok { color: var(--accent); }
+  .pp .st.bad { color: var(--review); }
+
   /* the pane before there is a file */
   .pane-empty {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;

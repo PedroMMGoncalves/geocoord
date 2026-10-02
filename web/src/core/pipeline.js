@@ -19,6 +19,7 @@ import {
   inRange,
   parseCoordinate,
   parseProjected,
+  pointInMask,
   suggestScale,
   unsignedOutsideRegion,
 } from './converter.js'
@@ -27,7 +28,7 @@ import {
 // so there is only ever one copy of the candidate lists.
 export { LAT_CANDIDATES, LON_CANDIDATES }
 export { guessCoordinateColumns } from './converter.js'
-import { WGS84_PROJ4, transformAll } from './crs.js'
+import { REGISTRY, WGS84_PROJ4, transformAll } from './crs.js'
 import { csvSafe } from './geoexport.js'
 import { loadSheetJs } from './reader.js'
 
@@ -69,6 +70,9 @@ export function guessColumn(columns, candidates, fallbackIndex) {
 export const DERIVED = [
   'Latitude_DD', 'Longitude_DD', 'X_DD', 'Y_DD', 'status', 'WKT',
   'Latitude_GMS', 'Longitude_GMS',
+  // The sheet check's two columns (browser only, for now): a file this page
+  // wrote, read back, must not carry the last verdict into the next one.
+  'Folha_coordenadas', 'Verificacao_folha',
 ]
 
 /**
@@ -115,6 +119,8 @@ export async function buildResult(table, xCol, yCol, {
   regionMask = null,
   applyRegionSign = false,
   scale = 1,
+  rowFixes = null,
+  rowInput = null,
 } = {}) {
   const keep = table.columns
     .map((c, i) => [c, i])
@@ -161,6 +167,22 @@ export async function buildResult(table, xCol, yCol, {
     seconds = seconds.map((v) => (v === null ? null : v * factor))
   }
 
+  // The values as read, in the input system's metres, before any correction:
+  // what the sheet check proposes its corrections against.
+  const inputXY = projected ? firsts.map((v, i) => [v, seconds[i]]) : null
+
+  // Corrections the user accepted from the sheet check - M and P the other way
+  // round, the false origin put back - as replacement values, row by row. The
+  // file's own cells are not touched; only what is computed from them.
+  if (projected && rowFixes) {
+    firsts = [...firsts]
+    seconds = [...seconds]
+    for (const [i, [x, y]] of rowFixes) {
+      firsts[i] = x
+      seconds[i] = y
+    }
+  }
+
   let lats
   let lons
   if (input === null || input.proj4 === WGS84_PROJ4) {
@@ -171,6 +193,16 @@ export async function buildResult(table, xCol, yCol, {
       firsts.map((v, i) => [v, seconds[i]]), input.proj4, WGS84_PROJ4)
     lons = wgs.map((p) => p[0])
     lats = wgs.map((p) => p[1])
+    // Some rows in another projected system: the Azores, written in UTM 26 in
+    // a list that is otherwise the mainland's military grid.
+    if (rowInput && rowInput.rows.size > 0) {
+      const at = [...rowInput.rows].filter((i) => i >= 0 && i < firsts.length)
+      const other = await transformAll(at.map((i) => [firsts[i], seconds[i]]), rowInput.proj4, WGS84_PROJ4)
+      at.forEach((i, k) => {
+        lons[i] = other[k][0]
+        lats[i] = other[k][1]
+      })
+    }
   } else {
     // Geographic but not WGS84: ETRS89 or PTRA08 read as degrees, then shifted.
     const wgs = await transformAll(
@@ -211,6 +243,7 @@ export async function buildResult(table, xCol, yCol, {
     output,
     // Non-null when the values look like kilometres: {inside, was, readable}.
     scaleSuggestion,
+    inputXY,
     // How many rows the region could sign, whether or not it was asked to -
     // the interface needs the count to know whether to offer at all.
     signable: signable.lat.filter(Boolean).length + signable.lon.filter(Boolean).length,
@@ -352,6 +385,53 @@ export function toCsv(table, delimiter = ',') {
 }
 
 /** Counts by status label, for the summary line. */
+/**
+ * The three island groups of the Azores, each with the system its old maps
+ * were drawn in and the one that replaced it. The groups are far enough apart
+ * that a reading in the wrong zone or datum lands in the sea between them, so
+ * the group a row falls in under each candidate is what picks the system.
+ */
+export const AZORES_GROUPS = [
+  { group: 'west', box: [39.3, 39.8, -31.4, -30.9], systems: ['2188', '5014'] },
+  { group: 'central', box: [38.3, 39.2, -28.9, -26.9], systems: ['2189', '5015'] },
+  { group: 'east', box: [36.85, 37.95, -25.95, -24.9], systems: ['2190', '5015'] },
+]
+
+/**
+ * Rows of a projected file that are the Azores' UTM grid, not the file's own.
+ *
+ * A list of works on the mainland's military grid carried a handful of rows
+ * from Graciosa and São Jorge written in UTM 26, kilometres and all. Read as
+ * the military grid they are nowhere; nothing in the row says which system
+ * they are in. What gives them away is the size of the numbers - a northing
+ * of four thousand kilometres is a UTM latitude band, not a Portuguese grid -
+ * and where they land when read as each island group's own system.
+ *
+ * `xy` is buildResult's inputXY (metres, after any scale); `lats`/`lons` are
+ * the rows as converted, and only rows outside `regionMask` are considered.
+ * Returns { rows, group, system, systems } or null.
+ */
+export async function findAzoresRows(xy, lats, lons, regionMask) {
+  if (!xy) return null
+  const outside = (i) => lats[i] === null || lons[i] === null || regionMask === null
+    || !pointInMask(lats[i], lons[i], regionMask)
+  const candidates = xy
+    .map(([x, y], i) => ({ x, y, i }))
+    .filter(({ x, y, i }) => x !== null && y !== null && x >= 100000 && x <= 900000
+      && y >= 4000000 && y <= 4500000 && outside(i))
+  if (candidates.length === 0) return null
+  let best = null
+  for (const g of AZORES_GROUPS) {
+    const proj4 = REGISTRY[g.systems[0]].proj4
+    const wgs = await transformAll(candidates.map(({ x, y }) => [x, y]), proj4, WGS84_PROJ4)
+    const [la0, la1, lo0, lo1] = g.box
+    const rows = candidates.filter((c, k) => wgs[k][1] >= la0 && wgs[k][1] <= la1
+      && wgs[k][0] >= lo0 && wgs[k][0] <= lo1).map(({ i }) => i)
+    if (rows.length > (best?.rows.length ?? 0)) best = { rows, group: g.group, system: g.systems[0], systems: g.systems }
+  }
+  return best
+}
+
 export function countByStatus(labels) {
   const counts = new Map()
   for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1)

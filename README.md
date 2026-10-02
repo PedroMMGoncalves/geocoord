@@ -48,7 +48,7 @@ There is also a **desktop application** for offline use, and an importable
 
 ## Contents
 
-[Quick start](#quick-start) - [Input formats](#input-formats) - [File formats](#file-formats) - [Coordinate systems](#coordinate-systems) - [Swapped coordinates](#swapped-coordinates) - [Exports](#exports) - [Usage](#usage) - [Two implementations, one contract](#two-implementations-one-contract) - [Development](#development) - [Limits](#limits) - [Troubleshooting](#troubleshooting) - [Citation](#citation) - [License](#license)
+[Quick start](#quick-start) - [Input formats](#input-formats) - [File formats](#file-formats) - [Coordinate systems](#coordinate-systems) - [Swapped coordinates](#swapped-coordinates) - [Map sheets](#map-sheets) - [Exports](#exports) - [Usage](#usage) - [Two implementations, one contract](#two-implementations-one-contract) - [Development](#development) - [Limits](#limits) - [Troubleshooting](#troubleshooting) - [Citation](#citation) - [License](#license)
 
 ---
 
@@ -248,6 +248,52 @@ swapping are kept and flagged, naming the region they actually fall in, with a
 one-click switch — so a region chosen by mistake surfaces instead of being
 silently reported as fine.
 
+## Map sheets
+
+*In the web application.* A table typed from paper usually says which sheet each
+point was read off — the Carta Militar 1:25 000, the Carta Geológica 1:50 000 —
+and that column is the one piece of evidence about position that does not come
+from the coordinates. A row whose coordinates convert perfectly and land a
+hundred kilometres from its own sheet has a mistake in it, and the shape of the
+mistake can usually be read from where the sheet is.
+
+The sheet columns are found by agreement: the column whose values most often
+name the sheet the row's point is actually in. A column of works numbers reads
+as sheet numbers just as well, but its numbers fall in the right sheet only by
+accident. When a table has both, the 1:25 000 sheet decides.
+
+What a row outside its sheet gets:
+
+| Finding | What happens |
+| --- | --- |
+| The two coordinates written the other way round; the 300 km of false northing, or the 200 km of false easting, left off | A correction, offered as a question. The downloads wait for an answer, as they do for swapped coordinates. |
+| One digit that would put the point back, more than 5 km out | Listed to confirm against the report; nothing held up. |
+| The row names the 1:50 000 sheet its point is in, not the one its number belongs to | Listed as a probable wrong sheet number. |
+| Anything else | Listed with the sheet the point does fall in. |
+
+Rows in the Azores' UTM grid inside a file in the mainland's grid — a northing
+of four thousand kilometres is a UTM band, not a Portuguese grid — are found,
+and can be converted in the islands' own system: Açores Ocidental 1939,
+Central 1948 or Oriental 1940, by the group they land in, or PTRA08.
+
+Every sheet of both series is a rectangle in the Hayford-Gauss Militar grid,
+16 × 10 km and 32 × 20 km, with corners on round kilometres; four 1:25 000
+sheets make one 1:50 000. So a point is placed by arithmetic, and
+[`web/src/core/sheet_index.json`](web/src/core/sheet_index.json) is a grid and a
+rule rather than shapes: the 1:50 000 sheets by corner and name, from LNEG's
+*Carta Geológica de Portugal à escala 1:50 000* (CC-BY 4.0), and the 1:25 000
+numbering as runs along each 10 km row, with the 28 sheets outside that pattern
+listed by cell. The 1:25 000 sheets carry no names. 494 of them were also
+located independently, from the geoportal's water points and the sheet each is
+filed under, and all 494 agree. `scripts/gen_sheet_index.py` rebuilds it.
+
+The result table now holds every row: only the rows in view are drawn, so a
+file of any size scrolls whole, with a search box and filters for the rows to
+review and for one sheet. A point clicked on the map is the selected row of the
+table, and a row clicked in the table is shown on the map, with its name, its
+sheet, the values as the file wrote them and, for a proposed correction, a
+dashed line to where it would put the point.
+
 ## Exports
 
 | Format | System | Contents |
@@ -387,7 +433,7 @@ python scripts/gen_parity_fixtures.py
 python scripts/gen_parity_fixtures.py --check    # what CI runs
 ```
 
-The browser bundle is 74 kB gzipped on first load. SheetJS, JSZip, Leaflet and
+The browser bundle is about 96 kB gzipped on first load. SheetJS, JSZip, Leaflet and
 proj4 are fetched only when a spreadsheet is opened, a Shapefile downloaded, the
 map shown or a coordinate system chosen.
 
@@ -403,10 +449,13 @@ geocoord/                 The engine, as an importable package
   crs_registry.json       The system definitions, read by both languages
 web/                      The browser application
   src/core/               The JavaScript half of the engine
+  src/core/sheets.js      Map sheets: the grid, the check (browser only)
+  src/core/sheet_index.json   Where each sheet is - generated
   src/components/         The interface
 tests/                    pytest suite
   fixtures/parity.json    The shared contract - generated, then frozen
 scripts/gen_parity_fixtures.py   Regenerates it
+scripts/gen_sheet_index.py       Regenerates the sheet index from LNEG's services
 docs/superpowers/         Design note and phase plans
 ```
 
@@ -475,7 +524,9 @@ Geologia. Basemaps by [Esri](https://www.esri.com) and
 [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors;
 coordinate transformations by [PROJ](https://proj.org) through
 [pyproj](https://pyproj4.github.io/pyproj/) and
-[proj4js](http://proj4js.org).
+[proj4js](http://proj4js.org). The 1:50 000 sheets are LNEG's *Carta Geológica
+de Portugal à escala 1:50 000* (CC-BY 4.0); the 1:25 000 numbering is that of
+the Carta Militar de Portugal, IGeoE series M888.
 
 ## References
 
