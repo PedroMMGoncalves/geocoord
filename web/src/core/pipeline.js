@@ -70,9 +70,10 @@ export function guessColumn(columns, candidates, fallbackIndex) {
 export const DERIVED = [
   'Latitude_DD', 'Longitude_DD', 'X_DD', 'Y_DD', 'status', 'WKT',
   'Latitude_GMS', 'Longitude_GMS',
-  // The sheet check's two columns (browser only, for now): a file this page
-  // wrote, read back, must not carry the last verdict into the next one.
-  'Folha_coordenadas', 'Verificacao_folha',
+  // The sheet columns (browser only, for now): a file this page wrote, read
+  // back, must not carry the last sheets or verdict into the next one.
+  // Folha_coordenadas is what 1.2.0 called Folha_25k.
+  'Folha_25k', 'Folha_50k', 'Nome_50k', 'Verificacao_folha', 'Folha_coordenadas',
 ]
 
 /**

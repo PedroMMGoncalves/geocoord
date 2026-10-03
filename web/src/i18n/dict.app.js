@@ -36,4 +36,16 @@ export default {
     pt: 'Idioma',
     en: 'Language',
   },
+
+  // The page's offline copy (components/UpdateNotice.jsx).
+  'app.offlineReady': {
+    pt: 'A página ficou guardada no seu computador e passa a funcionar sem rede. Só o fundo do mapa precisa de rede.',
+    en: "The page is now kept on your computer and works without a network. Only the map's background needs one.",
+  },
+  'app.updateReady': {
+    pt: 'Há uma versão nova da página.',
+    en: 'A new version of the page is available.',
+  },
+  'app.reload': { pt: 'Recarregar', en: 'Reload' },
+  'app.dismiss': { pt: 'OK', en: 'OK' },
 }

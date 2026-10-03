@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import FileConvert from './components/FileConvert.jsx'
 import QuickConvert from './components/QuickConvert.jsx'
+import UpdateNotice from './components/UpdateNotice.jsx'
 import { LANGS, LangContext, useT } from './i18n.jsx'
 
 const STORAGE_KEY = 'geocoord:lang'
@@ -137,6 +138,8 @@ function AppInner({ lang, setLang }) {
           </label>
         </div>
       </header>
+
+      <UpdateNotice />
 
       <main id="main" tabIndex={-1} className="flex-1">
         {tab === 'file' ? <FileConvert /> : <QuickConvert />}

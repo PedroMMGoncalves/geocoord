@@ -122,6 +122,18 @@ export function sheetsAt(m, p) {
   }
 }
 
+/**
+ * The sheets each point is in, as the downloads write them: the 1:25 000
+ * number, the 1:50 000 code and its name, '' where a point is in none. `km`
+ * is militaryKm of the rows. Null when no point is in any sheet, so a file
+ * from elsewhere gains no columns of blanks.
+ */
+export function sheetsOfPoints(km) {
+  const at = km.map((p) => (p ? sheetsAt(p[0], p[1]) : { s25: null, s50: null }))
+  if (!at.some((s) => s.s25 || s.s50)) return null
+  return at.map((s) => [s.s25?.key ?? '', s.s50?.key ?? '', s.s50?.name ?? ''])
+}
+
 /** Distance in km from a point to the nearest of a sheet's rectangles; 0 inside. */
 export function distanceToBoxes(m, p, boxes) {
   let best = Infinity

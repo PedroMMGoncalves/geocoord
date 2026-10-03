@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The web application works without a network** once it has been opened.
+  On the first visit it keeps a copy of itself - code, libraries, DGT's
+  grids, fonts, 3.4 MB - and says so; from then on it opens, converts, checks
+  and writes offline, and Edge and Chrome offer to install it as an
+  application. Only the map's background needs a network. A new version is
+  announced with a *Reload* button rather than taken on its own, which would
+  reload the page and lose a file half reviewed.
+- **Every point's sheets, in the web application.** Any file with points on
+  the mainland gains `Folha_25k`, `Folha_50k` and `Nome_50k`: the 1:25 000
+  sheet, the 1:50 000 sheet and its name, measured on the final points. Until
+  now they were written only for a file with a sheet column to check.
+
+### Changed
+
+- `Folha_coordenadas`, written by 1.2.0 when the file had a sheet column, is
+  `Folha_25k` now, beside `Folha_50k` and `Nome_50k`. A file written by 1.2.0
+  and read back has it removed with the other derived columns.
+
 ## [1.2.0] - 2026-10-03
 
 ### Added

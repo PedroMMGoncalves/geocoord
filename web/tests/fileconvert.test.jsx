@@ -586,3 +586,29 @@ describe('what a download records', () => {
     expect(doc.features.length).toBe(6)
   })
 })
+
+describe('the sheet of each point', () => {
+  it('is written for a file with no sheet column, and only for points in a sheet', async () => {
+    const saved = []
+    URL.createObjectURL = vi.fn((blob) => { saved.push(blob); return 'blob:x' })
+    URL.revokeObjectURL = vi.fn()
+    show()
+    await load(`${CLEAN}\nZ,-25.97,32.58`)
+    await waitFor(() => expect(downloads().length).toBe(6))
+    // The columns arrive once the points are placed in the military grid.
+    await waitFor(() => expect(screen.getAllByText('Folha_25k').length).toBeGreaterThan(0))
+    fireEvent.click(downloads().find((b) => b.textContent.includes('GeoJSON')))
+    await waitFor(() => expect(saved.length).toBe(1))
+    const text = await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.readAsText(saved[0])
+    })
+    const props = JSON.parse(text).features.map((f) => f.properties)
+    expect(props[0].Folha_25k).toMatch(/^\d+[A-Z]?$/)
+    expect(props[0].Folha_50k).toMatch(/^\d+-[A-D]$/)
+    expect(props[0].Nome_50k).toBeTruthy()
+    // Maputo is in no sheet of this series.
+    expect(props[6].Folha_25k).toBe('')
+  })
+})

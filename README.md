@@ -326,6 +326,14 @@ listed by cell. The 1:25 000 sheets carry no names. 494 of them were also
 located independently, from the geoportal's water points and the sheet each is
 filed under, and all 494 agree. `scripts/gen_sheet_index.py` rebuilds it.
 
+**Every point's sheets, sheet column or not.** Any file with points on the
+mainland gains three columns, `Folha_25k`, `Folha_50k` and `Nome_50k`: the
+1:25 000 sheet each point is in, and the 1:50 000 sheet with its name - for a
+report, for the sample archive, for knowing which map to take into the field.
+They are measured on the final points, after the swaps and corrections
+accepted, and a file with no point in Portugal's sheet grid gains none. When
+the file names its own sheet, `Verificacao_folha` says what the check found.
+
 The result table now holds every row: only the rows in view are drawn, so a
 file of any size scrolls whole, with a search box and filters for the rows to
 review and for one sheet. A point clicked on the map is the selected row of the
@@ -372,6 +380,21 @@ are.
 ### The web application
 
 Nothing to install: <https://pedrommgoncalves.github.io/geocoord/>
+
+**It works without a network once it has been opened.** Everything it does
+already happens in the browser; what needed the network was the page itself.
+On the first visit it keeps a copy of itself on the computer - the code, the
+spreadsheet and shapefile libraries, DGT's two grids, the fonts, 3.4 MB - and
+says so, once. From then on it opens, reads, converts, checks and writes
+offline. Only the map's background needs a network: its tiles are Esri's and
+OpenTopoMap's, whose terms do not allow copying them in bulk, so offline the
+points are drawn on a blank ground. Edge and Chrome offer to *install* it,
+from the icon at the end of the address bar: it then opens in its own window
+from the Start menu, like a program. A new version is fetched in the
+background and announced with a *Reload* button, never taken on its own - that
+would reload the page, and a file half reviewed with it. Clearing the
+browser's data for the site removes the copy; the next visit with a network
+makes it again.
 
 Portuguese and English, chosen in the header and remembered. The four steps
 are cards: each folds to a one-line summary as it is done, and the download

@@ -22,6 +22,7 @@ import {
   sheet50Of25,
   sheetName50,
   sheetsAt,
+  sheetsOfPoints,
 } from '../src/core/sheets.js'
 
 /** Every 1:25 000 sheet the rule makes, with its column and row. */
@@ -188,6 +189,21 @@ describe('from degrees to the military grid', () => {
 
   it('passes an unreadable row through as null', async () => {
     expect(await militaryKm([null], [null])).toEqual([null])
+  })
+})
+
+describe('the sheet each point is in', () => {
+  it('gives the 1:25 000 number, the 1:50 000 code and its name', () => {
+    const s50 = sheet50Of25('230')
+    expect(sheetsOfPoints([middle('230'), null])).toEqual([
+      ['230', s50.key, sheetName50(s50.key)],
+      ['', '', ''],
+    ])
+  })
+
+  it('adds nothing to a file with no point in any sheet', () => {
+    // Moçambique, read in the military grid: thousands of kilometres off it.
+    expect(sheetsOfPoints([[3000, -2000], null])).toBeNull()
   })
 })
 

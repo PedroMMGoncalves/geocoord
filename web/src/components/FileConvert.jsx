@@ -39,6 +39,7 @@ import {
   guessSheetColumns,
   militaryKm,
   sheet25Key,
+  sheetsOfPoints,
 } from '../core/sheets.js'
 import {
   SEPARATORS,
@@ -1036,18 +1037,39 @@ export default function FileConvert() {
     return t('sheet.verdictCheck', { what })
   }, [sheetCheck, azoresRows, azoresOn, azoresSystem, t, describe, sheetState])
 
-  // The table shown and written: the result, plus the sheet check's two
-  // columns when there is a sheet column to check against.
+  // The sheets each final point is in - after the swaps and corrections
+  // accepted - for every file, sheet column or not. Kept with the result it
+  // was measured on, so a newer result never shows an older one's sheets.
+  const [finalSheets, setFinalSheets] = useState(null)
+  useEffect(() => {
+    if (!final) {
+      setFinalSheets(null)
+      return undefined
+    }
+    let cancelled = false
+    const at = final.exact ?? final
+    militaryKm(at.lats, at.lons).then((km) => {
+      if (!cancelled) setFinalSheets({ of: final, sheets: sheetsOfPoints(km) })
+    })
+    return () => { cancelled = true }
+  }, [final])
+
+  // The table shown and written: the result, plus the sheets each point is
+  // in, plus the check's verdict when there is a sheet column to check against.
   const output = useMemo(() => {
     if (!final) return null
-    if (!sheetCheck) return final
-    const at = (i) => (sheetState(i) === 'fixed' ? sheetCheck[i].declared25 ?? sheetCheck[i].at25 : sheetCheck[i].at25)
-    return {
-      ...final,
-      columns: [...final.columns, 'Folha_coordenadas', 'Verificacao_folha'],
-      rows: final.rows.map((row, i) => [...row, at(i) ?? '', verdict(i)]),
+    const sheets = finalSheets?.of === final ? finalSheets.sheets : null
+    let { columns, rows } = final
+    if (sheets) {
+      columns = [...columns, 'Folha_25k', 'Folha_50k', 'Nome_50k']
+      rows = rows.map((row, i) => [...row, ...sheets[i]])
     }
-  }, [final, sheetCheck, sheetState, verdict])
+    if (sheetCheck) {
+      columns = [...columns, 'Verificacao_folha']
+      rows = rows.map((row, i) => [...row, verdict(i)])
+    }
+    return { ...final, columns, rows }
+  }, [final, finalSheets, sheetCheck, verdict])
 
   const exportable = useMemo(() => {
     if (!output) return null
@@ -1126,10 +1148,13 @@ export default function FileConvert() {
     if (s) return t(`sheet.rowStatus.${s}`)
     return t(`file.rowStatus.${displayLabels[i] ?? 'ok'}`)
   }, [sheetState, displayLabels, t])
+  // The sheet filter: by the sheet the file names when it names one, and
+  // otherwise by the sheet each point is in.
   const tableSheets = useMemo(() => {
-    if (!sheetCheck) return null
-    return sheetCheck.map((c) => c.declared25 ?? null)
-  }, [sheetCheck])
+    if (sheetCheck) return sheetCheck.map((c) => c.declared25 ?? null)
+    const sheets = finalSheets?.of === final ? finalSheets.sheets : null
+    return sheets ? sheets.map(([s25]) => s25 || null) : null
+  }, [sheetCheck, finalSheets, final])
 
   function onDrop(e) {
     e.preventDefault()
