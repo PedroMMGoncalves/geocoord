@@ -138,6 +138,12 @@ export default {
     pt: '{n} linhas — a conversão pode demorar alguns segundos e usar bastante memória.',
     en: '{n} rows — converting may take a few seconds and a good deal of memory.',
   },
+  'file.errProtected': {
+    pt: 'Este livro está protegido com palavra-passe e não pode ser lido aqui. '
+      + 'Abra-o no Excel, introduza a palavra-passe e guarde uma cópia sem ela.',
+    en: 'This workbook is protected with a password, so it cannot be read here. '
+      + 'Open it in Excel, enter the password, and save a copy without one.',
+  },
   'file.errRead': {
     pt: 'Não foi possível ler o ficheiro: {message}',
     en: 'The file could not be read: {message}',

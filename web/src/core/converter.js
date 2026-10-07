@@ -179,14 +179,33 @@ export const LON_CANDIDATES = [
 ]
 
 /**
- * The names a Portuguese military sheet gives its grid: P, the distance to the
- * Perpendicular, is the northing, and M, the distance to the Meridiana, the
- * easting. They sit in the latitude and longitude slots because that is where
- * the northing and the easting go. Consulted only for a file read in a
- * projected system - in a geochemistry table, P is phosphorus.
+ * What a grid's two axes are called, in the order tried. Northing and
+ * Easting, which nothing else is called; Y and X; and the names a Portuguese
+ * military sheet gives its grid - P, the distance to the Perpendicular, is the
+ * northing, and M, the distance to the Meridiana, the easting. They sit in
+ * the latitude and longitude slots because that is where the northing and the
+ * easting go.
+ *
+ * Consulted only for a file read in a projected system - in a geochemistry
+ * table, P is phosphorus - and there they come before the names of the
+ * degrees: a list of geodetic marks gives each one as Latitude and Longitude
+ * and as M and P, side by side, and a file read in a grid wants the metres.
  */
-export const GRID_LAT_CANDIDATES = ['p']
-export const GRID_LON_CANDIDATES = ['m']
+export const GRID_LAT_CANDIDATES = ['northing', 'y', 'p']
+export const GRID_LON_CANDIDATES = ['easting', 'x', 'm']
+
+// A unit written after a name - "Easting (m)", "Latitude (° ' '')" - is not
+// part of the name. Only units a coordinate is written in: "Y (ppm)" keeps
+// its own, because that column is yttrium and not a northing.
+const UNIT_SUFFIX_RE = /\s*[([]\s*(?:m|km|metros|metres|meters|graus|deg|degrees|gms|dms|dd|[°º'"′″\s]+)\s*[)\]]\s*$/i
+
+/** What a column of angles is called, for an angle split across cells. */
+const ANGLE_NAMES = new Set(['latitude', 'longitude', 'lat', 'lon', 'long'])
+
+/** A column name as the candidate lists write it: lower case, no unit. */
+function columnKey(name) {
+  return String(name).replace(UNIT_SUFFIX_RE, '').trim().toLowerCase()
+}
 
 // A column has to be mostly coordinates before it is taken for one, and have
 // enough values for that fraction to mean anything.
@@ -266,7 +285,8 @@ function fitsRegion(median, mask) {
 }
 
 function namedColumn(columns, candidates) {
-  const lowered = columns.map((c) => String(c).toLowerCase())
+  // A unit after the name does not count: "Easting (m)" is "easting".
+  const lowered = columns.map(columnKey)
   for (const candidate of candidates) {
     const at = lowered.indexOf(candidate.toLowerCase())
     if (at !== -1) return at
@@ -325,8 +345,8 @@ function orderByRegion(first, second, mask) {
  * Mirrors guess_coordinate_columns() in geocoord/converter.py.
  */
 export function guessCoordinateColumns(columns, rows, mask = null, projected = false) {
-  const latNames = projected ? [...LAT_CANDIDATES, ...GRID_LAT_CANDIDATES] : LAT_CANDIDATES
-  const lonNames = projected ? [...LON_CANDIDATES, ...GRID_LON_CANDIDATES] : LON_CANDIDATES
+  const latNames = projected ? [...GRID_LAT_CANDIDATES, ...LAT_CANDIDATES] : LAT_CANDIDATES
+  const lonNames = projected ? [...GRID_LON_CANDIDATES, ...LON_CANDIDATES] : LON_CANDIDATES
   const byNameLat = namedColumn(columns, latNames)
   const byNameLon = namedColumn(columns, lonNames)
   if (byNameLat !== null && byNameLon !== null && byNameLat !== byNameLon) {
@@ -940,44 +960,142 @@ export function tidyTable(table) {
 
   if (rows.length === 0) return { columns, rows }
 
-  // If no column carries a real name, the header is the first row of data.
-  if (columns.every((c) => isPlaceholderName(c))) {
-    const header = rows[0]
-    rows = rows.slice(1)
-
-    // A promoted header cell may itself be blank. Naming it str(NaN) would give
-    // a column literally called "nan", and two such cells would collide into
-    // duplicate names, which silently breaks column selection downstream. Give
-    // them distinct positional names and let the drop below remove those that
-    // carry no data.
-    columns = header.map((h, i) => (isPlaceholderName(h) ? `Column ${i + 1}` : String(h).trim()))
-
-    const keepAfter = columns.map((_, c) => rows.some((row) => row[c] !== null))
-    columns = columns.filter((_, c) => keepAfter[c])
-    rows = rows.map((row) => row.filter((_, c) => keepAfter[c]))
-  } else if (secondHeaderRow(columns, rows)) {
-    // The header takes two rows. Each column is named by its lower label, or
-    // by its upper one where it has none, and a repeat gains a ".1".
-    const names = columns.map((name, c) => (rows[0][c] === null ? String(name) : String(rows[0][c]).trim()))
-    const seen = new Map()
-    columns = names.map((name) => {
-      const count = seen.get(name) ?? 0
-      seen.set(name, count + 1)
-      return count === 0 ? name : `${name}.${count}`
-    })
-    rows = rows.slice(1)
-    const keepAfter = columns.map((_, c) => rows.some((row) => row[c] !== null))
-    columns = columns.filter((_, c) => keepAfter[c])
-    rows = rows.map((row) => row.filter((_, c) => keepAfter[c]))
+  const resolved = resolveHeader(columns.map(String), rows)
+  const filled = resolved.columns.map((_, c) => resolved.rows.some((row) => row[c] !== null))
+  return {
+    columns: resolved.columns.filter((_, c) => filled[c]),
+    rows: resolved.rows.map((row) => row.filter((_, c) => filled[c])),
   }
-
-  return { columns, rows }
 }
 
 /** Rows looked at below a second header row, to see what its labels stand over. */
 const HEADER_LOOKAHEAD = 50
 
 const DIGIT_RE = /[0-9]/
+
+// A cell that is a number as a table writes one: a decimal point or a comma.
+const PLAIN_NUMBER_RE = /^[+-]?(?:[0-9]+(?:[.,][0-9]*)?|[.,][0-9]+)$/
+
+/** A cell as trimmed text, or null when it is blank. */
+function cellText(cell) {
+  if (cell === null || cell === undefined) return null
+  const s = String(cell).trim()
+  return s === '' ? null : s
+}
+
+const countCells = (row) => row.filter((cell) => cellText(cell) !== null).length
+const hasNumber = (row) => row.some((cell) => cellText(cell) !== null && PLAIN_NUMBER_RE.test(cellText(cell)))
+
+function dropEmptyColumns(names, blank, rows) {
+  const keep = names.map((_, c) => rows.some((row) => cellText(row[c]) !== null))
+  return {
+    names: names.filter((_, c) => keep[c]),
+    blank: blank.filter((_, c) => keep[c]),
+    rows: rows.map((row) => row.filter((_, c) => keep[c])),
+  }
+}
+
+/**
+ * The column names a table really has, and the rows that are its data.
+ *
+ * `names` are the names the reader gave the columns - the file's first row,
+ * with `Unnamed: N` for an empty cell - and `rows` the rows below, blank cells
+ * as null, with the empty rows and columns already gone. What comes back is
+ * the same table with its header found: title lines set aside, a header in
+ * the rows promoted, a second header row merged, split angles joined. Each
+ * step is strict about when it applies, because every one of them, applied to
+ * a table that only resembles its case, would rename the columns and lose a
+ * row of data. Mirrors _resolve_header() in converter.py.
+ */
+function resolveHeader(names, rows) {
+  let blank = names.map((n) => isPlaceholderName(n))
+  const width = names.length
+
+  // Title lines: above the header, one cell to a row.
+  const namedRow = blank.every(Boolean) ? [] : [names.map((n, c) => (blank[c] ? null : n))]
+  const titles = titleRows([...namedRow, ...rows.slice(0, HEADER_LOOKAHEAD)], width)
+  if (titles > 0) {
+    rows = rows.slice(titles - namedRow.length)
+    blank = names.map(() => true)
+  }
+
+  // No name at all: the header is the first row of data - under a row of
+  // group headings, when there is one.
+  if (blank.every(Boolean) && rows.length > 0) {
+    if (groupRow(rows)) rows = rows.slice(1)
+    const header = rows[0].map(cellText)
+    rows = rows.slice(1)
+    // A promoted header cell may itself be blank. Naming it "nan" would
+    // collide two such cells into one name, which silently breaks column
+    // selection downstream; each gets a positional name instead.
+    blank = header.map((h) => h === null || isPlaceholderName(h))
+    names = header.map((h, c) => (blank[c] ? `Column ${c + 1}` : h));
+    ({ names, blank, rows } = dropEmptyColumns(names, blank, rows))
+  }
+
+  if (secondHeaderRow(names, blank, rows)) {
+    const labels = rows[0].map(cellText)
+    rows = rows.slice(1)
+    const repeated = new Set(labels.filter((label, c) => label !== null && labels.indexOf(label) !== c))
+    const merged = labels.map((label, c) => {
+      if (label === null) return names[c]
+      return repeated.has(label) && !blank[c] ? `${names[c]} ${label}` : label
+    })
+    blank = labels.map((label, c) => blank[c] && label === null);
+    ({ names, blank, rows } = dropEmptyColumns(merged, blank, rows))
+  }
+
+  ({ names, blank, rows } = joinSplitAngles(names, blank, rows))
+
+  const seen = new Map()
+  const columns = names.map((name) => {
+    const n = seen.get(name) ?? 0
+    seen.set(name, n + 1)
+    return n === 0 ? name : `${name}.${n}`
+  })
+  return { columns, rows }
+}
+
+/**
+ * How many rows at the top of a table are titles above its header.
+ *
+ * An official table rarely starts with its header: `Ilha da MADEIRA`,
+ * `Sistema de Referência: ITRF 93` come first, one cell to a row, and read as
+ * written they become the header and the real one a row of data. They are
+ * counted as titles only when what follows says so: a table at least three
+ * columns wide, then a row of two or more labels with no number in it, then
+ * data - a number - within three rows. Mirrors _title_rows() in converter.py.
+ */
+function titleRows(top, width) {
+  if (width < 3) return 0
+  let count = 0
+  while (count < top.length && countCells(top[count]) === 1) count += 1
+  if (count === 0 || count >= top.length) return 0
+  const labels = top[count]
+  if (countCells(labels) < 2 || hasNumber(labels)) return 0
+  if (!top.slice(count + 1, count + 4).some(hasNumber)) return 0
+  return count
+}
+
+/**
+ * Whether the first row is a row of group headings over the real header -
+ * `Coordenadas Geodésicas` over Latitude and Longitude. It says nothing the
+ * names below do not, so it is set aside - when every heading stands over a
+ * name, the names are at least twice as many and have no digit in them,
+ * neither row holds a number, and data follows within three rows. Mirrors
+ * _group_row() in converter.py.
+ */
+function groupRow(rows) {
+  if (rows.length < 3) return false
+  const group = rows[0].map(cellText)
+  const below = rows[1].map(cellText)
+  const headed = group.map((v, c) => (v === null ? -1 : c)).filter((c) => c >= 0)
+  const named = below.map((v, c) => (v === null ? -1 : c)).filter((c) => c >= 0)
+  if (headed.length === 0 || hasNumber(group) || hasNumber(below)) return false
+  if (named.some((c) => DIGIT_RE.test(below[c]))) return false
+  if (!headed.every((c) => below[c] !== null) || 2 * headed.length > named.length) return false
+  return rows.slice(2, 5).some(hasNumber)
+}
 
 /**
  * Whether the first row of data is the lower half of a two-row header -
@@ -986,20 +1104,90 @@ const DIGIT_RE = /[0-9]/
  * every column, so all four must hold: no digit anywhere in the row; a label
  * under a blank header cell; a blank under a named header whose column has
  * values below; and, below one of its labels, mostly values with digits.
- * Mirrors _second_header_row() in converter.py.
+ * `blank` says which names are no name at all - the reader's `Unnamed: N`,
+ * or the positional name given to a blank promoted cell. Mirrors
+ * _second_header_row() in converter.py.
  */
-function secondHeaderRow(columns, rows) {
+function secondHeaderRow(names, blank, rows) {
   if (rows.length < 2) return false
-  const first = rows[0].map((v) => (v === null ? null : String(v).trim()))
+  const first = rows[0].map(cellText)
   const below = rows.slice(1, 1 + HEADER_LOOKAHEAD)
-  const filled = (c) => below.map((row) => row[c]).filter((v) => v !== null).map(String)
+  const filled = (c) => below.map((row) => cellText(row[c])).filter((v) => v !== null)
 
-  const labels = first.map((v, c) => (v ? c : -1)).filter((c) => c >= 0)
+  const labels = first.map((v, c) => (v === null ? -1 : c)).filter((c) => c >= 0)
   if (labels.length === 0 || labels.some((c) => DIGIT_RE.test(first[c]))) return false
-  if (!labels.some((c) => isPlaceholderName(columns[c]))) return false
-  if (!columns.some((name, c) => !first[c] && !isPlaceholderName(name) && filled(c).length > 0)) return false
+  if (!labels.some((c) => blank[c])) return false
+  if (!names.some((_, c) => first[c] === null && !blank[c] && filled(c).length > 0)) return false
   return labels.some((c) => {
     const values = filled(c)
     return values.length > 0 && values.length <= 2 * values.filter((v) => DIGIT_RE.test(v)).length
   })
+}
+
+const WHOLE_RE = /^[+-]?[0-9]{1,3}(?:[.,]0+)?$/
+const HEMISPHERES = new Set(['N', 'S', 'E', 'W', 'O', 'L'])
+const wholePart = (s) => Number.parseInt(s.split(/[.,]/)[0], 10)
+
+/**
+ * Put back together an angle written across cells.
+ *
+ * A list of geodetic marks writes `32 | 47 | 35.39765 | N` under one merged
+ * heading, `Latitude (° ' '')`: degrees, minutes, seconds and the hemisphere,
+ * a column each, and only the first of them named. Nothing reads a coordinate
+ * out of four columns. They are joined into the one the heading names -
+ * `32° 47' 35.39765" N` - when the columns after the first carry no name of
+ * their own and every row that has the three has whole degrees to 180, whole
+ * minutes under 60 and seconds under 60. Three such columns of small numbers
+ * can be other things, so there must also be a column of hemisphere letters
+ * after them, or a first column called latitude or longitude. Mirrors
+ * _join_split_angles() in converter.py.
+ */
+function joinSplitAngles(names, blank, rows) {
+  let i = 0
+  while (i + 2 < names.length) {
+    const parts = splitAngleAt(names, blank, rows, i)
+    if (parts === null) {
+      i += 1
+      continue
+    }
+    const at = i
+    rows = rows.map((row) => {
+      const cells = [0, 1, 2, 3].slice(0, parts).map((k) => cellText(row[at + k]))
+      let joined = null
+      if (cells[0] !== null) {
+        joined = `${cells[0].split(/[.,]/)[0]}° ${cells[1].split(/[.,]/)[0]}' ${cells[2]}"`
+        if (parts === 4 && cells[3] !== null) joined += ` ${cells[3].toUpperCase()}`
+      }
+      return [...row.slice(0, at), joined, ...row.slice(at + parts)]
+    })
+    names = [...names.slice(0, at + 1), ...names.slice(at + parts)]
+    blank = [...blank.slice(0, at + 1), ...blank.slice(at + parts)]
+    i += 1
+  }
+  return { names, blank, rows }
+}
+
+/** 3 or 4 when columns i.. are one angle split across cells, else null. */
+function splitAngleAt(names, blank, rows, i) {
+  if (!(blank[i + 1] && blank[i + 2])) return null
+  let complete = 0
+  for (const row of rows) {
+    const [d, m, s] = [0, 1, 2].map((k) => cellText(row[i + k]))
+    if (d === null && m === null && s === null) continue
+    if (d === null || m === null || s === null) return null
+    if (!(WHOLE_RE.test(d) && WHOLE_RE.test(m) && PLAIN_NUMBER_RE.test(s))) return null
+    if (Math.abs(wholePart(d)) > 180 || wholePart(m) < 0 || wholePart(m) >= 60) return null
+    const seconds = Number(s.replace(',', '.'))
+    if (!(seconds >= 0 && seconds < 60)) return null
+    complete += 1
+  }
+  if (complete === 0) return null
+  let lettered = false
+  if (i + 3 < names.length && blank[i + 3]) {
+    const letters = rows.map((row) => [cellText(row[i]), cellText(row[i + 3])])
+    lettered = letters.every(([d, h]) => (d === null) === (h === null))
+      && letters.every(([, h]) => h === null || HEMISPHERES.has(h.toUpperCase()))
+  }
+  if (lettered) return 4
+  return ANGLE_NAMES.has(columnKey(names[i])) ? 3 : null
 }

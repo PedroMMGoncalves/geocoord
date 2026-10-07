@@ -57,13 +57,35 @@ LAT_CANDIDATES = ["latitude", "lat", "coordenadas x", "latitude x", "coord_lat",
 LON_CANDIDATES = ["longitude", "lon", "long", "coordenadas y", "longitude y",
                   "coord_lon", "lon_dms", "lon_gms", "x", "x_dd", "lon_x"]
 
-#: The names a Portuguese military sheet gives its grid: P, the distance to the
-#: Perpendicular, is the northing, and M, the distance to the Meridiana, the
-#: easting. They sit in the latitude and longitude slots because that is where
-#: the northing and the easting go. Consulted only for a file read in a
-#: projected system - in a geochemistry table, P is phosphorus.
-GRID_LAT_CANDIDATES = ["p"]
-GRID_LON_CANDIDATES = ["m"]
+#: What a grid's two axes are called, in the order tried. Northing and
+#: Easting, which nothing else is called; Y and X; and the names a Portuguese
+#: military sheet gives its grid - P, the distance to the Perpendicular, is
+#: the northing, and M, the distance to the Meridiana, the easting. They sit
+#: in the latitude and longitude slots because that is where the northing and
+#: the easting go.
+#:
+#: Consulted only for a file read in a projected system - in a geochemistry
+#: table, P is phosphorus - and there they come before the names of the
+#: degrees: a list of geodetic marks gives each one as Latitude and Longitude
+#: and as M and P, side by side, and a file read in a grid wants the metres.
+GRID_LAT_CANDIDATES = ["northing", "y", "p"]
+GRID_LON_CANDIDATES = ["easting", "x", "m"]
+
+# A unit written after a name - "Easting (m)", "Latitude (° ' '')" - is not
+# part of the name. Only units a coordinate is written in: "Y (ppm)" keeps
+# its own, because that column is yttrium and not a northing.
+_UNIT_SUFFIX_RE = re.compile(
+    r"\s*[(\[]\s*(?:m|km|metros|metres|meters|graus|deg|degrees|gms|dms|dd|[°º'\"′″\s]+)\s*[)\]]\s*$",
+    re.IGNORECASE,
+)
+
+#: What a column of angles is called, for an angle split across cells.
+_ANGLE_NAMES = frozenset({"latitude", "longitude", "lat", "lon", "long"})
+
+
+def _column_key(name) -> str:
+    """A column name as the candidate lists write it: lower case, no unit."""
+    return _UNIT_SUFFIX_RE.sub("", str(name)).strip().lower()
 
 
 def parse_coordinate(value) -> Optional[float]:
@@ -308,17 +330,18 @@ def guess_coordinate_columns(columns, rows, mask=None, projected=False):
     one of those is a latitude between 10 and 27 degrees - and otherwise by
     magnitude and column order.
 
-    ``projected`` says the file is being read in a grid, which adds the
-    military sheet's M and P to the names tried - after X and Y, so a file that
-    has both is read by the plainer pair. Without it, a table typed off a
+    ``projected`` says the file is being read in a grid, which puts a grid's
+    own names first - Northing and Easting, then Y and X, then the military
+    sheet's P and M - ahead of Latitude and Longitude, so a file that gives
+    each point in degrees and in metres is read by the metres. Without it, a table typed off a
     1:25000 sheet with a column for the sheet number had that column taken for
     the northing.
 
     Falls back to the first two columns, which is what it did before, when
     neither the names nor the values are any use.
     """
-    lat_names = LAT_CANDIDATES + GRID_LAT_CANDIDATES if projected else LAT_CANDIDATES
-    lon_names = LON_CANDIDATES + GRID_LON_CANDIDATES if projected else LON_CANDIDATES
+    lat_names = GRID_LAT_CANDIDATES + LAT_CANDIDATES if projected else LAT_CANDIDATES
+    lon_names = GRID_LON_CANDIDATES + LON_CANDIDATES if projected else LON_CANDIDATES
     by_name_lat = _named_column(columns, lat_names)
     by_name_lon = _named_column(columns, lon_names)
     if by_name_lat is not None and by_name_lon is not None and by_name_lat != by_name_lon:
@@ -351,8 +374,11 @@ def guess_coordinate_columns(columns, rows, mask=None, projected=False):
 
 
 def _named_column(columns, candidates):
-    """Index of the first column whose name matches a candidate, or None."""
-    lowered = [str(c).lower() for c in columns]
+    """Index of the first column whose name matches a candidate, or None.
+
+    A unit after the name does not count: ``Easting (m)`` is ``easting``.
+    """
+    lowered = [_column_key(c) for c in columns]
     for candidate in candidates:
         if candidate.lower() in lowered:
             return lowered.index(candidate.lower())
@@ -525,10 +551,17 @@ def tidy_table(df: pd.DataFrame) -> pd.DataFrame:
     - When a blank first line was mistaken for the header (so every column is
       named ``Unnamed: N``), the first surviving row is promoted to be the
       header.
+    - Title lines above the header - ``Ilha da MADEIRA``, ``Sistema de
+      Referência: ...`` - are set aside, and so is a row of group headings
+      over the real one (see :func:`_title_rows`, :func:`_group_row`).
     - When the header takes two rows - ``COORDENADAS`` over ``M`` and ``P`` -
       the second is read as part of it (see :func:`_second_header_row`). Each
       column is named by its lower label, or by its upper one where it has
-      none, and a repeat gains a ``.1``.
+      none; a lower label that repeats is said with its upper one, and a
+      repeat that remains gains a ``.1``.
+    - An angle written across cells - degrees, minutes, seconds and the
+      hemisphere letter, each in its own column under one merged heading - is
+      put back together as one coordinate (see :func:`_join_split_angles`).
 
     Decimal commas inside the data (``"33,6603"``) are left as-is;
     :func:`parse_coordinate` already understands them.
@@ -550,33 +583,15 @@ def tidy_table(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df.reset_index(drop=True)
 
-    # If no column carries a real name, the header is the first row of data.
-    if all(_is_placeholder_name(c) for c in df.columns):
-        header = df.iloc[0]
-        df = df.iloc[1:].copy()
-        # A promoted header cell may itself be blank. ``str(NaN)`` would name the
-        # column "nan", and two such cells would collide into duplicate names,
-        # which silently breaks column selection downstream. Give them distinct
-        # positional names and let the drop below remove those carrying no data.
-        df.columns = [
-            str(h).strip() if not _is_placeholder_name(h) else f"Column {i + 1}"
-            for i, h in enumerate(header)
-        ]
-        df = df.dropna(axis=1, how="all")
-    elif _second_header_row(df):
-        labels = [None if pd.isna(v) else str(v).strip() for v in df.iloc[0]]
-        names = [label or str(name) for label, name in zip(labels, df.columns)]
-        seen: dict = {}
-        unique = []
-        for name in names:
-            count = seen.get(name, 0)
-            seen[name] = count + 1
-            unique.append(name if count == 0 else f"{name}.{count}")
-        df = df.iloc[1:].copy()
-        df.columns = unique
-        df = df.dropna(axis=1, how="all")
-
-    return df.reset_index(drop=True)
+    names, rows = _resolve_header(
+        [str(c) for c in df.columns],
+        [[None if pd.isna(v) else v for v in row] for row in df.itertuples(index=False, name=None)],
+    )
+    # Blank cells go back as NaN, in the dtype the reader chose, as they left.
+    kinds = set(df.dtypes)
+    out = pd.DataFrame([[np.nan if v is None else v for v in row] for row in rows],
+                       columns=names, dtype=kinds.pop() if len(kinds) == 1 else object)
+    return out.dropna(axis=1, how="all").reset_index(drop=True)
 
 
 #: Rows looked at below a second header row, to see what its labels stand over.
@@ -584,8 +599,143 @@ _HEADER_LOOKAHEAD = 50
 
 _DIGIT_RE = re.compile(r"[0-9]")
 
+# A cell that is a number as a table writes one: a decimal point or a comma.
+_PLAIN_NUMBER_RE = re.compile(r"^[+-]?(?:[0-9]+(?:[.,][0-9]*)?|[.,][0-9]+)$")
 
-def _second_header_row(df: pd.DataFrame) -> bool:
+
+def _text(cell) -> Optional[str]:
+    """A cell as stripped text, or None when it is blank."""
+    if cell is None:
+        return None
+    s = str(cell).strip()
+    return s or None
+
+
+def _count(row) -> int:
+    return sum(1 for cell in row if _text(cell))
+
+
+def _has_number(row) -> bool:
+    return any(_PLAIN_NUMBER_RE.match(_text(cell)) for cell in row if _text(cell))
+
+
+def _resolve_header(names: list, rows: list):
+    """The column names a table really has, and the rows that are its data.
+
+    ``names`` are the names the reader gave the columns - the file's first row,
+    with ``Unnamed: N`` for an empty cell - and ``rows`` the rows below, blank
+    cells as None, with the empty rows and columns already gone. What comes
+    back is the same table with its header found: title lines set aside, a
+    header in the rows promoted, a second header row merged, split angles
+    joined. Each step is strict about when it applies, because every one of
+    them, applied to a table that only resembles its case, would rename the
+    columns and lose a row of data. Mirrors resolveHeader() in converter.js.
+    """
+    blank = [_is_placeholder_name(n) for n in names]
+    width = len(names)
+
+    # Title lines: above the header, one cell to a row.
+    named_row = [] if all(blank) else [[None if b else n for n, b in zip(names, blank)]]
+    titles = _title_rows(named_row + rows[:_HEADER_LOOKAHEAD], width)
+    if titles:
+        rows = rows[titles - len(named_row):]
+        blank = [True] * width
+
+    # No name at all: the header is the first row of data - under a row of
+    # group headings, when there is one.
+    if all(blank) and rows:
+        if _group_row(rows):
+            rows = rows[1:]
+        header, rows = [_text(h) for h in rows[0]], rows[1:]
+        # A promoted header cell may itself be blank. Naming it "nan" would
+        # collide two such cells into one name, which silently breaks column
+        # selection downstream; each gets a positional name instead.
+        blank = [h is None or _is_placeholder_name(h) for h in header]
+        names = [f"Column {i + 1}" if b else h for i, (h, b) in enumerate(zip(header, blank))]
+        names, blank, rows = _drop_empty_columns(names, blank, rows)
+
+    if _second_header_row(names, blank, rows):
+        labels, rows = [_text(v) for v in rows[0]], rows[1:]
+        repeated = {label for label in labels if label and labels.count(label) > 1}
+        merged = []
+        for label, name, b in zip(labels, names, blank):
+            if label is None:
+                merged.append(name)
+            elif label in repeated and not b:
+                merged.append(f"{name} {label}")
+            else:
+                merged.append(label)
+        blank = [b and label is None for label, b in zip(labels, blank)]
+        names, blank, rows = _drop_empty_columns(merged, blank, rows)
+
+    names, blank, rows = _join_split_angles(names, blank, rows)
+
+    seen: dict = {}
+    unique = []
+    for name in names:
+        count = seen.get(name, 0)
+        seen[name] = count + 1
+        unique.append(name if count == 0 else f"{name}.{count}")
+    return unique, rows
+
+
+def _drop_empty_columns(names, blank, rows):
+    keep = [i for i in range(len(names)) if any(_text(row[i]) for row in rows)]
+    return ([names[i] for i in keep], [blank[i] for i in keep],
+            [[row[i] for i in keep] for row in rows])
+
+
+def _title_rows(top: list, width: int) -> int:
+    """How many rows at the top of a table are titles above its header.
+
+    An official table rarely starts with its header: ``Ilha da MADEIRA``,
+    ``Sistema de Referência: ITRF 93`` come first, one cell to a row, and read
+    as written they become the header and the real one a row of data. They are
+    counted as titles only when what follows says so: a table at least three
+    columns wide, then a row of two or more labels with no number in it, then
+    data - a number - within three rows. A file whose one named column sits
+    directly over its data is a table with one name, and is left alone.
+    """
+    if width < 3:
+        return 0
+    count = 0
+    while count < len(top) and _count(top[count]) == 1:
+        count += 1
+    if count == 0 or count >= len(top):
+        return 0
+    labels = top[count]
+    if _count(labels) < 2 or _has_number(labels):
+        return 0
+    if not any(_has_number(row) for row in top[count + 1:count + 4]):
+        return 0
+    return count
+
+
+def _group_row(rows: list) -> bool:
+    """Whether the first row is a row of group headings over the real header.
+
+    ``Coordenadas Geodésicas`` over Latitude and Longitude, ``Coordenadas
+    Cartográficas`` over Easting and Northing: a heading for each group of
+    columns, and under it the row that names them. It says nothing the names
+    below do not, so it is set aside - when every heading stands over a name,
+    the names are at least twice as many and have no digit in them, neither
+    row holds a number, and data follows within three rows.
+    """
+    if len(rows) < 3:
+        return False
+    group, below = [_text(v) for v in rows[0]], [_text(v) for v in rows[1]]
+    headed = [i for i, v in enumerate(group) if v]
+    named = [i for i, v in enumerate(below) if v]
+    if not headed or _has_number(group) or _has_number(below):
+        return False
+    if any(_DIGIT_RE.search(below[i]) for i in named):
+        return False
+    if not all(below[i] for i in headed) or 2 * len(headed) > len(named):
+        return False
+    return any(_has_number(row) for row in rows[2:5])
+
+
+def _second_header_row(names: list, blank: list, rows: list) -> bool:
     """Whether the first row of data is the lower half of a two-row header.
 
     A table typed from a register often heads its columns in two rows: a cell
@@ -605,26 +755,98 @@ def _second_header_row(df: pd.DataFrame) -> bool:
     - it is blank under a named header whose column has values below: a header
       merged down through both rows;
     - below one of its labels, most values have digits: labels over data.
+
+    ``blank`` says which names are no name at all - the reader's
+    ``Unnamed: N``, or the positional name given to a blank promoted cell.
     """
-    if len(df) < 2:
+    if len(rows) < 2:
         return False
-    names = list(df.columns)
-    first = [None if pd.isna(v) else str(v).strip() for v in df.iloc[0]]
-    below = df.iloc[1:1 + _HEADER_LOOKAHEAD]
+    first = [_text(v) for v in rows[0]]
+    below = rows[1:1 + _HEADER_LOOKAHEAD]
 
     def filled(i):
-        return [str(v) for v in below.iloc[:, i] if not pd.isna(v)]
+        return [_text(row[i]) for row in below if _text(row[i])]
 
     labels = [i for i, v in enumerate(first) if v]
     if not labels or any(_DIGIT_RE.search(first[i]) for i in labels):
         return False
-    if not any(_is_placeholder_name(names[i]) for i in labels):
+    if not any(blank[i] for i in labels):
         return False
-    if not any(not first[i] and not _is_placeholder_name(names[i]) and filled(i)
-               for i in range(len(names))):
+    if not any(not first[i] and not blank[i] and filled(i) for i in range(len(names))):
         return False
     return any(0 < len(filled(i)) <= 2 * sum(bool(_DIGIT_RE.search(v)) for v in filled(i))
                for i in labels)
+
+
+_WHOLE_RE = re.compile(r"^[+-]?[0-9]{1,3}(?:[.,]0+)?$")
+_HEMISPHERES = frozenset("NSEWOL")
+
+
+def _join_split_angles(names: list, blank: list, rows: list):
+    """Put back together an angle written across cells.
+
+    A list of geodetic marks writes ``32 | 47 | 35.39765 | N`` under one
+    merged heading, ``Latitude (° ' '')``: degrees, minutes, seconds and the
+    hemisphere, a column each, and only the first of them named. Nothing reads
+    a coordinate out of four columns. They are joined into the one the heading
+    names - ``32° 47' 35.39765" N`` - when the columns after the first carry no
+    name of their own and every row that has the three has whole degrees to
+    180, whole minutes under 60 and seconds under 60. Three such columns of
+    small numbers can be other things, so there must also be a column of
+    hemisphere letters after them, or a first column called latitude or
+    longitude.
+    """
+    i = 0
+    while i + 2 < len(names):
+        parts = _split_angle_at(names, blank, rows, i)
+        if parts is None:
+            i += 1
+            continue
+        joined = []
+        for row in rows:
+            cells = [_text(row[i + k]) for k in range(parts)]
+            if cells[0] is None:
+                joined.append(None)
+                continue
+            degrees = cells[0].split(".")[0].split(",")[0]
+            minutes = cells[1].split(".")[0].split(",")[0]
+            text = f"{degrees}° {minutes}' {cells[2]}\""
+            joined.append(f"{text} {cells[3].upper()}" if parts == 4 and cells[3] else text)
+        rows = [row[:i] + [value] + row[i + parts:] for row, value in zip(rows, joined)]
+        names = names[:i + 1] + names[i + parts:]
+        blank = blank[:i + 1] + blank[i + parts:]
+        i += 1
+    return names, blank, rows
+
+
+def _split_angle_at(names, blank, rows, i):
+    """3 or 4 when columns i.. are one angle split across cells, else None."""
+    if not (blank[i + 1] and blank[i + 2]):
+        return None
+    complete = 0
+    for row in rows:
+        d, m, s = (_text(row[i + k]) for k in range(3))
+        if d is None and m is None and s is None:
+            continue
+        if d is None or m is None or s is None:
+            return None
+        if not (_WHOLE_RE.match(d) and _WHOLE_RE.match(m) and _PLAIN_NUMBER_RE.match(s)):
+            return None
+        if abs(int(d.split(".")[0].split(",")[0])) > 180 or not 0 <= int(m.split(".")[0].split(",")[0]) < 60:
+            return None
+        if not 0 <= float(s.replace(",", ".")) < 60:
+            return None
+        complete += 1
+    if complete == 0:
+        return None
+    lettered = False
+    if i + 3 < len(names) and blank[i + 3]:
+        letters = [(_text(row[i]), _text(row[i + 3])) for row in rows]
+        lettered = (all((d is None) == (h is None) for d, h in letters)
+                    and all(h.upper() in _HEMISPHERES for _, h in letters if h))
+    if lettered:
+        return 4
+    return 3 if _column_key(names[i]) in _ANGLE_NAMES else None
 
 
 # ---------------------------------------------------------------------------

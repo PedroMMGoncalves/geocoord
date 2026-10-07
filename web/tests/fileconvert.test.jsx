@@ -612,3 +612,29 @@ describe('the sheet of each point', () => {
     expect(props[6].Folha_25k).toBe('')
   })
 })
+
+describe('a workbook that is not what its name says', () => {
+  // The synthetic workbooks of scripts/make_workbook_fixtures.mjs.
+  const drop = async (fixture, name) => {
+    const { readFileSync } = await import('node:fs')
+    // Concatenated, so the bundler does not take the folder for assets to import.
+    const bytes = readFileSync(new URL('../../tests/fixtures/' + fixture, import.meta.url))
+    const input = document.querySelector('input[type=file]')
+    Object.defineProperty(input, 'files', { value: [new File([bytes], name)], configurable: true })
+    fireEvent.change(input)
+  }
+
+  it('opens one Office encrypted with its default password', async () => {
+    show()
+    await drop('workbook_default_password.xlsx', 'marcos.xlsx')
+    await waitFor(() => expect(document.getElementById('card-3-h')).toBeTruthy(), { timeout: 8000 })
+    expect(document.querySelector('.notice.error')).toBeNull()
+  })
+
+  it('says what to do about one with its owner\'s password', async () => {
+    show()
+    await drop('workbook_own_password.xlsx', 'privado.xlsx')
+    await waitFor(() => expect(screen.getByText(/protegido com palavra-passe/)).toBeTruthy(), { timeout: 8000 })
+    expect(document.getElementById('card-3-h')).toBeNull()
+  })
+})

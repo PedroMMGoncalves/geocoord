@@ -510,6 +510,10 @@ export default function FileConvert() {
       }))
       return
     }
+    if (e?.code === 'protected') {
+      setError(t('file.errProtected'))
+      return
+    }
     setError(t('file.errRead', { message: e?.message ?? String(e) }))
   }, [clearLoaded, t])
 

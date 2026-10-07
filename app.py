@@ -33,7 +33,12 @@ from geocoord.geoexport import (
 from geocoord import crs
 from geocoord.georead import is_geospatial, read_geospatial_bytes
 from geocoord.provenance import provenance
-from geocoord.reader import read_csv_bytes, read_excel_bytes, workbook_sheets
+from geocoord.reader import (
+    WorkbookProtected,
+    read_csv_bytes,
+    read_excel_bytes,
+    workbook_sheets,
+)
 
 APP_NAME = "GeoCoord"
 ACCENT = "#1f7a4d"  # accent colour — replace with an official LNEG colour if desired
@@ -754,6 +759,11 @@ with tab_file:
                     sheet = st.selectbox("Sheet", sheets)
                     sheet_read = sheet
                 df = read_excel_bytes(data, name, sheet)
+        except WorkbookProtected:
+            st.error("This workbook is protected with a password, so it cannot be "
+                     "read here. Open it in Excel, enter the password, and save a "
+                     "copy without one.")
+            st.stop()
         except Exception as e:
             st.error(f"Could not read the file: {e}")
             st.stop()

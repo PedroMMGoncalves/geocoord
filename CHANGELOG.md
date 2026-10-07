@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **An official table is read as it is published.** DGT's lists of geodetic
+  marks - title lines above the header, a row of group headings, a header in
+  three rows, each angle across four cells, a note under the table - opened
+  with every column unnamed and the titles for data. Titles above the header
+  are set aside, and a row of group headings with them; an angle written as
+  degrees, minutes, seconds and hemisphere in separate cells is joined into one
+  coordinate; a lower label that repeats is said with its upper one
+  (`Alt. Elipsoidal (m) topo do marco`). `Easting` and `Northing` are
+  recognised, and a unit after a name - `Easting (m)` - is not part of it. Each
+  applies only when the table says so in several ways at once. All three of
+  DGT's lists now open as published in both applications: 8 480 marks, whose
+  published degrees convert onto their published metres to 0.05 mm in the
+  Azores, 3.5 mm in Madeira and 1.2 cm on the mainland.
+- **Workbooks Office encrypted with its own default password are opened.**
+  Saved with some kinds of protection, a workbook is encrypted with a password
+  Excel tries without asking, and to a library it is not a workbook: the
+  desktop said "File is not a zip file" and the page "File is
+  password-protected". DGT's list for the Azores is one. They are decrypted
+  (ECMA-376 Standard Encryption, written out in both languages and held to the
+  published AES and SHA-1 vectors) and read. A workbook with a password of its
+  owner's stays closed, and both applications now say what to do about it
+  instead of quoting a library.
+
 - **The web application works without a network** once it has been opened.
   On the first visit it keeps a copy of itself - code, libraries, DGT's
   grids, fonts, 3.4 MB - and says so; from then on it opens, converts, checks
@@ -23,9 +46,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- In a projected system, a grid's names come before the degrees': `Northing`,
+  `Y`, `P` and `Easting`, `X`, `M` are tried ahead of `Latitude` and
+  `Longitude`. A table that gives each point both ways - as lists of geodetic
+  marks do - was read by its degrees, as metres.
+- On the desktop, a workbook is read as what it is rather than as what it is
+  called: an `.xls` named `.xlsx`, or the reverse, opens.
 - `Folha_coordenadas`, written by 1.2.0 when the file had a sheet column, is
   `Folha_25k` now, beside `Folha_50k` and `Nome_50k`. A file written by 1.2.0
   and read back has it removed with the other derived columns.
+
+### Fixed
+
+- A header in two rows under a blank first line was not merged: the first row
+  was promoted to header and the second stayed a row of data, because the two
+  repairs excluded each other.
 
 ## [1.2.0] - 2026-10-03
 

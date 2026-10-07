@@ -20,6 +20,9 @@
  * rules on the list of things the two implementations have to agree about.
  */
 import Papa from 'papaparse'
+import { WorkbookProtected, openPackage } from './officecrypt.js'
+
+export { WorkbookProtected }
 
 /**
  * SheetJS, loaded the first time a workbook actually turns up.
@@ -239,13 +242,34 @@ export function readCsvBytes(bytes, options = {}) {
 }
 
 /**
+ * A workbook parsed by SheetJS, whatever stood between it and its bytes.
+ *
+ * A workbook Office encrypted with its own default password is an OLE2
+ * container to a library, and SheetJS refuses it as "password-protected"
+ * though Excel opens it without asking. The workbook is taken out first
+ * (officecrypt.js) and read. One its owner gave a password stays closed, and
+ * whichever of the two says so, it is said as WorkbookProtected, which the
+ * interface answers in its own words. Mirrors open_workbook() in reader.py.
+ */
+async function openWorkbook(bytes, options) {
+  const XLSX = await loadSheetJs()
+  const raw = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+  const plain = openPackage(raw, XLSX.CFB) ?? bytes
+  await checkWorkbookSize(plain)
+  try {
+    return XLSX.read(plain, { type: 'array', ...options })
+  } catch (e) {
+    if (/password/i.test(e?.message ?? '')) throw new WorkbookProtected()
+    throw e
+  }
+}
+
+/**
  * The sheet names in a workbook, in book order.
  * Accepts the bytes of an .xlsx, .xls or any other format SheetJS reads.
  */
 export async function workbookSheets(bytes) {
-  await checkWorkbookSize(bytes)
-  const XLSX = await loadSheetJs()
-  return XLSX.read(bytes, { type: 'array', bookSheets: true }).SheetNames
+  return (await openWorkbook(bytes, { bookSheets: true })).SheetNames
 }
 
 /**
@@ -288,9 +312,8 @@ function cellText(cell) {
  * Asynchronous because SheetJS is fetched on demand; see loadSheetJs.
  */
 export async function readWorkbook(bytes, sheetName = null) {
-  await checkWorkbookSize(bytes)
   const XLSX = await loadSheetJs()
-  const book = XLSX.read(bytes, { type: 'array', cellDates: true, cellNF: true })
+  const book = await openWorkbook(bytes, { cellDates: true, cellNF: true })
   const name = sheetName ?? book.SheetNames[0]
   const sheet = book.Sheets[name]
   if (!sheet || !sheet['!ref']) return { columns: [], rows: [] }

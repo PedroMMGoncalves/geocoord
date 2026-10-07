@@ -879,6 +879,93 @@
   },
   "guess_coordinate_columns": [
     {
+      "id": "degrees_and_metres_side_by_side_read_as_degrees",
+      "columns": [
+        "VG",
+        "M (m)",
+        "P (m)",
+        "Latitude (º ' \")",
+        "Longitude  (º ' \")"
+      ],
+      "rows": [
+        [
+          "MARCO UM",
+          "-38000.10",
+          "261500.20",
+          "42° 1' 20.5\" N",
+          "8° 35' 36.25\" W"
+        ],
+        [
+          "MARCO UM",
+          "-38000.10",
+          "261500.20",
+          "42° 1' 20.5\" N",
+          "8° 35' 36.25\" W"
+        ],
+        [
+          "MARCO UM",
+          "-38000.10",
+          "261500.20",
+          "42° 1' 20.5\" N",
+          "8° 35' 36.25\" W"
+        ],
+        [
+          "MARCO UM",
+          "-38000.10",
+          "261500.20",
+          "42° 1' 20.5\" N",
+          "8° 35' 36.25\" W"
+        ]
+      ],
+      "mask": [],
+      "projected": false,
+      "expected": [
+        3,
+        4
+      ]
+    },
+    {
+      "id": "a_unit_that_is_not_a_coordinates_stays_in_the_name",
+      "columns": [
+        "Amostra",
+        "Y (ppm)",
+        "lat",
+        "lon"
+      ],
+      "rows": [
+        [
+          "S-1",
+          "31",
+          "38.7",
+          "-9.1"
+        ],
+        [
+          "S-1",
+          "31",
+          "38.7",
+          "-9.1"
+        ],
+        [
+          "S-1",
+          "31",
+          "38.7",
+          "-9.1"
+        ],
+        [
+          "S-1",
+          "31",
+          "38.7",
+          "-9.1"
+        ]
+      ],
+      "mask": [],
+      "projected": false,
+      "expected": [
+        2,
+        3
+      ]
+    },
+    {
       "id": "names_win_when_they_are_good",
       "columns": [
         "nome",
@@ -1320,6 +1407,93 @@
       "expected": [
         0,
         1
+      ]
+    },
+    {
+      "id": "degrees_and_metres_side_by_side_read_in_a_grid",
+      "columns": [
+        "VG",
+        "M (m)",
+        "P (m)",
+        "Latitude (º ' \")",
+        "Longitude  (º ' \")"
+      ],
+      "rows": [
+        [
+          "MARCO UM",
+          "-38000.10",
+          "261500.20",
+          "42° 1' 20.5\" N",
+          "8° 35' 36.25\" W"
+        ],
+        [
+          "MARCO DOIS",
+          "-36600.30",
+          "268100.40",
+          "42° 4' 53.4\" N",
+          "8° 34' 31.2\" W"
+        ],
+        [
+          "MARCO TRÊS",
+          "-30000.12",
+          "250000.34",
+          "41° 55' 7.1\" N",
+          "8° 29' 43.9\" W"
+        ],
+        [
+          "MARCO QUATRO",
+          "-25000.56",
+          "240000.78",
+          "41° 49' 43.0\" N",
+          "8° 26' 7.3\" W"
+        ]
+      ],
+      "mask": [],
+      "projected": true,
+      "expected": [
+        2,
+        1
+      ]
+    },
+    {
+      "id": "easting_and_northing_with_their_unit",
+      "columns": [
+        "Marco",
+        "Latitude (º ' '')",
+        "Easting (m)",
+        "Northing (m)"
+      ],
+      "rows": [
+        [
+          "MARCO UM",
+          "42° 1' 20.5\" N",
+          "-38000.10",
+          "261500.20"
+        ],
+        [
+          "MARCO DOIS",
+          "42° 4' 53.4\" N",
+          "-36600.30",
+          "268100.40"
+        ],
+        [
+          "MARCO TRÊS",
+          "41° 55' 7.1\" N",
+          "-30000.12",
+          "250000.34"
+        ],
+        [
+          "MARCO QUATRO",
+          "41° 49' 43.0\" N",
+          "-25000.56",
+          "240000.78"
+        ]
+      ],
+      "mask": [],
+      "projected": true,
+      "expected": [
+        3,
+        2
       ]
     },
     {
@@ -6690,6 +6864,551 @@
             "A",
             "252520",
             "315150"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "titles_above_the_header",
+      "table": {
+        "columns": [
+          "Unnamed: 0",
+          "Unnamed: 1",
+          "Unnamed: 2",
+          "Unnamed: 3"
+        ],
+        "rows": [
+          [
+            "Lista de pontos",
+            null,
+            null,
+            null
+          ],
+          [
+            "Sistema de referência: ETRS89",
+            null,
+            null,
+            null
+          ],
+          [
+            "Ponto",
+            "X",
+            "Y",
+            "Cota"
+          ],
+          [
+            "A-1",
+            "1000.5",
+            "2000.5",
+            "10"
+          ],
+          [
+            "A-2",
+            "1100.5",
+            "2100.5",
+            "12"
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [
+          "Ponto",
+          "X",
+          "Y",
+          "Cota"
+        ],
+        "rows": [
+          [
+            "A-1",
+            "1000.5",
+            "2000.5",
+            "10"
+          ],
+          [
+            "A-2",
+            "1100.5",
+            "2100.5",
+            "12"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "title_in_the_first_line",
+      "table": {
+        "columns": [
+          "Lista de pontos 2021",
+          "Unnamed: 1",
+          "Unnamed: 2"
+        ],
+        "rows": [
+          [
+            "Ponto",
+            "X",
+            "Y"
+          ],
+          [
+            "A-1",
+            "1000.5",
+            "2000.5"
+          ],
+          [
+            "A-2",
+            "1100.5",
+            "2100.5"
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [
+          "Ponto",
+          "X",
+          "Y"
+        ],
+        "rows": [
+          [
+            "A-1",
+            "1000.5",
+            "2000.5"
+          ],
+          [
+            "A-2",
+            "1100.5",
+            "2100.5"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "one_name_over_data_is_not_a_title",
+      "table": {
+        "columns": [
+          "Condenadas",
+          "Unnamed: 1",
+          "Unnamed: 2"
+        ],
+        "rows": [
+          [
+            "18 55 18",
+            "33 51 41",
+            "Aldeia A"
+          ],
+          [
+            "18 36 36",
+            "34 17 16",
+            "Aldeia B"
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [
+          "Condenadas",
+          "Unnamed: 1",
+          "Unnamed: 2"
+        ],
+        "rows": [
+          [
+            "18 55 18",
+            "33 51 41",
+            "Aldeia A"
+          ],
+          [
+            "18 36 36",
+            "34 17 16",
+            "Aldeia B"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "official_list_of_marks",
+      "table": {
+        "columns": [
+          "Unnamed: 0",
+          "Unnamed: 1",
+          "Unnamed: 2",
+          "Unnamed: 3",
+          "Unnamed: 4",
+          "Unnamed: 5",
+          "Unnamed: 6",
+          "Unnamed: 7",
+          "Unnamed: 8",
+          "Unnamed: 9",
+          "Unnamed: 10",
+          "Unnamed: 11",
+          "Unnamed: 12",
+          "Unnamed: 13"
+        ],
+        "rows": [
+          [
+            "Ilha de EXEMPLO",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            "Sistema de Referência: ITRF 93 (International Terrestrial Reference Frame 1993)",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            "Coordenadas Geodésicas (elipsóide GRS80)",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "Coordenadas Cartográficas - Projecção UTM / fuso 28",
+            null,
+            null,
+            null
+          ],
+          [
+            "Vértices Geodésicos",
+            "Latitude (º ' '')",
+            null,
+            null,
+            null,
+            "Longitude (º ' '')",
+            null,
+            null,
+            null,
+            "Alt. Elipsoidal (m)",
+            "Easting (m)",
+            "Northing (m)",
+            "Altitude Ortométrica (m)",
+            null
+          ],
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "topo do marco",
+            null,
+            null,
+            "topo do marco",
+            "base do marco"
+          ],
+          [
+            "MARCO UM",
+            "32",
+            "40",
+            "10.5",
+            "N",
+            "16",
+            "55",
+            "20.25",
+            "W",
+            "120.5",
+            "319000.125",
+            "3616000.25",
+            "70.2",
+            "68.9"
+          ],
+          [
+            "MARCO DOIS",
+            "32",
+            "45",
+            "0",
+            "N",
+            "17",
+            "3",
+            "7.5",
+            "W",
+            "1500",
+            "307000.5",
+            "3625000.75",
+            "1450.1",
+            "ND"
+          ],
+          [
+            "ND: Valor não disponível",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [
+          "Vértices Geodésicos",
+          "Latitude (º ' '')",
+          "Longitude (º ' '')",
+          "Alt. Elipsoidal (m) topo do marco",
+          "Easting (m)",
+          "Northing (m)",
+          "Altitude Ortométrica (m) topo do marco",
+          "base do marco"
+        ],
+        "rows": [
+          [
+            "MARCO UM",
+            "32° 40' 10.5\" N",
+            "16° 55' 20.25\" W",
+            "120.5",
+            "319000.125",
+            "3616000.25",
+            "70.2",
+            "68.9"
+          ],
+          [
+            "MARCO DOIS",
+            "32° 45' 0\" N",
+            "17° 3' 7.5\" W",
+            "1500",
+            "307000.5",
+            "3625000.75",
+            "1450.1",
+            "ND"
+          ],
+          [
+            "ND: Valor não disponível",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        ]
+      }
+    },
+    {
+      "id": "two_row_header_after_a_blank_line",
+      "table": {
+        "columns": [
+          "Unnamed: 0",
+          "Unnamed: 1",
+          "Unnamed: 2"
+        ],
+        "rows": [
+          [
+            "Ponto",
+            "COORDENADAS",
+            null
+          ],
+          [
+            null,
+            "M",
+            "P"
+          ],
+          [
+            "A-1",
+            "252520",
+            "315150"
+          ],
+          [
+            "A-2",
+            "257860",
+            "320210"
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [
+          "Ponto",
+          "M",
+          "P"
+        ],
+        "rows": [
+          [
+            "A-1",
+            "252520",
+            "315150"
+          ],
+          [
+            "A-2",
+            "257860",
+            "320210"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "split_angle_by_its_name",
+      "table": {
+        "columns": [
+          "Ponto",
+          "Latitude",
+          "Unnamed: 2",
+          "Unnamed: 3",
+          "Longitude",
+          "Unnamed: 5",
+          "Unnamed: 6"
+        ],
+        "rows": [
+          [
+            "A-1",
+            "38",
+            "42",
+            "30.5",
+            "-9",
+            "8",
+            "12.25"
+          ],
+          [
+            "A-2",
+            "38.0",
+            "0",
+            "0",
+            "-9",
+            "59",
+            "59,9"
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [
+          "Ponto",
+          "Latitude",
+          "Longitude"
+        ],
+        "rows": [
+          [
+            "A-1",
+            "38° 42' 30.5\"",
+            "-9° 8' 12.25\""
+          ],
+          [
+            "A-2",
+            "38° 0' 0\"",
+            "-9° 59' 59,9\""
+          ]
+        ]
+      }
+    },
+    {
+      "id": "small_numbers_are_not_an_angle",
+      "table": {
+        "columns": [
+          "Ponto",
+          "n",
+          "Unnamed: 2",
+          "Unnamed: 3"
+        ],
+        "rows": [
+          [
+            "A-1",
+            "12",
+            "30",
+            "5"
+          ],
+          [
+            "A-2",
+            "7",
+            "15",
+            "2"
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [
+          "Ponto",
+          "n",
+          "Unnamed: 2",
+          "Unnamed: 3"
+        ],
+        "rows": [
+          [
+            "A-1",
+            "12",
+            "30",
+            "5"
+          ],
+          [
+            "A-2",
+            "7",
+            "15",
+            "2"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "named_minutes_and_seconds_stay_apart",
+      "table": {
+        "columns": [
+          "Latitude",
+          "min",
+          "seg",
+          "h"
+        ],
+        "rows": [
+          [
+            "38",
+            "42",
+            "30.5",
+            "N"
+          ],
+          [
+            "39",
+            "0",
+            "0",
+            "N"
+          ]
+        ]
+      },
+      "expected": {
+        "columns": [
+          "Latitude",
+          "min",
+          "seg",
+          "h"
+        ],
+        "rows": [
+          [
+            "38",
+            "42",
+            "30.5",
+            "N"
+          ],
+          [
+            "39",
+            "0",
+            "0",
+            "N"
           ]
         ]
       }

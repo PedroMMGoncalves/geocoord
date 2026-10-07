@@ -39,6 +39,9 @@ import zipfile
 
 import pandas as pd
 
+from geocoord import officecrypt
+from geocoord.officecrypt import WorkbookProtected  # noqa: F401 - part of this module's interface
+
 # The separators the application offers, and the only ones worth guessing at.
 SEPARATORS = (",", ";", "\t", "|")
 
@@ -322,9 +325,36 @@ def excel_engine(name: str) -> str:
     """The pandas engine for a workbook, chosen by extension.
 
     ``.xlsx`` goes to openpyxl and everything else to xlrd, which is what reads
-    the legacy BIFF ``.xls`` files that still turn up in field data.
+    the legacy BIFF ``.xls`` files that still turn up in field data. The last
+    resort: :func:`open_workbook` goes by what the file is before it goes by
+    what it is called.
     """
     return "openpyxl" if name.lower().endswith(".xlsx") else "xlrd"
+
+
+_ZIP = b"PK\x03\x04"
+
+
+def open_workbook(data: bytes, name: str):
+    """A workbook's bytes as a reader can open them, and the engine to do it.
+
+    By what the file is, not by what it is called. An ``.xlsx`` is a zip and a
+    legacy ``.xls`` an OLE2 container, whatever the extension says - and a file
+    called ``.xlsx`` that Office encrypted is neither to a library: it is an
+    OLE2 container with the workbook inside. Chosen by extension, it went to
+    the zip reader and failed with "File is not a zip file". When the password
+    is Office's own default the workbook is taken out and read
+    (:mod:`geocoord.officecrypt`); when it is its owner's,
+    :class:`WorkbookProtected` says so.
+    """
+    package = officecrypt.open_package(data)
+    if package is not None:
+        data = package
+    if data[:4] == _ZIP:
+        return data, "openpyxl"
+    if data[:8] == officecrypt.OLE2:
+        return data, "xlrd"
+    return data, excel_engine(name)
 
 
 def _cell_text(value) -> str:
@@ -378,8 +408,9 @@ def check_workbook_size(data: bytes) -> None:
 
 def workbook_sheets(data: bytes, name: str) -> list[str]:
     """The sheet names of a workbook, in book order."""
+    data, engine = open_workbook(data, name)
     check_workbook_size(data)
-    return pd.ExcelFile(io.BytesIO(data), engine=excel_engine(name)).sheet_names
+    return pd.ExcelFile(io.BytesIO(data), engine=engine).sheet_names
 
 
 def read_excel_bytes(data: bytes, name: str, sheet=0) -> pd.DataFrame:
@@ -405,8 +436,9 @@ def read_excel_bytes(data: bytes, name: str, sheet=0) -> pd.DataFrame:
     different intermediate representations of the same workbook - and only
     attribute columns are affected; the coordinates agree.
     """
+    data, engine = open_workbook(data, name)
     check_workbook_size(data)
-    frame = pd.ExcelFile(io.BytesIO(data), engine=excel_engine(name)).parse(
+    frame = pd.ExcelFile(io.BytesIO(data), engine=engine).parse(
         sheet, dtype=object,
     )
     _check_cells(len(frame), len(frame.columns))

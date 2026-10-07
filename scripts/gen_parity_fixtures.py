@@ -438,6 +438,14 @@ UNSIGNED_REGION_INPUTS = [
 # "Condenadas" and "Unnamed: 2", and matching on names put the village name in
 # the latitude slot and called every row unreadable.
 GUESS_COLUMN_INPUTS = [
+    # Read as degrees, the same list is read by its degrees.
+    ("degrees_and_metres_side_by_side_read_as_degrees",
+     ["VG", "M (m)", "P (m)", "Latitude (º ' \")", "Longitude  (º ' \")"],
+     [["MARCO UM", "-38000.10", "261500.20", "42° 1' 20.5\" N", "8° 35' 36.25\" W"]] * 4, []),
+    # "Y (ppm)" is yttrium. Only a unit a coordinate is written in is dropped.
+    ("a_unit_that_is_not_a_coordinates_stays_in_the_name",
+     ["Amostra", "Y (ppm)", "lat", "lon"],
+     [["S-1", "31", "38.7", "-9.1"]] * 4, []),
     ("names_win_when_they_are_good",
      ["nome", "Latitude", "Longitude"],
      [["a", "38.7", "-9.1"]] * 4, []),
@@ -600,7 +608,19 @@ _SHEET_KM = [["282", "252.52", "315.15"], ["282", "252.76", "314.16"],
 _SHEET_M = [[f, str(round(float(m) * 1000)), str(round(float(p) * 1000))]
             for f, m, p in _SHEET_KM]
 
+# A list of geodetic marks gives each one twice, in degrees and in metres.
+_MARKS = [["MARCO UM", "-38000.10", "261500.20", "42° 1' 20.5\" N", "8° 35' 36.25\" W"],
+          ["MARCO DOIS", "-36600.30", "268100.40", "42° 4' 53.4\" N", "8° 34' 31.2\" W"],
+          ["MARCO TRÊS", "-30000.12", "250000.34", "41° 55' 7.1\" N", "8° 29' 43.9\" W"],
+          ["MARCO QUATRO", "-25000.56", "240000.78", "41° 49' 43.0\" N", "8° 26' 7.3\" W"]]
+_MARK_COLUMNS = ["VG", "M (m)", "P (m)", "Latitude (º ' \")", "Longitude  (º ' \")"]
+
 GUESS_GRID_COLUMN_INPUTS = [
+    # Read in a grid, the metres; a unit after the name is not part of it.
+    ("degrees_and_metres_side_by_side_read_in_a_grid", _MARK_COLUMNS, _MARKS, []),
+    ("easting_and_northing_with_their_unit",
+     ["Marco", "Latitude (º ' '')", "Easting (m)", "Northing (m)"],
+     [[r[0], r[3], r[1], r[2]] for r in _MARKS], []),
     ("grid_columns_named_m_and_p_in_kilometres", ["Folha", "M", "P"], _SHEET_KM, []),
     ("grid_columns_named_m_and_p_in_metres", ["Folha", "M", "P"], _SHEET_M, []),
     # X and Y are tried first, so a file with both pairs is read by the plainer.
@@ -979,6 +999,107 @@ TIDY_INPUTS = [
         "table": {
             "columns": ["Ponto", "COORDENADAS", "Unnamed: 2"],
             "rows": [[None, "M1", "P1"], ["A", "252520", "315150"]],
+        },
+    },
+    {
+        # An official list rarely starts with its header: the title lines come
+        # first, one cell to a row. Read as written, the first of them was the
+        # header and the real one a row of data.
+        "id": "titles_above_the_header",
+        "table": {
+            "columns": ["Unnamed: 0", "Unnamed: 1", "Unnamed: 2", "Unnamed: 3"],
+            "rows": [
+                ["Lista de pontos", None, None, None],
+                ["Sistema de referência: ETRS89", None, None, None],
+                ["Ponto", "X", "Y", "Cota"],
+                ["A-1", "1000.5", "2000.5", "10"],
+                ["A-2", "1100.5", "2100.5", "12"],
+            ],
+        },
+    },
+    {
+        # The same with nothing blank above: the title is the file's first
+        # line, so the reader took it for the header.
+        "id": "title_in_the_first_line",
+        "table": {
+            "columns": ["Lista de pontos 2021", "Unnamed: 1", "Unnamed: 2"],
+            "rows": [["Ponto", "X", "Y"], ["A-1", "1000.5", "2000.5"], ["A-2", "1100.5", "2100.5"]],
+        },
+    },
+    {
+        # One named column directly over its data is a table with one name,
+        # not a title: there is no row of labels under it.
+        "id": "one_name_over_data_is_not_a_title",
+        "table": {
+            "columns": ["Condenadas", "Unnamed: 1", "Unnamed: 2"],
+            "rows": [["18 55 18", "33 51 41", "Aldeia A"], ["18 36 36", "34 17 16", "Aldeia B"]],
+        },
+    },
+    {
+        # A list of geodetic marks as an authority publishes it, in everything
+        # but the marks and the numbers: titles, a row of group headings, the
+        # header, a third row under two of its cells, each angle across four
+        # cells, and a note under the table - which stays, as a row that will
+        # not convert, because nothing here removes a row from below a header.
+        "id": "official_list_of_marks",
+        "table": {
+            "columns": [f"Unnamed: {i}" for i in range(14)],
+            "rows": [
+                ["Ilha de EXEMPLO"] + [None] * 13,
+                ["Sistema de Referência: ITRF 93 (International Terrestrial Reference Frame 1993)"] + [None] * 13,
+                [None, "Coordenadas Geodésicas (elipsóide GRS80)", None, None, None, None, None, None, None,
+                 None, "Coordenadas Cartográficas - Projecção UTM / fuso 28", None, None, None],
+                ["Vértices Geodésicos", "Latitude (º ' '')", None, None, None, "Longitude (º ' '')", None, None, None,
+                 "Alt. Elipsoidal (m)", "Easting (m)", "Northing (m)", "Altitude Ortométrica (m)", None],
+                [None, None, None, None, None, None, None, None, None,
+                 "topo do marco", None, None, "topo do marco", "base do marco"],
+                ["MARCO UM", "32", "40", "10.5", "N", "16", "55", "20.25", "W",
+                 "120.5", "319000.125", "3616000.25", "70.2", "68.9"],
+                ["MARCO DOIS", "32", "45", "0", "N", "17", "3", "7.5", "W",
+                 "1500", "307000.5", "3625000.75", "1450.1", "ND"],
+                ["ND: Valor não disponível"] + [None] * 13,
+            ],
+        },
+    },
+    {
+        # A header in two rows under a blank first line. The two repairs used
+        # to exclude each other: the first row was promoted, and the second
+        # stayed a row of data.
+        "id": "two_row_header_after_a_blank_line",
+        "table": {
+            "columns": ["Unnamed: 0", "Unnamed: 1", "Unnamed: 2"],
+            "rows": [
+                ["Ponto", "COORDENADAS", None],
+                [None, "M", "P"],
+                ["A-1", "252520", "315150"],
+                ["A-2", "257860", "320210"],
+            ],
+        },
+    },
+    {
+        # An angle across three cells, with no hemisphere letter: joined
+        # because the column is called what an angle is called.
+        "id": "split_angle_by_its_name",
+        "table": {
+            "columns": ["Ponto", "Latitude", "Unnamed: 2", "Unnamed: 3", "Longitude", "Unnamed: 5", "Unnamed: 6"],
+            "rows": [["A-1", "38", "42", "30.5", "-9", "8", "12.25"], ["A-2", "38.0", "0", "0", "-9", "59", "59,9"]],
+        },
+    },
+    {
+        # Three columns of small numbers, the last two unnamed, are not an
+        # angle without something saying so.
+        "id": "small_numbers_are_not_an_angle",
+        "table": {
+            "columns": ["Ponto", "n", "Unnamed: 2", "Unnamed: 3"],
+            "rows": [["A-1", "12", "30", "5"], ["A-2", "7", "15", "2"]],
+        },
+    },
+    {
+        # Named minutes and seconds are columns of their own, and stay.
+        "id": "named_minutes_and_seconds_stay_apart",
+        "table": {
+            "columns": ["Latitude", "min", "seg", "h"],
+            "rows": [["38", "42", "30.5", "N"], ["39", "0", "0", "N"]],
         },
     },
     {

@@ -299,6 +299,26 @@ def test_the_second_system_survives_a_swap():
     assert table["WKT_3763"].notna().all()
 
 
+_WORKBOOKS = pathlib.Path(__file__).parent / "fixtures"
+_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def test_a_workbook_office_encrypted_with_its_default_password_opens():
+    # To Excel an ordinary workbook; chosen by its extension it went to the zip
+    # reader and the page said "File is not a zip file".
+    data = (_WORKBOOKS / "workbook_default_password.xlsx").read_bytes()
+    at = load(start(), "marcos.xlsx", data, _XLSX)
+    assert not at.error
+    convert(at)
+    assert metrics(at)["Total rows"] == "3"
+
+
+def test_a_workbook_with_its_owners_password_says_what_to_do():
+    data = (_WORKBOOKS / "workbook_own_password.xlsx").read_bytes()
+    at = load(start(), "privado.xlsx", data, _XLSX)
+    assert said(at, "error", r"protected with a password")
+
+
 def test_keeping_a_row_as_written_is_an_answer_too():
     # A user who has looked and decided the data is right must not be left
     # holding a page that will not give them the file.

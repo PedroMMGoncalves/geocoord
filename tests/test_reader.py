@@ -6,6 +6,7 @@ tests pin the Python side of the step before it; the shared cases live in
 tests/fixtures/parity.json under "read_csv".
 """
 import io
+import pathlib
 
 import pandas as pd
 import pytest
@@ -13,7 +14,9 @@ import pytest
 from geocoord.converter import tidy_table
 
 from geocoord.reader import (
+    WorkbookProtected,
     excel_engine,
+    open_workbook,
     read_csv_bytes,
     read_csv_text,
     read_excel_bytes,
@@ -265,3 +268,44 @@ def test_read_excel_reads_the_named_sheet():
     buf = io.BytesIO()
     wb.save(buf)
     assert list(read_excel_bytes(buf.getvalue(), "f.xlsx", "Dois").columns) == ["b"]
+
+
+# --- What a workbook is, whatever it is called ------------------------------
+# Three synthetic workbooks, written by scripts/make_workbook_fixtures.mjs,
+# each holding the same three made-up points in a form a reader chosen by file
+# extension gets wrong. The same files are read by the browser's tests.
+
+_FIXTURES = pathlib.Path(__file__).parent / "fixtures"
+_POINTS = [["A-1", "38.7", "-9.1"], ["A-2", "38.8", "-9.2"], ["A-3", "38.6", "-9"]]
+
+
+def test_a_workbook_office_encrypted_with_its_default_password_is_read():
+    # To Excel an ordinary workbook; to a library an OLE2 container, which the
+    # zip reader refused with "File is not a zip file". An official list of
+    # geodetic marks is published like this.
+    data = (_FIXTURES / "workbook_default_password.xlsx").read_bytes()
+    assert workbook_sheets(data, "marcos.xlsx") == ["pontos"]
+    frame = read_excel_bytes(data, "marcos.xlsx")
+    assert list(frame.columns) == ["Ponto", "Latitude", "Longitude"]
+    assert frame.values.tolist() == _POINTS
+
+
+def test_a_workbook_with_its_owners_password_stays_closed_and_says_so():
+    data = (_FIXTURES / "workbook_own_password.xlsx").read_bytes()
+    with pytest.raises(WorkbookProtected):
+        read_excel_bytes(data, "privado.xlsx")
+    with pytest.raises(WorkbookProtected):
+        workbook_sheets(data, "privado.xlsx")
+
+
+def test_a_legacy_workbook_called_xlsx_is_read_as_what_it_is():
+    data = (_FIXTURES / "workbook_legacy_named.xlsx").read_bytes()
+    assert open_workbook(data, "antigo.xlsx")[1] == "xlrd"
+    assert read_excel_bytes(data, "antigo.xlsx").values.tolist() == _POINTS
+
+
+def test_a_modern_workbook_called_xls_is_read_as_what_it_is():
+    buffer = io.BytesIO()
+    pd.DataFrame({"a": ["1"]}).to_excel(buffer, index=False)
+    assert open_workbook(buffer.getvalue(), "moderno.xls")[1] == "openpyxl"
+    assert read_excel_bytes(buffer.getvalue(), "moderno.xls").values.tolist() == [["1"]]

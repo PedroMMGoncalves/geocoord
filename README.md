@@ -197,6 +197,15 @@ service before release: the worst disagreement, on either side, was 0.6 mm.
 EPSG's own description of DGT's grid operations, run through PROJ's catalogue,
 gives the same answer to the micrometre.
 
+And they are held to what DGT publishes about the ground itself. Its three
+lists of geodetic marks - the mainland, Madeira and Porto Santo, the nine
+islands of the Azores - give each mark in degrees and in metres. Opened as
+published, 8 480 marks: the published degrees, converted here, land on the
+published metres to 0.05 mm at worst in the Azores, 3.5 mm in Madeira, and
+1.2 cm on the mainland, where the metres are published to the centimetre - for
+7 972 of its 7 973 marks. (The one left is the mark whose longitude the sheet
+check also questions; see [Map sheets](#map-sheets).)
+
 ETRS89 and PTRA08 are taken as WGS84, as EPSG's null transformations and DGT's
 own service do. The difference is under a metre and grows with time, and no
 file here carries the epoch it would need.
@@ -325,6 +334,13 @@ numbering as runs along each 10 km row, with the 28 sheets outside that pattern
 listed by cell. The 1:25 000 sheets carry no names. 494 of them were also
 located independently, from the geoportal's water points and the sheet each is
 filed under, and all 494 agree. `scripts/gen_sheet_index.py` rebuilds it.
+
+The 1:50 000 grid has a second witness. DGT's published list of the mainland's
+geodetic marks names the 1:50 000 sheet of each of its 7 973 marks: the grid
+here puts 7 963 of them in the sheet DGT names. Nine of the other ten are
+within 3.2 km of that sheet's edge, on the coast or the border, where a printed
+sheet runs past the regular grid; the tenth is a sheet's width away, by a
+longitude in the list that disagrees with the mark's own M by 52 km.
 
 **Every point's sheets, sheet column or not.** Any file with points on the
 mainland gains three columns, `Folha_25k`, `Folha_50k` and `Nome_50k`: the
@@ -455,7 +471,7 @@ application, and in JavaScript, for the browser. That is a translation, not a
 rewrite, and translations drift.
 
 So both are held to one frozen file,
-[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 303 cases across
+[`tests/fixtures/parity.json`](tests/fixtures/parity.json) — 315 cases across
 26 sections, read by pytest and by vitest alike. A divergence on any pinned
 case fails both suites, and CI additionally fails if the committed contract and
 its generator disagree.
@@ -524,6 +540,7 @@ geocoord/                 The engine, as an importable package
   geoexport.py            GeoJSON / KML / Shapefile / Excel writers
   crs.py                  Coordinate systems
   provenance.py           What a download records about where it came from
+  officecrypt.py          Workbooks Office encrypted with its default password
   crs_registry.json       The system definitions, read by both languages
   grids/                  DGT's NTv2 grids for Lisboa and Datum 73
 web/                      The browser application
@@ -537,6 +554,7 @@ tests/                    pytest suite
 scripts/gen_parity_fixtures.py   Regenerates it
 scripts/set_transformations.py   Sets DGT's transformations in the registry
 scripts/fetch_dgt_reference.py   Asks DGT's service again, deliberately
+scripts/make_workbook_fixtures.mjs   Writes the encrypted and misnamed test workbooks
 scripts/gen_sheet_index.py       Regenerates the sheet index from LNEG's services
 docs/superpowers/         Design note and phase plans
 ```
@@ -569,7 +587,28 @@ in the contract, so the desktop and the browser refuse the same files.
   resembles one is read as data. Columns named `X`/`Y`
   are recognised (`Y` = latitude, `X` = longitude). In a projected system, so
   are `M` and `P` — the military grid's distances to the *Meridiana* and the
-  *Perpendicular*, that is, the easting and the northing.
+  *Perpendicular*, that is, the easting and the northing — and `Easting` and
+  `Northing`, and there a grid's names come before `Latitude` and `Longitude`:
+  a table that gives each point in degrees and in metres is read by the metres.
+  A unit after a name is not part of it: `Easting (m)` is `Easting`. (`Y (ppm)`
+  keeps its own; that column is yttrium.)
+- **An official table is read as it is published.** Title lines above the
+  header — `Ilha da MADEIRA`, `Sistema de Referência: …` — are set aside, and so
+  is a row of group headings over the real header. An angle written across
+  cells — degrees, minutes, seconds and the hemisphere letter, each in its own
+  column under one merged heading — is put back together as one coordinate. A
+  note under the table stays, as a row that does not convert: nothing removes
+  a row from below a header. Each of these applies only when the table says
+  so in several ways at once, because each, applied to a table that merely
+  resembles its case, would rename the columns and lose a row of data.
+- **A workbook Excel opens and nothing else does.** A workbook saved with some
+  kinds of protection is encrypted with a password of Office's own, which
+  Excel tries without asking; to a library it is not a workbook at all, and
+  the error used to be "File is not a zip file". Those are opened. A workbook
+  with a password of its owner's stays closed, and the application says what
+  to do: open it in Excel and save a copy without one. And a workbook is read
+  as what it is, whatever its name says — an `.xls` called `.xlsx` is still
+  an `.xls`.
 - **Western longitudes have the wrong sign.** The source must carry `W`/`O` or a
   leading `-`. Without either, the sign cannot be inferred and the value is
   taken as East.
